@@ -253,6 +253,12 @@ end $$;
 revoke all on function public.deactivate_professional(uuid,text) from public,anon;
 grant execute on function public.deactivate_professional(uuid,text) to authenticated;
 
+create policy "professionals see their own active slots" on public.active_allocations for select
+to authenticated using(exists(select 1 from public.professional_applications app
+where app.id=application_id and app.user_id=(select auth.uid())));
+create policy "admins see all active slots" on public.active_allocations for select
+to authenticated using((select public.is_trustfive_admin()));
+
 -- Guard against privileged mistakes too: slot must match the eligible,
 -- verified application and its accepted, currently valid vacancy offer.
 create or replace function public.guard_active_allocation()
