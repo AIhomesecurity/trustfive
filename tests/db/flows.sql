@@ -36,7 +36,7 @@ do $$
 declare a record;v_trade uuid;v_area uuid;v_offer uuid;v_app uuid;v_user uuid;i int;
 begin
  for a in (select id from public.professional_applications order by id) loop
-  perform public.review_professional_application(a.id,true,25,20,12,12,8,4);
+  perform public.review_professional_application(a.id,true,25::smallint,20::smallint,12::smallint,12::smallint,8::smallint,4::smallint);
  end loop;
  select id into v_trade from public.trades where slug='plumbing';
  select id into v_area from public.service_areas where area_name='Central London';
@@ -130,7 +130,7 @@ do $$ begin
  end if;
  begin
   perform public.review_professional_application(
-   '00000000-0000-0000-0001-000000000006',true,25,20,12,12,8,4);
+   '00000000-0000-0000-0001-000000000006',true,25::smallint,20::smallint,12::smallint,12::smallint,8::smallint,4::smallint);
   raise exception 'Unauthorised admin approval succeeded';
  exception when insufficient_privilege then null;
  end;
