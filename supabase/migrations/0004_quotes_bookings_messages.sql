@@ -5,7 +5,7 @@ begin;
 create table public.job_quotes (
  id uuid primary key default gen_random_uuid(),
  job_id uuid not null references public.jobs(id) on delete cascade,
- professional_allocation_id uuid not null references public.active_allocations(id),
+ professional_allocation_id uuid references public.active_allocations(id) on delete set null,
  professional_id uuid not null references public.profiles(id),
  amount_pence bigint not null check(amount_pence between 100 and 1000000000),
  message text not null check(char_length(btrim(message)) between 10 and 3000),
@@ -49,7 +49,7 @@ create policy "quote participants read" on public.job_quotes for select
 to authenticated using ((select auth.uid())=professional_id or public.can_access_quote(id));
 create policy "verified professionals quote matching open jobs" on public.job_quotes for insert
 to authenticated with check(
-  status='pending' and professional_id=(select auth.uid())
+  status='pending' and professional_allocation_id is not null and professional_id=(select auth.uid())
   and public.can_quote_on_job(job_id,professional_allocation_id)
 );
 
@@ -171,8 +171,8 @@ as $$
    q.amount_pence,q.message,q.status,q.created_at
  from public.job_quotes q
  join public.jobs j on j.id=q.job_id
- join public.active_allocations a on a.id=q.professional_allocation_id
- join public.professional_applications ap on ap.id=a.application_id
+ left join public.active_allocations a on a.id=q.professional_allocation_id
+ left join public.professional_applications ap on ap.id=a.application_id
  where j.customer_id=auth.uid()
  order by q.created_at desc limit 150;
 $$;
