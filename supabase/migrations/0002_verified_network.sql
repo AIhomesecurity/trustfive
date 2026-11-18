@@ -140,6 +140,9 @@ begin
     raise exception 'Not authorised' using errcode='42501';
   end if;
   perform pg_advisory_xact_lock(hashtextextended(p_trade::text || ':' || p_area::text,0));
+  update public.vacancy_offers set status='expired'
+    where trade_id=p_trade and area_id=p_area and status in ('offered','accepted')
+      and expires_at<=now();
   if (select count(*) from public.active_allocations where trade_id=p_trade and area_id=p_area) >= 5 then
     raise exception 'No vacancy available';
   end if;
@@ -149,7 +152,7 @@ begin
     and a.status='eligible' and q.verification_state='verified'
     and not exists(select 1 from public.active_allocations s where s.application_id=a.id)
     and not exists(select 1 from public.vacancy_offers o where o.application_id=a.id
-      and (o.status='accepted' or (o.status='offered' and o.expires_at>now())))
+      and o.status in ('accepted','offered') and o.expires_at>now())
   order by q.quality_score desc,a.submitted_at asc,a.id asc
   limit 1;
   if v_app is null then raise exception 'No eligible waiting-list applicant'; end if;
@@ -249,6 +252,30 @@ begin
 end $$;
 revoke all on function public.deactivate_professional(uuid,text) from public,anon;
 grant execute on function public.deactivate_professional(uuid,text) to authenticated;
+
+-- Guard against privileged mistakes too: slot must match the eligible,
+-- verified application and its accepted, currently valid vacancy offer.
+create or replace function public.guard_active_allocation()
+returns trigger language plpgsql security definer set search_path=''
+as $
+begin
+  if not exists(
+    select 1 from public.professional_applications a
+    join public.professional_assessments q on q.application_id=a.id
+    join public.vacancy_offers v on v.application_id=a.id
+    where a.id=new.application_id and a.trade_id=new.trade_id
+      and a.area_id=new.area_id and a.status='eligible'
+      and q.verification_state='verified'
+      and v.trade_id=new.trade_id and v.area_id=new.area_id
+      and v.status in ('accepted','consumed')
+      and v.expires_at>now()
+  ) then
+    raise exception 'Allocation requires a matching, verified, accepted vacancy offer';
+  end if;
+  return new;
+end $;
+create trigger enforce_verified_active_slots before insert or update on public.active_allocations
+for each row execute function public.guard_active_allocation();
 
 -- Public directory returns deliberately limited information; never user contact info.
 create or replace function public.find_trustfive_professionals(p_trade uuid default null,p_area uuid default null)
