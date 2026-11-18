@@ -263,7 +263,7 @@ to authenticated using((select public.is_trustfive_admin()));
 -- verified application and its accepted, currently valid vacancy offer.
 create or replace function public.guard_active_allocation()
 returns trigger language plpgsql security definer set search_path=''
-as $
+as $$
 begin
   if not exists(
     select 1 from public.professional_applications a
@@ -279,7 +279,7 @@ begin
     raise exception 'Allocation requires a matching, verified, accepted vacancy offer';
   end if;
   return new;
-end $;
+end $$;
 create trigger enforce_verified_active_slots before insert or update on public.active_allocations
 for each row execute function public.guard_active_allocation();
 
