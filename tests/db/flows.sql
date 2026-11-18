@@ -119,7 +119,7 @@ do $$ begin
  end if;
 end $$;
 
-do $ begin
+do $$ begin
  if (select count(*) from public.find_trustfive_professionals_with_reviews(null,null)
  where review_count=1 and average_stars=5)<>1 then
    raise exception 'Completed-booking rating not reflected in directory';
