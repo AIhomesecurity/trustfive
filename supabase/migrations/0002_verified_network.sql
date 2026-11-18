@@ -100,6 +100,14 @@ begin
   end if;
   perform 1 from public.professional_applications where id = p_application for update;
   if not found then raise exception 'Application not found'; end if;
+  if p_verified and (p_satisfaction + p_workmanship + p_reliability +
+     p_compliance + p_communication + p_complaint_history < 70 or p_compliance < 10) then
+    raise exception 'Verified approval requires a score of at least 70 and compliance >= 10';
+  end if;
+  if not p_verified and exists(select 1 from public.active_allocations
+     where application_id=p_application) then
+    raise exception 'Document deactivation and remove active slot before rejecting';
+  end if;
   insert into public.professional_assessments(
     application_id,verification_state,satisfaction,workmanship,reliability,
     compliance,communication,complaint_history,reviewed_by,reviewed_at
@@ -141,8 +149,7 @@ begin
     and a.status='eligible' and q.verification_state='verified'
     and not exists(select 1 from public.active_allocations s where s.application_id=a.id)
     and not exists(select 1 from public.vacancy_offers o where o.application_id=a.id
-      and o.status in ('accepted','consumed')
-        or (o.application_id=a.id and o.status='offered' and o.expires_at>now()))
+      and (o.status='accepted' or (o.status='offered' and o.expires_at>now())))
   order by q.quality_score desc,a.submitted_at asc,a.id asc
   limit 1;
   if v_app is null then raise exception 'No eligible waiting-list applicant'; end if;
