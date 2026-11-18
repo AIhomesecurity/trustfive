@@ -1,0 +1,6 @@
+'use client';
+import {FormEvent,useState} from 'react';import Link from 'next/link';import {supabaseBrowser} from '../../../lib/supabase';
+export default function Reset(){const [email,setEmail]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+ async function submit(e:FormEvent){e.preventDefault();setBusy(true);try{const {error}=await supabaseBrowser().auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/auth/callback?next=%2Fauth%2Fupdate-password'});if(error)throw error;setMessage('If this address is registered, a password reset email will arrive.')}catch(e){setMessage(e instanceof Error?e.message:'Unable to send reset link')}finally{setBusy(false)}}
+ return <main className="container" style={{maxWidth:500,paddingTop:54}}><div className="card"><h1>Reset your password</h1><p className="subtle">We will email a link to your account address.</p><form className="form" onSubmit={submit}><label>Email address<input type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)}/></label><button className="btn" type="submit" disabled={busy}>Email reset link</button></form>{message&&<p role="status" className="notice">{message}</p>}<p><Link href="/account">Back to sign in</Link></p></div></main>
+}
