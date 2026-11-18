@@ -135,5 +135,38 @@ do $$ begin
  exception when insufficient_privilege then null;
  end;
 end $$;
+
+-- A complaint does not automatically remove a professional or manipulate rankings.
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+insert into public.booking_complaints(id,booking_id,reporter_id,respondent_id,category,statement)
+select '00000000-0000-0000-0004-000000000001',b.id,
+ '00000000-0000-0000-0000-000000000010',
+ '00000000-0000-0000-0000-000000000001','quality',
+ 'There was a dispute about the quality of some repair work after the job was completed.'
+from public.job_bookings b limit 1;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select public.respond_to_booking_complaint(
+ '00000000-0000-0000-0004-000000000001',
+ 'I disagree with that description and can provide dated photographs of the completed work.');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false);
+select public.resolve_booking_complaint(
+ '00000000-0000-0000-0004-000000000001','unsubstantiated',
+ 'The supplied statements did not independently substantiate the alleged workmanship issue.');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+insert into public.complaint_appeals(id,complaint_id,appellant_id,reason) values(
+ '00000000-0000-0000-0005-000000000001',
+ '00000000-0000-0000-0004-000000000001',
+ '00000000-0000-0000-0000-000000000010',
+ 'The decision did not account for the additional dated correspondence I can provide.');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false);
+select public.resolve_complaint_appeal(
+ '00000000-0000-0000-0005-000000000001',false,
+ 'After reconsidering the evidence, the appeal did not demonstrate a basis to reverse the outcome.');
+do $ begin
+ if (select count(*) from public.find_trustfive_professionals(null,null))<>5 then
+   raise exception 'Unsubstantiated complaint incorrectly changed active slots';
+ end if;
+end $;
+
 reset role;
-select 'TrustFive PostgreSQL security and booking flow checks passed' as test_result;
+select 'TrustFive PostgreSQL security, booking, complaint and appeal tests passed' as test_result;
