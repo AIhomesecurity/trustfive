@@ -10,7 +10,7 @@ This is **a development foundation, not a production-ready or deployed business*
 
 1. Install Node.js 22; run `npm install`.
 2. Copy `.env.example` to `.env.local` and insert the Supabase *publishable* key. Never commit passwords, secret keys or service-role keys.
-3. Review/apply `supabase/migrations/0001_core.sql`, `0002_verified_network.sql`, `0003_community.sql` in that order through your Supabase SQL editor.
+3. Review/apply `supabase/migrations/0001_core.sql`, `0002_verified_network.sql`, `0003_community.sql`, `0004_quotes_bookings_messages.sql`, `0005_complaints_appeals.sql` in that order through your Supabase SQL editor.
 4. Configure Supabase Auth site URL (`http://localhost:3000`) and callback redirect (`http://localhost:3000/auth/callback`). Configure Google/Apple credentials in their respective provider consoles before enabling OAuth.
 5. Run `npm run dev` and test independently using at least two user accounts.
 
