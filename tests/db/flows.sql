@@ -162,11 +162,11 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099'
 select public.resolve_complaint_appeal(
  '00000000-0000-0000-0005-000000000001',false,
  'After reconsidering the evidence, the appeal did not demonstrate a basis to reverse the outcome.');
-do $ begin
+do $$ begin
  if (select count(*) from public.find_trustfive_professionals(null,null))<>5 then
    raise exception 'Unsubstantiated complaint incorrectly changed active slots';
  end if;
-end $;
+end $$;
 
 reset role;
 select 'TrustFive PostgreSQL security, booking, complaint and appeal tests passed' as test_result;
