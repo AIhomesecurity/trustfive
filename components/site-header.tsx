@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function SiteHeader(){return <header className="topbar"><div className="container topbar-inner"><Link href="/" aria-label="TrustFive home"><img className="logo" src="/trustfive-logo.svg" alt="TrustFive"/></Link><nav className="nav" aria-label="Main navigation"><Link href="/services">Find a professional</Link><Link href="/jobs">My jobs</Link><Link href="/professional/apply">For professionals</Link><Link href="/community">Community</Link><Link className="btn" href="/account">Join / Sign in</Link></nav></div></header>}
