@@ -1,0 +1,19 @@
+-- TrustFive core schema. Apply through Supabase SQL editor after review.
+create extension if not exists pgcrypto;
+create table if not exists public.profiles (id uuid primary key references auth.users(id) on delete cascade,full_name text,phone text,requested_role text not null default 'customer' check(requested_role in ('customer','professional')),created_at timestamptz not null default now());
+alter table public.profiles enable row level security;
+create policy "read own profile" on public.profiles for select to authenticated using(id=auth.uid());
+create policy "update own profile" on public.profiles for update to authenticated using(id=auth.uid()) with check(id=auth.uid());
+create or replace function public.create_profile() returns trigger language plpgsql security definer set search_path='' as $$ begin insert into public.profiles(id,full_name,phone,requested_role) values(new.id,new.raw_user_meta_data->>'full_name',new.raw_user_meta_data->>'phone',case when new.raw_user_meta_data->>'requested_role'='professional' then 'professional' else 'customer' end);return new;end $$;
+create trigger on_auth_user_created after insert on auth.users for each row execute function public.create_profile();
+create table public.service_areas(id uuid primary key default gen_random_uuid(),country_code char(2) not null,region text,city text not null,area_name text not null,unique(country_code,city,area_name));
+create table public.trades(id uuid primary key default gen_random_uuid(),slug text not null unique,name text not null);
+create table public.professional_applications(id uuid primary key default gen_random_uuid(),user_id uuid not null references public.profiles(id),trade_id uuid not null references public.trades(id),area_id uuid not null references public.service_areas(id),status text not null default 'pending' check(status in ('pending','under_review','eligible','rejected','withdrawn')),submitted_at timestamptz not null default now());
+create table public.active_allocations(id uuid primary key default gen_random_uuid(),application_id uuid not null unique references public.professional_applications(id),trade_id uuid not null references public.trades(id),area_id uuid not null references public.service_areas(id),slot smallint not null check(slot between 1 and 5),activated_at timestamptz not null default now(),unique(trade_id,area_id,slot));
+alter table public.service_areas enable row level security;alter table public.trades enable row level security;alter table public.professional_applications enable row level security;alter table public.active_allocations enable row level security;
+create policy "read areas" on public.service_areas for select using(true);create policy "read trades" on public.trades for select using(true);
+create policy "read own applications" on public.professional_applications for select to authenticated using(user_id=auth.uid());
+create policy "submit own applications" on public.professional_applications for insert to authenticated with check(user_id=auth.uid() and status='pending');
+-- No client write policies on active_allocations: only privileged, audited server workflows can activate professionals.
+create table public.jobs(id uuid primary key default gen_random_uuid(),customer_id uuid not null references public.profiles(id),title text not null,description text not null,status text not null default 'draft' check(status in ('draft','open','booked','completed','cancelled')),created_at timestamptz not null default now());
+alter table public.jobs enable row level security;create policy "own jobs read" on public.jobs for select to authenticated using(customer_id=auth.uid());create policy "own jobs create" on public.jobs for insert to authenticated with check(customer_id=auth.uid());create policy "own jobs update" on public.jobs for update to authenticated using(customer_id=auth.uid()) with check(customer_id=auth.uid());
