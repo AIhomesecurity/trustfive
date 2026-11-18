@@ -119,6 +119,13 @@ do $$ begin
  end if;
 end $$;
 
+do $ begin
+ if (select count(*) from public.find_trustfive_professionals_with_reviews(null,null)
+ where review_count=1 and average_stars=5)<>1 then
+   raise exception 'Completed-booking rating not reflected in directory';
+ end if;
+end $;
+
 -- A different professional must never view quote messages or customer details.
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
 do $$ begin
