@@ -139,6 +139,11 @@ begin
     or public.resolve_trustfive_territory('US',51.5,-0.2) is not null then
    raise exception 'Outside polygon or wrong country resolved to a territory';
  end if;
+ if not public.has_verified_trustfive_territories('GB') or
+   public.has_verified_trustfive_territories('US') or
+   public.has_verified_trustfive_territories('INVALID') then
+   raise exception 'Country-level verified territory status is not accurate';
+ end if;
  begin
   perform public.verify_service_territory(v_north,
     '((-0.2,51.5),(0.0,51.5),(0.0,51.7),(-0.2,51.7))'::polygon,
