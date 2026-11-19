@@ -47,7 +47,7 @@ export default function Home(){
    </div>
   </section>
   <section className="section home-how-it-works"><div className="container">
-   <div className="eyebrow">Simple and transparent</div><h2>How TrustFive works</h2>
+   <div className="eyebrow">Simple and transparent</div><h2>How TrustFive works</h2><p className="subtle">Understand our approval standards and how jobs move from search to reviews. <Link href="/how-it-works" className="service-view-all">Read the full guide →</Link></p>
    <div className="how-grid">
     <div className="how-step"><span className="how-number">01</span><h3>Tell us what you need</h3><p>Choose a trade and local area, or describe your job.</p></div>
     <div className="how-step"><span className="how-number">02</span><h3>Choose with confidence</h3><p>Explore approved professionals, their experience and verified-job feedback.</p></div>
