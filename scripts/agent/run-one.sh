@@ -15,5 +15,5 @@ test -d .git
 # One bounded agent cycle; the scheduled workflow is responsible for resuming.
 # Never silently switch to a paid model.
 timeout --signal=TERM --kill-after=30s 21m \
-  opencode run --standalone --auto --model openrouter/openrouter/free \
+  opencode run --model openrouter/openrouter/free \
   "$(cat scripts/agent/PROMPT.md)"
