@@ -42,7 +42,7 @@ jobs:
             cat /tmp/trustfive-server.log
             exit 1
           fi
-          for path in / /account /services /billing /schedule /api/health; do
+          for path in / /account /services /billing /schedule /business/example /api/health; do
             curl -fsS -o /dev/null "http://127.0.0.1:3007$path"
           done
           curl -fsS http://127.0.0.1:3007/api/health | grep -q '"status":"ok"'
