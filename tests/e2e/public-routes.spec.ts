@@ -44,6 +44,15 @@ test('How TrustFive works explains the five-place rule without promising unavail
  await expect(page.getByRole('link',{name:'Browse trusted trades'})).toBeVisible();
 });
 
+test('Job selection is preserved when an anonymous customer signs in',async({page})=>{
+ await page.goto('/jobs?trade=plumbing&area=test-area');
+ const signIn=page.getByRole('link',{name:'Sign in / create account'});
+ await expect(signIn).toHaveAttribute('href','/account?next=%2Fjobs%3Ftrade%3Dplumbing%26area%3Dtest-area');
+ await signIn.click();
+ await expect(page).toHaveURL(/\/account\?next=%2Fjobs/);
+ await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
+});
+
 test('Registration and sign-in tabs switch without a backend account',async({page})=>{
  await page.goto('/account');
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
