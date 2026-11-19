@@ -24,6 +24,18 @@ test('Homepage trade grid uses four columns at desktop and two on phones',async(
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
+test('Professional directory offers filtering and an honest empty result state',async({page})=>{
+ await page.goto('/services?trade=plumbing');
+ await expect(page.getByRole('heading',{name:'Find a TrustFive professional'})).toBeVisible();
+ await expect(page.getByLabel('Trade or service')).toBeVisible();
+ await expect(page.getByLabel('Local service area')).toBeVisible();
+ await expect(page.getByLabel('Sort results')).toBeVisible();
+ await expect(page.getByRole('link',{name:'Describe your job'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'No approved professionals match these filters yet'})).toBeVisible();
+ await page.getByRole('button',{name:'Clear filters'}).click();
+ await expect(page).toHaveURL(/\/services$/);
+});
+
 test('Registration and sign-in tabs switch without a backend account',async({page})=>{
  await page.goto('/account');
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
