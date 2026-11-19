@@ -2,6 +2,10 @@ name: TrustFive free coding agent
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/trustfive-free-agent.yml
   schedule:
     # Off-peak minute to avoid the usual top-of-hour Actions congestion.
     - cron: '17 */2 * * *'
