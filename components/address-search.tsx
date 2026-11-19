@@ -25,14 +25,14 @@ export default function AddressSearch({onSelect}:Props){
  },[query,selected,version]);
  function choose(item:SelectedLocation){setSelected(item);setQuery(item.label);setSuggestions([]);setError('');onSelect(item);}
  function change(value:string){setQuery(value);setSelected(null);onSelect(null);setError('');setVersion(v=>v+1);}
- async function submit(e:FormEvent){e.preventDefault();if(suggestions[0])choose(suggestions[0]);else setVersion(v=>v+1);}
+ function submit(e:FormEvent){e.preventDefault();if(suggestions.length===1)choose(suggestions[0]);else if(suggestions.length>1)setError('Choose your exact address from the suggestions below.');else setVersion(v=>v+1);}
  return <div className="address-finder">
   <label htmlFor="directory-address">Your postcode or street address</label>
   <form onSubmit={submit} role="search" className="address-finder-form">
-   <input id="directory-address" value={query} onChange={e=>change(e.target.value)} autoComplete="street-address" placeholder="e.g. SW1A 1AA or your street and house number" maxLength={160} aria-describedby="address-privacy"/>
+   <input id="directory-address" value={query} onChange={e=>change(e.target.value)} autoComplete="street-address" placeholder="e.g. SW1A 1AA or your street and house number" maxLength={160} aria-describedby="address-privacy" aria-controls="address-options" aria-expanded={suggestions.length>0}/>
    <button className="btn secondary" type="submit" disabled={loading||query.trim().length<5}>{loading?'Finding…':'Find address'}</button>
   </form>
-  {suggestions.length>0&&<div className="address-suggestions" role="listbox" aria-label="Matching addresses">
+  {suggestions.length>0&&<div id="address-options" className="address-suggestions" role="listbox" aria-label="Matching addresses">
     {suggestions.map((item,i)=><button type="button" key={i} role="option" aria-selected={false} onClick={()=>choose(item)}>
       <strong>{item.label}</strong><span>{item.precision==='address'?'Street and property address':'Postcode area centre'}</span>
     </button>)}
