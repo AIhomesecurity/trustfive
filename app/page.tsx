@@ -13,7 +13,11 @@ const services:Service[]=[
  {label:'Roofing',icon:'🏠',slug:'roofing',description:'Roof repairs & gutters'},
  {label:'Heating & boilers',icon:'🔥',slug:'heating',description:'Heating & servicing'},
  {label:'Carpentry',icon:'🪚',slug:'carpentry',description:'Woodwork & joinery'},
- {label:'Home security',icon:'🔒',slug:'home-security',description:'Locks, alarms & cameras'},
+ {label:'Home security',icon:'🔒',slug:'home-security',description:'Locks & intruder alarms'},
+ {label:'CCTV & cameras',icon:'📹',slug:'cctv-installation',description:'Security cameras & recording'},
+ {label:'Flooring',icon:'🧱',slug:'flooring',description:'New floors & repairs'},
+ {label:'Drainage',icon:'💧',slug:'drainage',description:'Blocked drains & repairs'},
+ {label:'Plastering',icon:'🏗️',slug:'plastering',description:'Walls & ceilings'},
  {label:'Bathrooms',icon:'🚿',slug:'bathrooms',description:'Bathrooms & tiling'},
  {label:'Kitchens',icon:'🍽️',slug:'kitchens',description:'Kitchen fitting'},
  {label:'Windows & doors',icon:'🪟',slug:'windows',description:'Glazing & installations'},
@@ -31,7 +35,7 @@ export default function Home(){
     <input id="trade-search" type="search" name="q" placeholder="What do you need help with? e.g. plumber" autoComplete="off" required/>
     <button type="submit" className="btn">Find a professional</button>
    </form>
-   <div className="hero-shortcuts"><span>Popular:</span><Link href="/services?trade=plumbing">Plumbing</Link><Link href="/services?trade=electrical">Electrical</Link><Link href="/services?trade=cleaning">Cleaning</Link><Link href="/services?trade=roofing">Roofing</Link></div>
+   <div className="hero-shortcuts"><span>Popular:</span><Link href="/services?trade=plumbing">Plumbing</Link><Link href="/services?trade=electrical">Electrical</Link><Link href="/services?trade=cleaning">Cleaning</Link><Link href="/services?trade=roofing">Roofing</Link><Link href="/services?trade=cctv-installation">CCTV</Link></div>
    <div className="hero-actions"><Link className="btn secondary" href="/jobs">Post a job instead</Link><Link className="hero-community-link" href="/community">Explore your local community →</Link></div>
    <p className="hero-trust-note">✓ Professional approval is earned, never purchased. Availability depends on your area.</p>
   </div></section>
