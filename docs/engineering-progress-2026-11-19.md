@@ -49,3 +49,17 @@ Check the latest GitHub Actions runs after commits `b504f2f` and `42b78af`. If b
 2. Replace manual territory selection with verified boundary mapping; no guessing by city or postcode string.
 3. Verify complete customer/professional flows on the protected preview with authorised test accounts, plus security definer/RLS audits.
 4. Harden address-provider reliability, abuse limits, accessibility and international coverage.
+
+
+## 21:58 UTC — consent audit and current-state verification
+- Rechecked PR #1 (open, draft, unmerged), branch commits, issues #1–#12, latest CI, Vercel preview and staging Supabase security advisors. Before this run, both GitHub checks and database integration were green at `1435732`; its matching preview was READY at https://trustfive-8hg89fyt9-trust-five.vercel.app. Protected authenticated browsing has not been verified.
+- Staging has zero verified professional service coverage records, so real-world radius matching cannot yet be demonstrated; do not create fake businesses to fill this gap.
+- Implemented migration `0026_booking_address_consent_audit.sql`: a server-only, RLS-protected, non-address consent event log; every changed booking-address sharing choice records who granted/revoked access and when, while repeated choices are idempotent. A null consent choice is rejected.
+- Added SQL regression checks for anonymous/authenticated access denial, explicit choice, idempotent grant/revoke, and correct customer attribution. Applied the migration successfully to staging. CI for the newest commits must be checked before calling the test suite green.
+- Security advisors continue to flag five intentionally private no-policy tables and four public callable directory/helper SECURITY DEFINER functions. Avoid blanket permission changes: the public approval helper is required by the business-page RLS policy.
+
+### Prioritized next steps
+1. Confirm both CI suites for the new consent audit and fix any failure. Check protected Vercel preview with an authorised browser session.
+2. Finish issue #11: trustworthy automatic customer address-to-territory mapping; do not infer territory from postcode text or city alone. Retain manual territory fallback until reviewed geographic boundaries exist.
+3. Verify real approved professional service-radius matching with owner-authorised staging test accounts, and audit denial of private address access after cancellation/completion.
+4. Continue targeted SECURITY DEFINER/RLS audit, professional onboarding, notifications, and community moderation. Keep payment processing in test mode only.
