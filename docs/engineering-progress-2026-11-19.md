@@ -63,3 +63,19 @@ Check the latest GitHub Actions runs after commits `b504f2f` and `42b78af`. If b
 2. Finish issue #11: trustworthy automatic customer address-to-territory mapping; do not infer territory from postcode text or city alone. Retain manual territory fallback until reviewed geographic boundaries exist.
 3. Verify real approved professional service-radius matching with owner-authorised staging test accounts, and audit denial of private address access after cancellation/completion.
 4. Continue targeted SECURITY DEFINER/RLS audit, professional onboarding, notifications, and community moderation. Keep payment processing in test mode only.
+
+
+## 22:55 UTC — verified territory enforcement
+- Independently inspected PR #1 (open/draft), latest commits, issues #1–#12, branch checks, Vercel deployment and staging advisors. Baseline commit `dc648e69` passed application and database CI; its Vercel preview is READY at https://trustfive-3un2a4avp-trust-five.vercel.app, but authenticated browsing is not proven.
+- Discovered an important staging drift: verified-territory migration 0027 was in GitHub and CI but absent from the staging project's live schema. Applied it after migration 0028; both migrations now applied successfully and the protected resolver/trigger contract query passed.
+- Added database enforcement for private job-site coordinates: where a country has reviewed territory polygons, reject unknown/outside territory or a manually spoofed area, even when a client bypasses the UI. Legacy manual area fallback remains only in countries without any reviewed boundaries. No fake territory polygons or businesses were inserted.
+- Customer job form now automatically resolves the territory from the selected address, locks verified matches and displays a warning for manual fallback. No raw address is published to professionals.
+- New migration: `0028_enforce_job_territory_boundaries.sql`; new contract test: `tests/db/verified_territory_contract.sql`.
+- Security advisor still reports intentional no-policy private tables and publicly callable definer functions; review grants individually. No production changes.
+
+### Updated prioritized queue
+1. **P0** Confirm CI for the new UI and migration, fix any regressions; wire territory contract SQL into CI test runner.
+2. **P0** Human-verify real service-area polygons and professional coverage locations; until then exact proximity cannot be demonstrated with real approved providers.
+3. **P0** Improve unknown territory UX and avoid fallback selection when verified country boundaries exist but do not cover an address.
+4. **P0** Verify protected Vercel preview using authorised browser session; READY alone is not enough.
+5. **P1** Complete customer-to-quote-to-booking auth tests and individual SECURITY DEFINER/RLS audit; improve mobile/community and test-only payment flows.
