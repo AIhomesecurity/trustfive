@@ -18,9 +18,9 @@ test('Homepage trade grid uses four columns at desktop and two on phones',async(
  await page.setViewportSize({width:1440,height:900});
  await page.goto('/');
  const grid=page.locator('.service-grid');
- await expect(grid).toHaveCSS('grid-template-columns',/\d+px \d+px \d+px \d+px/);
+ await expect(grid).toHaveCSS('grid-template-columns',/[\\d.]+px [\\d.]+px [\\d.]+px [\\d.]+px/);
  await page.setViewportSize({width:390,height:844});
- await expect(grid).toHaveCSS('grid-template-columns',/\d+px \d+px/);
+ await expect(grid).toHaveCSS('grid-template-columns',/[\\d.]+px [\\d.]+px/);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
