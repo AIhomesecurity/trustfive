@@ -9,19 +9,38 @@ type Professional={application_id:string;business_name:string;about:string|null;
 type Sort='quality'|'reviews'|'name';
 
 const aliases:Record<string,string>={
- plumber:'plumbing',plumbers:'plumbing',electrician:'electrical',electricians:'electrical',
- roofer:'roofing',roofers:'roofing',gardener:'gardening',gardeners:'gardening',
- painter:'painting',decorator:'painting',boiler:'heating',heating:'heating',
- carpenter:'carpentry',joiner:'carpentry',cleaner:'cleaning',removals:'moving',
- removal:'moving',locksmith:'home-security',landscaper:'landscaping'
+ plumber:'plumbing',plumbers:'plumbing',leak:'plumbing',tap:'plumbing',dripping:'plumbing',
+ electrician:'electrical',electricians:'electrical',rewiring:'electrical',wiring:'electrical',
+ roofer:'roofing',roofers:'roofing',guttering:'roofing',gutter:'roofing',
+ gardener:'gardening',gardeners:'gardening',lawn:'gardening',
+ painter:'painting',decorator:'painting',decorating:'painting',
+ boiler:'heating',heating:'heating',radiator:'heating',gas:'heating',
+ carpenter:'carpentry',joiner:'carpentry',woodwork:'carpentry',
+ cleaner:'cleaning',housekeeping:'cleaning',deepclean:'cleaning',
+ removals:'moving',removal:'moving',movers:'moving',
+ locksmith:'home-security',locks:'home-security',
+ landscaper:'landscaping',paving:'landscaping',patio:'landscaping',
+ cctv:'cctv-installation',camera:'cctv-installation',cameras:'cctv-installation',
+ 'security camera':'cctv-installation','security cameras':'cctv-installation',
+ 'cctv installer':'cctv-installation','cctv installation':'cctv-installation',
+ 'security camera installation':'cctv-installation','video surveillance':'cctv-installation',
+ 'home surveillance':'cctv-installation',surveillance:'cctv-installation',
+ 'ring doorbell':'cctv-installation','video doorbell':'cctv-installation',
+ 'alarm system':'home-security','burglar alarm':'home-security','intruder alarm':'home-security'
 };
 
 function resolveTrade(input:string,trades:Trade[]):Trade|undefined{
- const value=input.trim().toLowerCase().replace(/[-_]/g,' ');
+ const value=input.trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\\s+/g,' ').trim();
  const query=aliases[value]||value;
  if(!query)return undefined;
- return trades.find(t=>t.slug.replace(/-/g,' ')===query||t.name.toLowerCase()===query)
-  ||trades.find(t=>t.slug.includes(query)||t.name.toLowerCase().includes(query));
+ const normalized=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\\s+/g,' ').trim();
+ const exact=trades.find(t=>normalized(t.slug)===normalized(query)||normalized(t.name)===normalized(query));
+ if(exact)return exact;
+ // Prefer a single explicit task synonym before less precise description matching.
+ const matchingAlias=Object.entries(aliases).find(([key])=>value===key||value.startsWith(key+' ')||value.endsWith(' '+key));
+ const match=matchingAlias?.[1]||query;
+ return trades.find(t=>normalized(t.slug)===normalized(match))
+  ||trades.find(t=>normalized(t.slug).includes(normalized(match))||normalized(t.name).includes(normalized(match)));
 }
 
 export default function Services(){
