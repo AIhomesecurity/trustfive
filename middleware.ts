@@ -10,7 +10,7 @@ export async function middleware(request:NextRequest){
   setAll(all:CookieWrite[]){all.forEach(({name,value})=>request.cookies.set(name,value));response=NextResponse.next({request});all.forEach(({name,value,options})=>response.cookies.set(name,value,options))}
  }});
  const {data:{user}}=await s.auth.getUser();
- if(!user&&/^\/(profile|jobs|professional|community|admin|support|dashboard|quotes|bookings|messages|notifications)(\/|$)/.test(request.nextUrl.pathname)){
+ if(!user&&/^\/(profile|jobs|professional|community|admin|support|dashboard|quotes|bookings|messages|notifications|billing)(\/|$)/.test(request.nextUrl.pathname)){
   const next=request.nextUrl.clone();next.pathname='/account';next.search='';return NextResponse.redirect(next);
  }
  return response;
