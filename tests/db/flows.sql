@@ -276,5 +276,41 @@ begin
  end if;
 end $$;
 
+
+-- Five pending offers must reserve all five slots; a sixth simultaneous promise is rejected.
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false);
+do $$
+declare v_trade uuid; v_area uuid; v_user uuid; v_id uuid; i int; a record;
+begin
+ select id into v_trade from public.trades where slug='electrical';
+ select id into v_area from public.service_areas where area_name='Central London';
+ for i in 1..6 loop
+  v_user:=('00000000-0000-0000-0000-'||lpad(i::text,12,'0'))::uuid;
+  v_id:=('00000000-0000-0000-0009-'||lpad(i::text,12,'0'))::uuid;
+  perform set_config('request.jwt.claim.sub',v_user::text,true);
+  insert into public.professional_applications(id,user_id,trade_id,area_id,business_name,about)
+  values(v_id,v_user,v_trade,v_area,'Electrical '+i,'Qualified electrician applying for an open place');
+ end loop;
+ perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',true);
+ for a in (select id from public.professional_applications where trade_id=v_trade and area_id=v_area) loop
+  perform public.review_professional_application(a.id,true,
+   25::smallint,20::smallint,12::smallint,12::smallint,8::smallint,4::smallint);
+ end loop;
+ for i in 1..5 loop
+  perform public.offer_next_professional(v_trade,v_area);
+ end loop;
+ if (select count(*) from public.vacancy_offers
+   where trade_id=v_trade and area_id=v_area and status='offered')<>5 then
+   raise exception 'Exactly five pending offers should exist';
+ end if;
+ begin
+  perform public.offer_next_professional(v_trade,v_area);
+  raise exception 'Sixth unfilled-slot offer incorrectly succeeded';
+ exception when others then
+  if sqlerrm='Sixth unfilled-slot offer incorrectly succeeded' then raise; end if;
+  if sqlerrm not like 'No vacancy available:%' then raise; end if;
+ end;
+end $$;
+
 reset role;
-select 'TrustFive network, booking, community, notification and RLS tests passed' as test_result;
+select 'TrustFive network, vacancy capacity, booking, community and RLS tests passed' as test_result;
