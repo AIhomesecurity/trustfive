@@ -94,6 +94,33 @@ do $$ declare v_booking uuid; begin
  v_booking:=public.accept_job_quote('00000000-0000-0000-0003-000000000001');
  if v_booking is null then raise exception 'Customer could not accept quote';end if;
 end $$;
+-- Booked appointment requires a proposal and counterparty approval.
+select public.propose_booking_appointment(
+ (select id from public.job_bookings where quote_id='00000000-0000-0000-0003-000000000001'),
+ now()+interval '2 days',now()+interval '2 days 2 hours','Europe/London');
+do $$
+begin
+ begin
+  perform public.confirm_booking_appointment(
+   (select id from public.job_bookings where quote_id='00000000-0000-0000-0003-000000000001'));
+  raise exception 'The proposer confirmed their own appointment';
+ exception when others then
+  if sqlerrm='The proposer confirmed their own appointment' then raise; end if;
+  if sqlerrm not like 'Only the other participant%' then raise; end if;
+ end;
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select public.confirm_booking_appointment(
+ (select id from public.job_bookings where quote_id='00000000-0000-0000-0003-000000000001'));
+do $$
+begin
+ if not exists(select 1 from public.booking_appointments where
+  status='confirmed' and confirmed_by=auth.uid()) then
+  raise exception 'Counterparty appointment confirmation was not saved';
+ end if;
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+
 insert into public.quote_messages(quote_id,author_id,body) values
 ('00000000-0000-0000-0003-000000000001',
  '00000000-0000-0000-0000-000000000010','Please come after 10am');
@@ -134,6 +161,9 @@ do $$ begin
  end if;
  if (select count(*) from public.job_quotes)>0 then
   raise exception 'Quote confidentiality broken';
+ end if;
+ if exists(select 1 from public.booking_appointments) then
+  raise exception 'Appointment details leaked to an unrelated professional';
  end if;
  begin
   perform public.review_professional_application(
