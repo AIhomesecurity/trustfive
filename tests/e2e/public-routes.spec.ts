@@ -8,8 +8,8 @@ test('TrustFive landing page offers original service search and balanced trade n
  await expect(page.getByRole('button',{name:'Find a professional'})).toBeVisible();
  const categories=page.locator('.service-grid .service-tile');
  await expect(categories).toHaveCount(16);
- await expect(page.locator('a[href="/services?trade=plumbing"]')).toBeVisible();
- await page.locator('a[href="/services?trade=plumbing"]').click();
+ await expect(page.locator('.service-grid a[href="/services?trade=plumbing"]')).toBeVisible();
+ await page.locator('.service-grid a[href="/services?trade=plumbing"]').click();
  await expect(page).toHaveURL(/\/services\?trade=plumbing$/);
  await expect(page.getByRole('heading',{name:'Find a TrustFive professional'})).toBeVisible();
 });
