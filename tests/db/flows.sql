@@ -393,5 +393,29 @@ begin
  )) then raise exception 'Hidden post aggregate reaction count leaked'; end if;
 end $$;
 
+
+-- Quotas cap successful spam writes and reject the next message/post.
 reset role;
-select 'TrustFive booking, business billing, networks, groups, reactions and privacy tests passed' as test_result;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+do $$
+declare v_area uuid;i integer;v_count integer;
+begin
+ select id into v_area from public.service_areas where area_name='Central London';
+ -- One post was inserted earlier by this account in the reactions test.
+ for i in 1..11 loop
+  insert into public.community_posts(author_id,area_id,body)
+  values(auth.uid(),v_area,'Neighbourhood gardening update number '||i);
+ end loop;
+ begin
+  insert into public.community_posts(author_id,area_id,body)
+  values(auth.uid(),v_area,'This should be rejected as the thirteenth post');
+  raise exception 'The thirteenth community post bypassed its quota';
+ exception when others then
+  if sqlerrm='The thirteenth community post bypassed its quota' then raise; end if;
+  if sqlerrm not like 'Posting limit reached%' then raise; end if;
+ end;
+end $$;
+
+reset role;
+select 'TrustFive booking, memberships, ratings, RLS and write quotas passed' as test_result;
