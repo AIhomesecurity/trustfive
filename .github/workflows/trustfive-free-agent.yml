@@ -1,0 +1,120 @@
+name: TrustFive free coding agent
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Off-peak minute to avoid the usual top-of-hour Actions congestion.
+    - cron: '17 */2 * * *'
+
+concurrency:
+  group: trustfive-free-coding-agent
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  coding-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check free-model credentials and pending agent reviews
+        id: gate
+        shell: bash
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ -z "$OPENROUTER_API_KEY" ]]; then
+            echo "::notice::No OPENROUTER_API_KEY configured. Skipping AI inference safely; see docs/free-open-source-agent-runner.md on the development branch."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh pr list --repo "$GITHUB_REPOSITORY" --base feature/verified-marketplace-core --state open --json headRefName --jq '.[].headRefName' | grep -q '^agent/trustfive-'; then
+            echo "::notice::A coding-agent pull request already awaits review; skipping duplicate work."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout protected development source
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: feature/verified-marketplace-core
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create isolated agent branch
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: |
+          git switch -c "agent/trustfive-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+      - name: Set up Node.js
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install OpenCode CLI
+        if: steps.gate.outputs.ready == 'true'
+        run: npm install --global @opencode/cli
+
+      - name: Run one bounded free-model coding cycle
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: bash scripts/agent/run-one.sh
+
+      - name: Validate changed files and Next.js build
+        if: steps.gate.outputs.ready == 'true'
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=false
+          while IFS= read -r -d '' file; do
+            changed=true
+            case "$file" in
+              app/*|components/*|lib/*|tests/*|docs/*|public/*)
+                echo "Reviewed candidate path: $file" ;;
+              *)
+                echo "::error::Agent attempted to change a protected path: $file"
+                exit 1 ;;
+            esac
+          done < <( (git diff --name-only -z; git ls-files --others --exclude-standard -z) | sort -zu )
+          if [[ "$changed" != true ]]; then
+            echo "::notice::Agent made no changes; nothing to publish."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --check
+          npm ci
+          npm run build
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open draft pull request for review
+        if: steps.validate.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "trustfive-agent[bot]"
+          git config user.email "trustfive-agent@users.noreply.github.com"
+          git add --all
+          git diff --cached --check
+          git commit -m "Agent: one bounded TrustFive improvement"
+          branch="$(git branch --show-current)"
+          gh auth setup-git
+          git push --set-upstream origin "$branch"
+          gh pr create --repo "$GITHUB_REPOSITORY" --draft \
+            --base feature/verified-marketplace-core --head "$branch" \
+            --title "Agent: proposed TrustFive improvement" \
+            --body "Automated bounded free-model coding proposal. Requires human review. Next.js build passed in the agent runner; full CI and security checks must pass before merging. No production changes are authorized."
