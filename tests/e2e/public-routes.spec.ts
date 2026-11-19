@@ -1,13 +1,27 @@
 import {test,expect} from '@playwright/test';
 
-test('TrustFive landing page displays original branding and service navigation',async({page})=>{
+test('TrustFive landing page offers original service search and balanced trade navigation',async({page})=>{
  await page.goto('/');
  await expect(page).toHaveTitle(/TrustFive/i);
- await expect(page.getByRole('heading',{level:1})).toContainText(/truly trust/i);
- await expect(page.getByRole('link',{name:'Find a trusted professional'})).toBeVisible();
- await page.getByRole('link',{name:'Find a trusted professional'}).click();
- await expect(page).toHaveURL(/\/services$/);
+ await expect(page.getByRole('heading',{level:1})).toContainText(/people you can trust/i);
+ await expect(page.getByRole('searchbox',{name:'What do you need help with?'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Find a professional'})).toBeVisible();
+ const categories=page.locator('.service-grid .service-tile');
+ await expect(categories).toHaveCount(16);
+ await expect(page.locator('a[href="/services?trade=plumbing"]')).toBeVisible();
+ await page.locator('a[href="/services?trade=plumbing"]').click();
+ await expect(page).toHaveURL(/\/services\?trade=plumbing$/);
  await expect(page.getByRole('heading',{name:'Find a TrustFive professional'})).toBeVisible();
+});
+
+test('Homepage trade grid uses four columns at desktop and two on phones',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});
+ await page.goto('/');
+ const grid=page.locator('.service-grid');
+ await expect(grid).toHaveCSS('grid-template-columns',/\d+px \d+px \d+px \d+px/);
+ await page.setViewportSize({width:390,height:844});
+ await expect(grid).toHaveCSS('grid-template-columns',/\d+px \d+px/);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test('Registration and sign-in tabs switch without a backend account',async({page})=>{
