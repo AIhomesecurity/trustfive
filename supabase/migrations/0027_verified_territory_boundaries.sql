@@ -8,7 +8,7 @@ create table public.verified_service_territories (
  evidence_note text not null check (char_length(btrim(evidence_note)) between 30 and 1000),
  verified_by uuid not null references auth.users(id),
  verified_at timestamptz not null default now(),
- check (area(boundary)>0)
+ check (npoints(boundary)>=3)
 );
 alter table public.verified_service_territories enable row level security;
 revoke all on public.verified_service_territories from anon,authenticated;
@@ -25,7 +25,7 @@ begin
  if not exists(select 1 from public.service_areas where id=p_area) then
   raise exception 'Unknown TrustFive territory';
  end if;
- if p_boundary is null or area(p_boundary)<=0
+ if p_boundary is null or npoints(p_boundary)<3
    or char_length(btrim(coalesce(p_evidence,''))) not between 30 and 1000 then
   raise exception 'Provide a valid boundary and documented independent evidence';
  end if;
