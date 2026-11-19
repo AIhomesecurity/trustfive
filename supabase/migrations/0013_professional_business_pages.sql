@@ -61,6 +61,12 @@ begin
       or new.application_id is distinct from old.application_id) then
   raise exception 'Business page ownership is immutable';
  end if;
+ if tg_op='UPDATE' and not public.is_trustfive_admin() and
+  (new.review_note is distinct from old.review_note
+   or new.reviewed_by is distinct from old.reviewed_by
+   or new.reviewed_at is distinct from old.reviewed_at) then
+  raise exception 'Only a TrustFive administrator may change review evidence';
+ end if;
  new.updated_at=now();
  return new;
 end $$;
