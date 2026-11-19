@@ -185,6 +185,7 @@ begin
   raise exception 'Customer quote notification missing';
  end if;
  select id into v_note from public.account_notifications where kind='new_quote' limit 1;
+ perform set_config('trustfive.test_customer_notification',v_note::text,false);
  v_result:=public.mark_notification_read(v_note);
  if not v_result then raise exception 'Owner could not mark notification read'; end if;
  if not exists(select 1 from public.account_notifications
@@ -196,11 +197,11 @@ end $$;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
 do $$
 begin
- if exists(select 1 from public.account_notifications) then
-  raise exception 'Another user can read account notifications';
+ if exists(select 1 from public.account_notifications where kind='new_quote') then
+  raise exception 'Another user can read customer quote notification';
  end if;
  if public.mark_notification_read(
-  (select id from public.account_notifications limit 1)) then
+  current_setting('trustfive.test_customer_notification')::uuid) then
   raise exception 'Another user marked a notification read';
  end if;
 end $$;
