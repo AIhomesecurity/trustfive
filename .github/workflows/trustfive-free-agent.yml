@@ -108,6 +108,12 @@ jobs:
           fi
           echo "::notice::OpenRouter key accepted; this check did not request any paid or free-model inference."
 
+      - name: Check installed OpenCode CLI
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          opencode --version
+          opencode run --help > /dev/null
+
       - name: Run one bounded free-model coding cycle
         if: steps.gate.outputs.ready == 'true'
         shell: bash
