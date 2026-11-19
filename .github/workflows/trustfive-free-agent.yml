@@ -67,7 +67,23 @@ jobs:
 
       - name: Install OpenCode CLI
         if: steps.gate.outputs.ready == 'true'
-        run: npm install --global opencode-ai
+        run: npm install --global @opencode/cli
+
+      - name: Verify OpenRouter credential without printing it
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --max-time 20 --header "Authorization: Bearer $OPENROUTER_API_KEY" \
+            https://openrouter.ai/api/v1/auth/key)"
+          if [[ "$status" != "200" ]]; then
+            echo "::error::OpenRouter key validation returned HTTP $status. Rotate or correct the GitHub Actions secret."
+            exit 1
+          fi
+          echo "::notice::OpenRouter key accepted; this check did not request any paid or free-model inference."
 
       - name: Run one bounded free-model coding cycle
         if: steps.gate.outputs.ready == 'true'
