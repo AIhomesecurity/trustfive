@@ -7,11 +7,23 @@ test('TrustFive landing page offers original service search and balanced trade n
  await expect(page.getByRole('searchbox',{name:'What do you need help with?'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Find a professional'})).toBeVisible();
  const categories=page.locator('.service-grid .service-tile');
- await expect(categories).toHaveCount(16);
+ await expect(categories).toHaveCount(20);
  await expect(page.locator('.service-grid a[href="/services?trade=plumbing"]')).toBeVisible();
  await page.locator('.service-grid a[href="/services?trade=plumbing"]').click();
  await expect(page).toHaveURL(/\/services\?trade=plumbing$/);
  await expect(page.getByRole('heading',{name:'Find a TrustFive professional'})).toBeVisible();
+});
+
+test('CCTV search routes to the camera-installation trade and keeps the category visible',async({page})=>{
+ await page.goto('/');
+ const search=page.getByRole('searchbox',{name:'What do you need help with?'});
+ await search.fill('CCTV');
+ await page.getByRole('button',{name:'Find a professional'}).click();
+ await expect(page).toHaveURL(/\/services\?q=CCTV$/);
+ await expect(page.getByRole('heading',{name:'Find a TrustFive professional'})).toBeVisible();
+ await expect(page.getByLabel('Trade or service')).toBeVisible();
+ await page.goto('/');
+ await expect(page.locator('.service-grid a[href="/services?trade=cctv-installation"]')).toBeVisible();
 });
 
 test('Homepage trade grid uses four columns at desktop and two on phones',async({page})=>{
