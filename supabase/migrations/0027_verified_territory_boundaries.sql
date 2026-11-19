@@ -52,7 +52,7 @@ create or replace function public.resolve_trustfive_territory(
  p_country text,p_lat double precision,p_lon double precision
 ) returns uuid language sql stable security definer set search_path=''
 as $tf$
- select case when count(*)=1 then min(a.id) else null::uuid end
+ select case when count(*)=1 then (array_agg(a.id))[1] else null::uuid end
  from public.verified_service_territories v
  join public.service_areas a on a.id=v.area_id
  where p_country is not null and upper(p_country)=a.country_code
