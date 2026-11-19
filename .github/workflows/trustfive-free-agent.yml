@@ -25,6 +25,24 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Verify Grok credential without billable inference
+        shell: bash
+        env:
+          XAI_API_KEY: ${{ secrets.GROK || secrets.GROK_API_KEY || secrets.XAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$XAI_API_KEY" ]]; then
+            echo "::notice::No Grok/xAI key detected under GROK, GROK_API_KEY or XAI_API_KEY."
+            exit 0
+          fi
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 \
+            --header "Authorization: Bearer $XAI_API_KEY" https://api.x.ai/v1/models)"
+          if [[ "$status" == "200" ]]; then
+            echo "::notice::Grok/xAI credential authenticated using a read-only model-list request. No tokens generated."
+          else
+            echo "::warning::Grok/xAI model-list authentication returned HTTP $status. No inference attempted."
+          fi
+
       - name: Check free-model credentials and pending agent reviews
         id: gate
         shell: bash
