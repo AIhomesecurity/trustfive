@@ -46,10 +46,9 @@ test('How TrustFive works explains the five-place rule without promising unavail
 
 test('Job selection is preserved when an anonymous customer signs in',async({page})=>{
  await page.goto('/jobs?trade=plumbing&area=test-area');
- const signIn=page.getByRole('link',{name:'Sign in / create account'});
- await expect(signIn).toHaveAttribute('href','/account?next=%2Fjobs%3Ftrade%3Dplumbing%26area%3Dtest-area');
- await signIn.click();
- await expect(page).toHaveURL(/\/account\?next=%2Fjobs/);
+ await expect(page).toHaveURL(/\/account\?next=/);
+ const redirected=new URL(page.url());
+ expect(redirected.searchParams.get('next')).toBe('/jobs?trade=plumbing&area=test-area');
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
 });
 
@@ -66,11 +65,11 @@ test('Registration and sign-in tabs switch without a backend account',async({pag
 
 test('Anonymous members are redirected from personal accounts',async({page})=>{
  await page.goto('/dashboard');
- await expect(page).toHaveURL(/\/account$/);
+ await expect(page).toHaveURL(/\/account\?next=/);
  await page.goto('/community/groups');
- await expect(page).toHaveURL(/\/account$/);
+ await expect(page).toHaveURL(/\/account\?next=/);
  await page.goto('/schedule');
- await expect(page).toHaveURL(/\/account$/);
+ await expect(page).toHaveURL(/\/account\?next=/);
 });
 
 test('Health endpoint reports configured app without exposing credentials',async({request})=>{
