@@ -48,3 +48,6 @@ jobs:
           done
       - name: Test RLS, five-slot constraint and quote completion
         run: psql -v ON_ERROR_STOP=1 -f tests/db/flows.sql
+
+      - name: Check trigger function execution permissions
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/security-definer-trigger-acl.sql
