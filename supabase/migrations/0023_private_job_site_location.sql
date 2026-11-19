@@ -15,7 +15,7 @@ alter table public.job_site_locations enable row level security;
 revoke all on public.job_site_locations from anon,authenticated;
 -- A narrow owner-only RPC permits retrieval without giving professionals raw addresses.
 create or replace function public.customer_job_site_location(p_job uuid)
-returns table(address_label text,postcode text,country_code text,precision text)
+returns table(address_label text,postcode text,country_code text,location_precision text)
 language sql stable security definer set search_path=''
 as $tf$
  select l.address_label,l.postcode,l.country_code,l.precision
