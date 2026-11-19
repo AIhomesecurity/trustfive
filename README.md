@@ -10,7 +10,7 @@ This is **a development foundation, not a production-ready or deployed business*
 
 1. Install Node.js 22; run `npm install`.
 2. Copy `.env.example` to `.env.local` and insert the Supabase *publishable* key. Never commit passwords, secret keys or service-role keys.
-3. Review/apply `supabase/migrations/0001_core.sql`, `0002_verified_network.sql`, `0003_community.sql`, `0004_quotes_bookings_messages.sql`, `0005_complaints_appeals.sql`, `0006_directory_ratings.sql`, `0007_groups_events_notifications.sql`, `0008_network_offer_capacity.sql`, `0009_stripe_test_memberships.sql` in that order through your Supabase SQL editor.
+3. Review/apply `supabase/migrations/0001_core.sql`, `0002_verified_network.sql`, `0003_community.sql`, `0004_quotes_bookings_messages.sql`, `0005_complaints_appeals.sql`, `0006_directory_ratings.sql`, `0007_groups_events_notifications.sql`, `0008_network_offer_capacity.sql`, `0009_stripe_test_memberships.sql`, `0010_community_reactions.sql`, `0011_account_write_quotas.sql`, `0012_booking_appointments.sql` in that order through your Supabase SQL editor.
 4. Configure Supabase Auth site URL (`http://localhost:3000`) and callback redirect (`http://localhost:3000/auth/callback`). Configure Google/Apple credentials in their respective provider consoles before enabling OAuth.
 5. Run `npm run dev` and test independently using at least two user accounts.
 
@@ -23,7 +23,7 @@ insert into public.platform_admins(user_id)
 values ('REPLACE_WITH_VERIFIED_ADMIN_USER_UUID');
 ```
 
-The approval functions require admin authorization. Do not set `verification_state='verified'` unless actual identification, qualifications, licences and insurance documents have been checked outside the app. The code includes a recorded written complaint and appeal process, but does not yet include secure document collection, expiry checks, complete investigation procedures or professional document verification.
+The approval functions require admin authorization. Do not set `verification_state='verified'` unless actual identification, qualifications, licences and insurance documents have been checked outside the app. The code includes mutually confirmed appointment scheduling (without payment processing), a recorded written complaint and appeal process, but does not yet include secure document collection, expiry checks, complete investigation procedures or professional document verification.
 
 ## Core selection rule
 
