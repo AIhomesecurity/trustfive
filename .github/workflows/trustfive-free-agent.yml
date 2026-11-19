@@ -29,11 +29,15 @@ jobs:
         id: gate
         shell: bash
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || secrets.API_KEY || secrets.OPENROUTER }}
+          GROK_PRESENT: ${{ secrets.GROK != '' || secrets.GROK_API_KEY != '' || secrets.XAI_API_KEY != '' }}
           GH_TOKEN: ${{ github.token }}
         run: |
           if [[ -z "$OPENROUTER_API_KEY" ]]; then
-            echo "::error::OPENROUTER_API_KEY is not available to this workflow. Add it under THIS repository's Settings > Secrets and variables > Actions > Repository secrets, not Environment secrets or Variables."
+            echo "::error::No OpenRouter key visible under OPENROUTER_API_KEY, API_KEY, or OPENROUTER. Check the names and repository vs environment scopes in GitHub Actions settings."
+            if [[ "$GROK_PRESENT" == "true" ]]; then
+              echo "::notice::A Grok/xAI secret is present, but it is not an OpenRouter key and no free Grok inference is confirmed."
+            fi
             echo "### TrustFive free coding agent blocked" >> "$GITHUB_STEP_SUMMARY"
             echo "The repository-level OPENROUTER_API_KEY secret is missing or unavailable. No inference or code edits were performed. See the development-branch docs/free-open-source-agent-runner.md for setup." >> "$GITHUB_STEP_SUMMARY"
             exit 1
@@ -74,7 +78,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         shell: bash
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || secrets.API_KEY || secrets.OPENROUTER }}
         run: |
           set -euo pipefail
           status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
@@ -90,7 +94,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         shell: bash
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || secrets.API_KEY || secrets.OPENROUTER }}
         run: bash scripts/agent/run-one.sh
 
       - name: Validate changed files and Next.js build
