@@ -10,7 +10,7 @@ This is **a development foundation, not a production-ready or deployed business*
 
 1. Install Node.js 22; run `npm install`.
 2. Copy `.env.example` to `.env.local` and insert the Supabase *publishable* key. Never commit passwords, secret keys or service-role keys.
-3. Review/apply `supabase/migrations/0001_core.sql`, `0002_verified_network.sql`, `0003_community.sql`, `0004_quotes_bookings_messages.sql`, `0005_complaints_appeals.sql`, `0006_directory_ratings.sql` in that order through your Supabase SQL editor.
+3. Review/apply `supabase/migrations/0001_core.sql`, `0002_verified_network.sql`, `0003_community.sql`, `0004_quotes_bookings_messages.sql`, `0005_complaints_appeals.sql`, `0006_directory_ratings.sql`, `0007_groups_events_notifications.sql` in that order through your Supabase SQL editor.
 4. Configure Supabase Auth site URL (`http://localhost:3000`) and callback redirect (`http://localhost:3000/auth/callback`). Configure Google/Apple credentials in their respective provider consoles before enabling OAuth.
 5. Run `npm run dev` and test independently using at least two user accounts.
 
@@ -31,7 +31,7 @@ Up to five slots exist per trade-area pair, enforced by a unique trade/area/slot
 
 ## Roadmap
 
-Security review, additional automated browser/e2e tests, secure proof-of-qualification uploads, provider notifications, real-time messaging delivery, Stripe test-mode integration, payment refunds/disputes, expanded moderation, groups/events, and React Native apps. Current quotes, bookings and verified-job reviews are implemented in source and local database integration tests, but have not been tested against your hosted Supabase project.
+Security review, additional automated browser/e2e tests, secure proof-of-qualification uploads, provider notifications, real-time messaging delivery, Stripe test-mode integration, payment refunds/disputes, expanded moderation, address/location verification, real-time notifications, and React Native apps. Group discovery, group posts, local events, RSVP and in-app notifications are implemented as database-backed development features, with no email/push delivery yet. Current quotes, bookings and verified-job reviews are implemented in source and local database integration tests, but have not been tested against your hosted Supabase project.
 
 ## Functional research (no proprietary copying)
 
