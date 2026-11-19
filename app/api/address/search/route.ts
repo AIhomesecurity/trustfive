@@ -35,6 +35,6 @@ export async function POST(request:NextRequest){
   const data=await response.json() as {result?:{postcode?:string;latitude?:number;longitude?:number;admin_district?:string}};
   const info=data.result;
   if(!info||!Number.isFinite(info.latitude)||!Number.isFinite(info.longitude))return fail('Location unavailable for this postcode',200);
-  return NextResponse.json({suggestions:[{label:[info.postcode,info.admin_district,'United Kingdom'].filter(Boolean).join(', '),latitude:info.latitude,longitude:info.longitude,postcode:info.postcode,precision:'postcode',country:'GB'} satisfies Suggestion],message:'Postcode-centre location (not a specific house)'},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({suggestions:[{label:[info.postcode,info.admin_district,'United Kingdom'].filter(Boolean).join(', '),latitude:info.latitude!,longitude:info.longitude!,postcode:info.postcode||null,precision:'postcode',country:'GB'} satisfies Suggestion],message:'Postcode-centre location (not a specific house)'},{headers:{'Cache-Control':'no-store'}});
  }catch{return fail('Address lookup is temporarily unavailable',503);}
 }
