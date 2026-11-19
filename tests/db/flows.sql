@@ -289,7 +289,7 @@ begin
   v_id:=('00000000-0000-0000-0009-'||lpad(i::text,12,'0'))::uuid;
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   insert into public.professional_applications(id,user_id,trade_id,area_id,business_name,about)
-  values(v_id,v_user,v_trade,v_area,'Electrical '+i,'Qualified electrician applying for an open place');
+  values(v_id,v_user,v_trade,v_area,'Electrical '||i,'Qualified electrician applying for an open place');
  end loop;
  perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',true);
  for a in (select id from public.professional_applications where trade_id=v_trade and area_id=v_area) loop
