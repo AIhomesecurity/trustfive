@@ -312,5 +312,52 @@ begin
  end;
 end $$;
 
+
+-- A server-only signed-webhook function must deduplicate and avoid old-state overwrites.
 reset role;
-select 'TrustFive network, vacancy capacity, booking, community and RLS tests passed' as test_result;
+set role service_role;
+do $$
+declare first_result boolean;second_result boolean;
+begin
+ first_result:=public.apply_membership_stripe_event(
+  'evt_trustfive_test_0001',now(),
+  '00000000-0000-0000-0000-000000000001','cus_test_001','sub_test_001','active'
+ );
+ if first_result is not true then raise exception 'Stripe webhook first delivery was rejected'; end if;
+ second_result:=public.apply_membership_stripe_event(
+  'evt_trustfive_test_0001',now(),
+  '00000000-0000-0000-0000-000000000001','cus_test_001','sub_test_001','active'
+ );
+ if second_result is not false then raise exception 'Replay was not deduplicated'; end if;
+ perform public.apply_membership_stripe_event(
+  'evt_trustfive_test_0002',now()-interval '1 day',
+  '00000000-0000-0000-0000-000000000001','cus_test_001','sub_test_001','canceled'
+ );
+end $$;
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+do $$
+begin
+ if (select count(*) from public.business_memberships
+ where subscription_status='active')<>1 then
+  raise exception 'Stripe event ordering or owner membership visibility failed';
+ end if;
+ begin
+  perform public.apply_membership_stripe_event(
+   'evt_attacker_0001',now(),auth.uid(),'cus_attacker','sub_attacker','active'
+  );
+  raise exception 'Authenticated user was able to invoke billing webhook RPC';
+ exception when insufficient_privilege then null;
+ end;
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $$
+begin
+ if exists(select 1 from public.business_memberships) then
+  raise exception 'Unrelated professional can read private billing status';
+ end if;
+end $$;
+
+reset role;
+select 'TrustFive full PostgreSQL access, billing, capacity and social workflow tests passed' as test_result;
