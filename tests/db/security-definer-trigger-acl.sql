@@ -18,3 +18,24 @@ begin
   end if;
 end;
 $$;
+
+-- Public business listings must remain queryable under anon RLS even though
+-- their approval predicate is implemented as a SECURITY DEFINER helper.
+-- The helper returns only a boolean; do not expose applicant private fields.
+do $$
+begin
+ if not has_function_privilege('anon',
+  'public.is_active_approved_application(uuid)','EXECUTE') then
+  raise exception 'Anonymous business page RLS helper cannot execute';
+ end if;
+end $$;
+
+begin;
+set local role anon;
+do $$
+declare visible_count bigint;
+begin
+ select count(*) into visible_count from public.professional_business_pages;
+ if visible_count < 0 then raise exception 'Impossible public count'; end if;
+end $$;
+rollback;
