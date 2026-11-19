@@ -28,7 +28,7 @@ export default function Home(){
    <form className="hero-service-search" action="/services" method="get" role="search">
     <label className="sr-only" htmlFor="trade-search">What do you need help with?</label>
     <span aria-hidden="true">⌕</span>
-    <input id="trade-search" name="q" placeholder="What do you need help with? e.g. plumber" autoComplete="off" required/>
+    <input id="trade-search" type="search" name="q" placeholder="What do you need help with? e.g. plumber" autoComplete="off" required/>
     <button type="submit" className="btn">Find a professional</button>
    </form>
    <div className="hero-shortcuts"><span>Popular:</span><Link href="/services?trade=plumbing">Plumbing</Link><Link href="/services?trade=electrical">Electrical</Link><Link href="/services?trade=cleaning">Cleaning</Link><Link href="/services?trade=roofing">Roofing</Link></div>
