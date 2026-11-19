@@ -7,7 +7,7 @@ import AddressSearch,{type SelectedLocation} from '../../components/address-sear
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
 type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number;distance_km?:number|null};
-type Sort='nearby'|'quality'|'reviews'|'name';
+type Sort='recommended'|'nearby'|'quality'|'reviews'|'name';
 
 const aliases:Record<string,string>={
  plumber:'plumbing',plumbers:'plumbing',leak:'plumbing',tap:'plumbing',dripping:'plumbing',
@@ -51,6 +51,7 @@ export default function Services(){
  const [area,setArea]=useState('');
  const [sort,setSort]=useState<Sort>('quality');
  const [location,setLocation]=useState<SelectedLocation|null>(null);
+ const [addressVersion,setAddressVersion]=useState(0);
  const [pros,setPros]=useState<Professional[]>([]);
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [resultsLoading,setResultsLoading]=useState(true);
@@ -106,6 +107,7 @@ export default function Services(){
 
  const visible=useMemo(()=>{
   const list=[...pros];
+  if(sort==='recommended'&&location)return list;
   if(sort==='nearby'&&location)list.sort((a,b)=>(a.distance_km??Infinity)-(b.distance_km??Infinity)||b.quality_score-a.quality_score);
   else if(sort==='reviews')list.sort((a,b)=>b.review_count-a.review_count||b.quality_score-a.quality_score);
   else if(sort==='name')list.sort((a,b)=>a.business_name.localeCompare(b.business_name));
@@ -118,7 +120,7 @@ export default function Services(){
  if(tradeEntry)jobParams.set('trade',tradeEntry.slug);
  if(areaEntry)jobParams.set('area',areaEntry.id);
  const jobHref='/jobs'+(jobParams.size?'?'+jobParams.toString():'');
- function clearFilters(){setTrade('');setArea('');setLocation(null);setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
+ function clearFilters(){setTrade('');setArea('');setLocation(null);setAddressVersion(v=>v+1);setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
  function updateTrade(value:string){setTrade(value);setSearchHint('');const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
  function updateArea(value:string){setArea(value);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
 
@@ -138,7 +140,7 @@ export default function Services(){
     <select id="directory-trade" value={trade} onChange={e=>updateTrade(e.target.value)} disabled={catalogLoading}>
      <option value="">All services</option>{trades.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
     </select>
-    <AddressSearch onSelect={point=>{setLocation(point);setSort(point?'nearby':'quality');if(point){setArea('');const p=new URLSearchParams(window.location.search);p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}}}/>
+    <AddressSearch key={addressVersion} onSelect={point=>{setLocation(point);setSort(point?'recommended':'quality');if(point){setArea('');const p=new URLSearchParams(window.location.search);p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}}}/>
     <p className="muted-note">Nearby results use verified professional service locations. Distance is approximate straight-line distance, not travel time. Providers without verified locations do not appear in proximity results.</p>
     <div className="directory-filter-guide"><strong>How to choose</strong><p>Review experience, approved quality scores and feedback from completed bookings before agreeing work.</p></div>
    </aside>
@@ -151,7 +153,7 @@ export default function Services(){
       <p className="subtle">{location?'Near '+location.label:areaEntry?areaEntry.area_name+', '+areaEntry.city:'Enter your address to find the nearest verified professionals'}</p></div>
      <label htmlFor="directory-sort">Sort results
       <select id="directory-sort" value={sort} onChange={e=>setSort(e.target.value as Sort)}>
-       {location&&<option value="nearby">Closest first</option>}<option value="quality">Quality score</option><option value="reviews">Most completed-job reviews</option><option value="name">Business name A–Z</option>
+       {location&&<><option value="recommended">Recommended: distance & ratings</option><option value="nearby">Closest first</option></>}<option value="quality">Quality score</option><option value="reviews">Most completed-job reviews</option><option value="name">Business name A–Z</option>
       </select>
      </label>
     </div>
