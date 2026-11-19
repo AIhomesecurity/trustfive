@@ -64,6 +64,23 @@ test('Address-first directory validates a UK postcode and offers location select
  await expect(page.getByLabel('Sort results')).toHaveValue('recommended');
 });
 
+test('Ambiguous address lookup never silently chooses the first house',async({page})=>{
+ await page.route('**/api/address/search',async route=>{
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({suggestions:[
+   {label:'10 Example Street, London',latitude:51.5,longitude:-0.1,postcode:'SW1A 1AA',precision:'address',country:'GB'},
+   {label:'12 Example Street, London',latitude:51.5001,longitude:-0.1,postcode:'SW1A 1AA',precision:'address',country:'GB'}
+  ]})});
+ });
+ await page.goto('/services');
+ await page.getByLabel('Your postcode or street address').fill('Example Street London');
+ await expect(page.getByRole('option',{name:/10 Example Street/})).toBeVisible();
+ await page.getByRole('button',{name:'Find address'}).click();
+ await expect(page.getByText('Choose your exact address from the suggestions below.')).toBeVisible();
+ await expect(page.getByText('Searching near:')).toHaveCount(0);
+ await page.getByRole('option',{name:/12 Example Street/}).click();
+ await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('12 Example Street');
+});
+
 test('Address search endpoint rejects invalid input without leaking an API key',async({request})=>{
  const response=await request.post('/api/address/search',{data:{query:'X'}});
  expect(response.status()).toBe(400);
