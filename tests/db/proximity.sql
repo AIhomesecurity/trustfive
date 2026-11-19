@@ -106,5 +106,58 @@ begin
  end if;
 end $radius_leads$;
 
+
+-- Controlled, explicitly-reviewed boundaries must resolve points only when supported.
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $territory$
+declare v_area uuid;
+begin
+ select id into v_area from public.service_areas where area_name='Central London';
+ begin
+  perform public.verify_service_territory(v_area,
+    '((-0.4,51.4),(-0.1,51.4),(-0.1,51.6),(-0.4,51.6))'::polygon,
+    'Only a verified territory administrator can register this surveyed boundary.');
+  raise exception 'Nonadmin registered a service territory';
+ exception when insufficient_privilege then null;
+ end;
+end $territory$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false);
+do $territory$
+declare v_central uuid;v_north uuid;
+begin
+ select id into v_central from public.service_areas where area_name='Central London';
+ select id into v_north from public.service_areas where area_name='North London';
+ perform public.verify_service_territory(v_central,
+   '((-0.3,51.45),(-0.1,51.45),(-0.1,51.55),(-0.3,51.55))'::polygon,
+   'Fixture only: controlled local boundary geometry verified for coordinate test.');
+ if public.resolve_trustfive_territory('GB',51.5,-0.2) is distinct from v_central then
+   raise exception 'Verified point failed territory resolution';
+ end if;
+ if public.resolve_trustfive_territory('GB',51.8,-0.2) is not null
+    or public.resolve_trustfive_territory('US',51.5,-0.2) is not null then
+   raise exception 'Outside polygon or wrong country resolved to a territory';
+ end if;
+ begin
+  perform public.verify_service_territory(v_north,
+    '((-0.2,51.5),(0.0,51.5),(0.0,51.7),(-0.2,51.7))'::polygon,
+    'Fixture only: overlapping boundary deliberately rejected by independent review.');
+  raise exception 'Overlapping territory boundary was accepted';
+ exception when others then
+  if sqlerrm='Overlapping territory boundary was accepted' then raise; end if;
+  if sqlerrm not like 'Boundary overlaps%' then raise; end if;
+ end;
+end $territory$;
+set role anon;
+do $territory$
+begin
+ begin
+  perform 1 from public.verified_service_territories;
+  raise exception 'Anonymous caller can read restricted boundary evidence';
+ exception when insufficient_privilege then null;
+ end;
+end $territory$;
+
 reset role;
 rollback;
