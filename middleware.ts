@@ -11,7 +11,7 @@ export async function middleware(request:NextRequest){
  }});
  const {data:{user}}=await s.auth.getUser();
  if(!user&&/^\/(profile|jobs|professional|community|admin|support|dashboard|quotes|bookings|messages|notifications|billing|schedule)(\/|$)/.test(request.nextUrl.pathname)){
-  const next=request.nextUrl.clone();next.pathname='/account';next.search='';return NextResponse.redirect(next);
+  const next=request.nextUrl.clone();next.pathname='/account';next.search='';next.searchParams.set('next',request.nextUrl.pathname+request.nextUrl.search);return NextResponse.redirect(next);
  }
  return response;
 }
