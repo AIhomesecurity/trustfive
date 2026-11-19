@@ -61,7 +61,7 @@ test('Address-first directory validates a UK postcode and offers location select
  await page.getByRole('option',{name:/SW1A 1AA/}).click();
  await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('SW1A 1AA');
  await expect(page.getByText(/postcode centre, not your exact property/i)).toBeVisible();
- await expect(page.getByLabel('Sort results')).toHaveValue('nearby');
+ await expect(page.getByLabel('Sort results')).toHaveValue('recommended');
 });
 
 test('Address search endpoint rejects invalid input without leaking an API key',async({request})=>{
