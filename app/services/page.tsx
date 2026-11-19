@@ -9,9 +9,34 @@ export default function Services(){
  const [trades,setTrades]=useState<Trade[]>([]),[areas,setAreas]=useState<Area[]>([]);
  const [trade,setTrade]=useState(''),[area,setArea]=useState('');
  const [pros,setPros]=useState<Professional[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+ const [searchHint,setSearchHint]=useState('');
  useEffect(()=>{(async()=>{try{const s=supabaseBrowser();const [t,a]=await Promise.all([s.from('trades').select('id,name,slug').order('name'),s.from('service_areas').select('id,area_name,city,country_code').order('city')]);if(t.error)throw t.error;if(a.error)throw a.error;setTrades(t.data||[]);setAreas(a.data||[])}catch(e){setError(e instanceof Error?e.message:'Cannot load catalogues')}finally{setLoading(false)}})()},[]);
+ useEffect(()=>{
+  if(trades.length===0)return;
+  const params=new URLSearchParams(window.location.search);
+  const slug=params.get('trade')?.toLowerCase().trim()||'';
+  const query=params.get('q')?.toLowerCase().trim()||'';
+  const aliases:Record<string,string>={
+   plumber:'plumb',plumbers:'plumb',electrician:'electri',electricians:'electri',
+   roofer:'roof',roofers:'roof',gardener:'garden',gardeners:'garden',
+   painter:'paint',decorator:'paint',boiler:'heat',heating:'heat',
+   carpenter:'carpen',joiner:'carpen',cleaner:'clean',removal:'mov',
+   locksmith:'security',landscaper:'landscap',handyman:'handyman'
+  };
+  const text=(slug||query).replace(/[-_]/g,' ');
+  const matches=(t:Trade)=>{
+   const name=t.name.toLowerCase(),code=t.slug.toLowerCase().replace(/[-_]/g,' ');
+   const normalized=text.replace(/&/g,'and');
+   const alias=aliases[normalized]||normalized;
+   return code===normalized||name===normalized||name.includes(alias)||code.includes(alias);
+  };
+  const matched=trades.find(matches);
+  if(matched){setTrade(matched.id);setSearchHint('');}
+  else if(text){setSearchHint('We could not find an exact trade match for “'+(slug||query)+'”. Choose a trade below, or browse all approved professionals.');}
+ },[trades]);
  useEffect(()=>{let active=true;(async()=>{try{setError('');const {data,error}=await supabaseBrowser().rpc('find_trustfive_professionals_with_reviews',{p_trade:trade||null,p_area:area||null});if(error)throw error;if(active)setPros(data||[])}catch(e){if(active)setError(e instanceof Error?e.message:'Search unavailable')}})();return()=>{active=false}},[trade,area]);
  return <main className="container"><div className="page-heading"><span className="eyebrow">Independently selected local talent</span><h1>Find a TrustFive professional</h1><p className="subtle">Only currently verified and approved professionals appear here. Nobody can pay to improve a ranking.</p></div>
+ {searchHint&&<p role="status" className="notice">{searchHint}</p>}
  <div className="card form-grid"><label>Service<select value={trade} onChange={e=>setTrade(e.target.value)}><option value="">All trades</option>{trades.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><label>Local service area<select value={area} onChange={e=>setArea(e.target.value)}><option value="">All areas</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}, {a.city}</option>)}</select></label></div>
  {loading&&<p>Loading services…</p>}{error&&<p role="alert" className="notice error">{error}. Apply the database migrations and check Supabase configuration.</p>}
  <section className="section"><h2>Approved professionals</h2><p className="subtle">Maximum five approved places per trade and service area; display order uses independently reviewed quality scores.</p>
