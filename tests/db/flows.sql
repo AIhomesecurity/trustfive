@@ -501,5 +501,41 @@ begin
  end;
 end $$;
 
+-- Customer job-site addresses must remain private even when job briefs are visible.
+reset role;
+do $
+begin
+ if has_table_privilege('anon','public.job_site_locations','SELECT')
+   or has_table_privilege('authenticated','public.job_site_locations','SELECT') then
+  raise exception 'Private job-site table exposed to API roles';
+ end if;
+ if has_function_privilege('anon','public.create_job_with_private_location(text,text,uuid,uuid,bigint,text,text,text,double precision,double precision,text)','EXECUTE')
+   or has_function_privilege('anon','public.customer_job_site_location(uuid)','EXECUTE') then
+  raise exception 'Anonymous callers can access private job-site RPCs';
+ end if;
+end $;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+do $
+declare v_job uuid;v_trade uuid;v_area uuid;
+begin
+ select id into v_trade from public.trades where slug='plumbing';
+ select id into v_area from public.service_areas where area_name='Central London';
+ v_job:=public.create_job_with_private_location(
+  'Repair dripping tap','Please repair a dripping kitchen tap.',v_trade,v_area,
+  15000,'10 Downing Street, London SW1A 2AA','SW1A 2AA','GB',51.5034,-0.1276,'address');
+ if not exists(select 1 from public.customer_job_site_location(v_job)) then
+  raise exception 'Owner cannot read their private job site';
+ end if;
+ perform set_config('trustfive.private_job_id',v_job::text,false);
+end $;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+do $
+begin
+ if exists(select 1 from public.customer_job_site_location(
+   current_setting('trustfive.private_job_id')::uuid)) then
+  raise exception 'Professional accessed customer job-site address';
+ end if;
+end $;
 reset role;
 select 'TrustFive booking, billing, network, neighbourhood and business review checks passed' as test_result;
