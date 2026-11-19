@@ -63,7 +63,7 @@ jobs:
 
       - name: Install OpenCode CLI
         if: steps.gate.outputs.ready == 'true'
-        run: npm install --global @opencode/cli
+        run: npm install --global opencode-ai
 
       - name: Run one bounded free-model coding cycle
         if: steps.gate.outputs.ready == 'true'
@@ -112,8 +112,7 @@ jobs:
           git diff --cached --check
           git commit -m "Agent: one bounded TrustFive improvement"
           branch="$(git branch --show-current)"
-          gh auth setup-git
-          git push --set-upstream origin "$branch"
+          git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' \"$GH_TOKEN\" | base64 -w0)" push --set-upstream origin "$branch"
           gh pr create --repo "$GITHUB_REPOSITORY" --draft \
             --base feature/verified-marketplace-core --head "$branch" \
             --title "Agent: proposed TrustFive improvement" \
