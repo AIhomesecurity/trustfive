@@ -35,3 +35,17 @@ Check the latest GitHub Actions runs after commits `b504f2f` and `42b78af`. If b
 2. Finish issue #11: private job-site address storage and securely restricted lead delivery, preserving strict five-slot allocation by verified territory. The /jobs page still uses the legacy area dropdown and does not yet meet exact-address acceptance criteria.
 3. Audit each public directory SECURITY DEFINER function's returned fields, RLS interaction and grants; prefer targeted safe changes with negative role tests.
 4. Verify protected Vercel preview with an authorised session; READY is a deployment status, not proof of end-to-end customer success.
+
+
+## 21:02 UTC autonomous CI and security pass
+- Re-inspected PR #1 (draft, open, unmerged), recent commits, issue #11, GitHub Actions, Vercel preview and Supabase staging. Staging has no active allocations or real provider coverage to demonstrate customer matching; no synthetic businesses were inserted.
+- Identified a hard CI regression introduced by the new private job-site SQL tests: three anonymous PL/pgSQL blocks were written with invalid single-dollar delimiters (`do $` / `end $;`). PostgreSQL reports syntax error at line 510. Corrected the blocks with explicit `$private_test$` delimiters in commit `7095ca6`. An earlier attempted correction (`63e8e3b`) did not survive GitHub content handling and remained red; latest checks must be inspected before marking fixed.
+- Supabase staging security advisors: five intentionally private no-policy tables, four publicly callable definer directory/helper functions, and 33 authenticated-callable definer functions. Do not revoke the public approval helper indiscriminately: public business-page RLS invokes it. Continue targeted audit.
+- Vercel preview for `08b5de6` is READY at https://trustfive-jr1ns6ate-trust-five.vercel.app; the current `7095ca6` build has not been verified. READY is not proof of a working protected session.
+- The selected job-site address is privately stored but job leads are still filtered by a manually selected territory, not automatically verified polygon coverage; professionals' quote eligibility currently checks territory, not their verified service radius. This is the next P0 privacy-and-routing gap.
+
+### Priority after CI is green
+1. Gate new private-address job leads and quote eligibility by verified professional service radius; do not expose raw job coordinates or addresses, and preserve legacy job compatibility.
+2. Replace manual territory selection with verified boundary mapping; no guessing by city or postcode string.
+3. Verify complete customer/professional flows on the protected preview with authorised test accounts, plus security definer/RLS audits.
+4. Harden address-provider reliability, abuse limits, accessibility and international coverage.
