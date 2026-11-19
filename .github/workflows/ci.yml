@@ -24,3 +24,25 @@ jobs:
         run: npx tsc --noEmit
       - name: Build application
         run: npm run build
+      - name: Smoke test web server and basic HTTP routes
+        run: |
+          set -euo pipefail
+          npm run start -- --port 3007 > /tmp/trustfive-server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=false
+          for n in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3007/ 2>/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            cat /tmp/trustfive-server.log
+            exit 1
+          fi
+          for path in / /account /services /billing /api/health; do
+            curl -fsS -o /dev/null "http://127.0.0.1:3007$path"
+          done
+          curl -fsS http://127.0.0.1:3007/api/health | grep -q '"status":"ok"'
