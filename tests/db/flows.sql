@@ -537,5 +537,74 @@ begin
   raise exception 'Professional accessed customer job-site address';
  end if;
 end $private_test$;
+-- Exact booking-address disclosure requires customer opt-in, never only a quote or booking.
+reset role;
+update public.job_bookings set status='booked'
+ where quote_id='00000000-0000-0000-0003-000000000001';
+insert into public.job_site_locations(job_id,address_label,postcode,country_code,latitude,longitude,precision)
+values('00000000-0000-0000-0002-000000000001','10 Example Street, London SW1A 2AA','SW1A 2AA','GB',51.5034,-0.1276,'address');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+do $share_test$
+declare v_booking uuid;
+begin
+ select id into v_booking from public.job_bookings
+ where quote_id='00000000-0000-0000-0003-000000000001';
+ if exists(select 1 from public.booking_job_site_address(v_booking)) then
+  raise exception 'Booked professional saw the home address before consent';
+ end if;
+ begin
+  perform public.set_booking_address_sharing(v_booking,true);
+  raise exception 'Professional could change customer address-sharing permission';
+ exception when insufficient_privilege then null;
+ end;
+end $share_test$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+do $share_test$
+declare v_booking uuid;
+begin
+ select id into v_booking from public.job_bookings
+ where quote_id='00000000-0000-0000-0003-000000000001';
+ if not exists(select 1 from public.booking_job_site_address(v_booking)
+   where not sharing_enabled and address_label='10 Example Street, London SW1A 2AA') then
+  raise exception 'Customer cannot see own private address before sharing';
+ end if;
+ perform public.set_booking_address_sharing(v_booking,true);
+end $share_test$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+do $share_test$
+declare v_booking uuid;
+begin
+ select id into v_booking from public.job_bookings
+ where quote_id='00000000-0000-0000-0003-000000000001';
+ if not exists(select 1 from public.booking_job_site_address(v_booking)
+   where sharing_enabled and address_label='10 Example Street, London SW1A 2AA') then
+  raise exception 'Accepted professional did not receive consented booking address';
+ end if;
+end $share_test$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $share_test$
+declare v_booking uuid;
+begin
+ select id into v_booking from public.job_bookings
+ where quote_id='00000000-0000-0000-0003-000000000001';
+ if exists(select 1 from public.booking_job_site_address(v_booking)) then
+  raise exception 'Unrelated professional accessed consented home address';
+ end if;
+end $share_test$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+select public.set_booking_address_sharing(
+ (select id from public.job_bookings
+  where quote_id='00000000-0000-0000-0003-000000000001'),false);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+do $share_test$
+begin
+ if exists(select 1 from public.booking_job_site_address(
+  (select id from public.job_bookings
+   where quote_id='00000000-0000-0000-0003-000000000001'))) then
+  raise exception 'Revoked sharing still exposes the job-site address';
+ end if;
+end $share_test$;
+
 reset role;
 select 'TrustFive booking, billing, network, neighbourhood and business review checks passed' as test_result;
