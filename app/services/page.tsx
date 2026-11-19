@@ -2,11 +2,12 @@
 import {useEffect,useMemo,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
+import AddressSearch,{type SelectedLocation} from '../../components/address-search';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
-type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number};
-type Sort='quality'|'reviews'|'name';
+type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number;distance_km?:number|null};
+type Sort='nearby'|'quality'|'reviews'|'name';
 
 const aliases:Record<string,string>={
  plumber:'plumbing',plumbers:'plumbing',leak:'plumbing',tap:'plumbing',dripping:'plumbing',
@@ -49,6 +50,7 @@ export default function Services(){
  const [trade,setTrade]=useState('');
  const [area,setArea]=useState('');
  const [sort,setSort]=useState<Sort>('quality');
+ const [location,setLocation]=useState<SelectedLocation|null>(null);
  const [pros,setPros]=useState<Professional[]>([]);
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [resultsLoading,setResultsLoading]=useState(true);
@@ -89,7 +91,10 @@ export default function Services(){
   setResultsLoading(true);setResultsError('');
   (async()=>{
    try{
-    const {data,error}=await supabaseBrowser().rpc('find_trustfive_professionals_with_reviews',{p_trade:trade||null,p_area:area||null});
+    const query=location?
+     supabaseBrowser().rpc('find_trustfive_professionals_nearby',{p_trade:trade||null,p_lat:location.latitude,p_lon:location.longitude}):
+     supabaseBrowser().rpc('find_trustfive_professionals_with_reviews',{p_trade:trade||null,p_area:area||null});
+    const {data,error}=await query;
     if(error)throw error;
     if(active)setPros(data||[]);
    }catch(e){
@@ -97,29 +102,30 @@ export default function Services(){
    }finally{if(active)setResultsLoading(false);}
   })();
   return()=>{active=false};
- },[trade,area]);
+ },[trade,area,location]);
 
  const visible=useMemo(()=>{
   const list=[...pros];
-  if(sort==='reviews')list.sort((a,b)=>b.review_count-a.review_count||b.quality_score-a.quality_score);
+  if(sort==='nearby'&&location)list.sort((a,b)=>(a.distance_km??Infinity)-(b.distance_km??Infinity)||b.quality_score-a.quality_score);
+  else if(sort==='reviews')list.sort((a,b)=>b.review_count-a.review_count||b.quality_score-a.quality_score);
   else if(sort==='name')list.sort((a,b)=>a.business_name.localeCompare(b.business_name));
   else list.sort((a,b)=>b.quality_score-a.quality_score||b.review_count-a.review_count);
   return list;
- },[pros,sort]);
+ },[pros,sort,location]);
  const tradeEntry=trades.find(t=>t.id===trade);
  const areaEntry=areas.find(a=>a.id===area);
  const jobParams=new URLSearchParams();
  if(tradeEntry)jobParams.set('trade',tradeEntry.slug);
  if(areaEntry)jobParams.set('area',areaEntry.id);
  const jobHref='/jobs'+(jobParams.size?'?'+jobParams.toString():'');
- function clearFilters(){setTrade('');setArea('');setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
+ function clearFilters(){setTrade('');setArea('');setLocation(null);setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
  function updateTrade(value:string){setTrade(value);setSearchHint('');const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
  function updateArea(value:string){setArea(value);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
 
  return <main className="container directory-page">
   <div className="page-heading"><span className="eyebrow">Find trusted local help</span>
    <h1>Find a TrustFive professional</h1>
-   <p className="subtle">Search approved tradespeople in your chosen service area. Approval is independently reviewed, never bought.</p>
+   <p className="subtle">Enter your postcode or address to find nearby approved tradespeople. Distances and independently assessed quality help you compare.</p>
   </div>
   <div className="directory-intro">
    <div><strong>Up to five approved professionals</strong><span> per trade, per defined local area — only when they qualify.</span></div>
@@ -132,11 +138,8 @@ export default function Services(){
     <select id="directory-trade" value={trade} onChange={e=>updateTrade(e.target.value)} disabled={catalogLoading}>
      <option value="">All services</option>{trades.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
     </select>
-    <label htmlFor="directory-area">Local service area</label>
-    <select id="directory-area" value={area} onChange={e=>updateArea(e.target.value)} disabled={catalogLoading}>
-     <option value="">All service areas</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}, {a.city}</option>)}
-    </select>
-    <p className="muted-note">Areas are defined by TrustFive. Entering a postcode and distance-based matching are planned, not yet available.</p>
+    <AddressSearch onSelect={point=>{setLocation(point);setSort(point?'nearby':'quality');if(point){setArea('');const p=new URLSearchParams(window.location.search);p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}}}/>
+    <p className="muted-note">Nearby results use verified professional service locations. Distance is approximate straight-line distance, not travel time. Providers without verified locations do not appear in proximity results.</p>
     <div className="directory-filter-guide"><strong>How to choose</strong><p>Review experience, approved quality scores and feedback from completed bookings before agreeing work.</p></div>
    </aside>
    <section className="directory-results" aria-label="Approved professional results">
@@ -145,10 +148,10 @@ export default function Services(){
     {searchHint&&<p role="status" className="notice">{searchHint}</p>}
     <div className="directory-results-heading">
      <div><span className="eyebrow">Your local directory</span><h2>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
-      <p className="subtle">{areaEntry?areaEntry.area_name+', '+areaEntry.city:'Across available service areas'}</p></div>
+      <p className="subtle">{location?'Near '+location.label:areaEntry?areaEntry.area_name+', '+areaEntry.city:'Enter your address to find the nearest verified professionals'}</p></div>
      <label htmlFor="directory-sort">Sort results
       <select id="directory-sort" value={sort} onChange={e=>setSort(e.target.value as Sort)}>
-       <option value="quality">Quality score</option><option value="reviews">Most completed-job reviews</option><option value="name">Business name A–Z</option>
+       {location&&<option value="nearby">Closest first</option>}<option value="quality">Quality score</option><option value="reviews">Most completed-job reviews</option><option value="name">Business name A–Z</option>
       </select>
      </label>
     </div>
@@ -163,6 +166,7 @@ export default function Services(){
        <p>{p.trade_name} · {p.area_name}, {p.city}</p>
        <p className="directory-pro-about">{p.about||'Approved local professional'}</p>
        <div className="directory-pro-facts">
+        {location&&p.distance_km!=null&&<span><strong>{Number(p.distance_km).toFixed(1)} km</strong> approximate distance</span>}
         <span><strong>{p.quality_score}/100</strong> independent quality score</span>
         <span>{p.review_count>0?<><strong>★ {Number(p.average_stars).toFixed(1)}/5</strong> · {p.review_count} completed-booking review{p.review_count===1?'':'s'}</>:'No completed-booking reviews yet'}</span>
        </div>
@@ -170,8 +174,8 @@ export default function Services(){
       </div>
      </article>)}</div>}
     {!resultsLoading&&!resultsError&&visible.length===0&&
-     <div className="directory-empty"><span aria-hidden="true" className="directory-empty-icon">🔎</span><h3>No approved professionals match these filters yet</h3>
-      <p>We only show genuinely approved businesses. No invented listings, inflated ratings or paid placements.</p>
+     <div className="directory-empty"><span aria-hidden="true" className="directory-empty-icon">🔎</span><h3>No approved professionals match your search yet</h3>
+      <p>We only show genuinely approved businesses. For nearby searches, professionals must also have a verified service location covering your address.</p>
       <div className="directory-empty-actions"><button type="button" className="btn secondary" onClick={clearFilters}>Explore all areas and trades</button><Link className="btn" href={jobHref}>Post your job</Link></div>
       <p className="muted-note">Are you a professional? <Link href="/professional/apply">Apply to join the verified network →</Link></p>
      </div>}
