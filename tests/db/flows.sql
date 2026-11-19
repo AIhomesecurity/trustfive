@@ -447,5 +447,59 @@ begin
  end;
 end $$;
 
+
+-- Business pages are invisible until a verified active application is reviewed.
 reset role;
-select 'TrustFive booking, memberships, ratings, RLS and write quotas passed' as test_result;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+insert into public.professional_business_pages(
+ application_id,owner_id,display_name,description,website_url,status
+) values(
+ '00000000-0000-0000-0001-000000000001',auth.uid(),
+ 'Local Plumbing Example',
+ 'Verified plumbing services with experience in residential maintenance and repairs.',
+ 'https://example.org','draft'
+);
+select public.submit_business_page('00000000-0000-0000-0001-000000000001');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $$
+begin
+ if exists(select 1 from public.professional_business_pages) then
+  raise exception 'Unreviewed business page leaked to unrelated user';
+ end if;
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false);
+select public.review_business_page(
+ '00000000-0000-0000-0001-000000000001',true,
+ 'The reviewed business content is consistent with currently approved qualifications.');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $$
+begin
+ if (select count(*) from public.professional_business_pages where
+  status='published')<>1 then raise exception 'Approved business page was not published'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000006',false);
+insert into public.professional_business_pages(
+ application_id,owner_id,display_name,description,status
+) values(
+ '00000000-0000-0000-0001-000000000006',auth.uid(),'Waiting List Plumber',
+ 'This is a professional business page pending independent verification.',
+ 'draft'
+);
+select public.submit_business_page('00000000-0000-0000-0001-000000000006');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false);
+do $$
+begin
+ begin
+  perform public.review_business_page(
+   '00000000-0000-0000-0001-000000000006',true,
+   'Unable to approve without an active TrustFive allocation.');
+  raise exception 'Waiting-list professional published unapproved business page';
+ exception when others then
+  if sqlerrm='Waiting-list professional published unapproved business page' then raise; end if;
+  if sqlerrm not like 'Only currently verified, active professionals%' then raise; end if;
+ end;
+end $$;
+
+reset role;
+select 'TrustFive booking, billing, network, neighbourhood and business review checks passed' as test_result;
