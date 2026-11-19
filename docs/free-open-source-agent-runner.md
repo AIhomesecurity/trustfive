@@ -1,6 +1,16 @@
 # TrustFive: free/open-source autonomous coding runner
 
-Research date: 2026-11-19. This is a preparation document; **the runner is not installed, connected to OpenRouter, scheduled, or verified as working** merely because this document exists.
+Research date: 2026-11-19. The scheduled GitHub workflow and bounded agent script are installed; live AI coding remains blocked until the owner securely configures a free OpenRouter API key.
+
+## Current installed status (19 November 2026)
+- GitHub Actions workflow installed on default branch `main`: [`.github/workflows/trustfive-free-agent.yml`](https://github.com/AIhomesecurity/trustfive/blob/main/.github/workflows/trustfive-free-agent.yml).
+- The workflow runs every two hours and supports manual dispatch. It checks out `feature/verified-marketplace-core` and never deploys the default README-only branch.
+- Bounded agent script and task prompt are installed at `scripts/agent/run-one.sh` and `scripts/agent/PROMPT.md` on the development branch.
+- **Verified:** initial GitHub Actions run [44593918315](https://github.com/AIhomesecurity/trustfive/actions/runs/44593918315) completed its preflight successfully.
+- **Not yet operational for AI coding:** `OPENROUTER_API_KEY` was absent from GitHub Actions secrets; the initial run intentionally skipped code generation.
+- If a key is added, use an OpenRouter free-model key constrained to $0 spending and first launch via GitHub Actions > TrustFive free coding agent > Run workflow; confirm build/checks and any generated draft PR before relying on scheduled runs.
+- The runner creates a **draft pull request** only if a change passes the local Next.js build and allowed-file checks. Another coding cycle will not open duplicate agent PRs while one remains under review.
+- No paid billing, Supabase production access, production deployment or auto-merging is configured.
 
 ## Recommended components (use upstream originals)
 1. **OpenCode** — https://github.com/anomalyco/opencode — open-source coding agent that runs headlessly (`opencode run`) and supports OpenRouter as a provider.
