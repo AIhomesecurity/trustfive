@@ -46,3 +46,8 @@ jobs:
             curl -fsS -o /dev/null "http://127.0.0.1:3007$path"
           done
           curl -fsS http://127.0.0.1:3007/api/health | grep -q '"status":"ok"'
+
+      - name: Install Chromium browser runtime
+        run: npx playwright install --with-deps chromium
+      - name: Run browser-level route and authentication tests
+        run: npm run test:e2e
