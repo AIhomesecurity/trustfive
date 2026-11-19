@@ -359,5 +359,39 @@ begin
  end if;
 end $$;
 
+
+-- Reactions only expose per-account records, while aggregated counts are public to members.
 reset role;
-select 'TrustFive full PostgreSQL access, billing, capacity and social workflow tests passed' as test_result;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+insert into public.community_posts(id,author_id,area_id,body)
+select '00000000-0000-0000-0010-000000000001',auth.uid(),a.id,
+ 'Thank you to everyone who helped clean the park today.'
+from public.service_areas a where a.area_name='Central London';
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+insert into public.community_post_reactions(post_id,user_id,reaction)
+values('00000000-0000-0000-0010-000000000001',auth.uid(),'like');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $$
+declare v_likes bigint;
+begin
+ if exists(select 1 from public.community_post_reactions) then
+  raise exception 'Another user can inspect individual reaction records';
+ end if;
+ select likes into v_likes from public.community_reactions_for_posts(
+  array['00000000-0000-0000-0010-000000000001'::uuid]
+ );
+ if v_likes<>1 then raise exception 'Published post aggregate reaction count is wrong'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false);
+select public.moderate_community_post(
+ '00000000-0000-0000-0010-000000000001','hidden');
+do $$
+begin
+ if exists(select 1 from public.community_reactions_for_posts(
+  array['00000000-0000-0000-0010-000000000001'::uuid]
+ )) then raise exception 'Hidden post aggregate reaction count leaked'; end if;
+end $$;
+
+reset role;
+select 'TrustFive booking, business billing, networks, groups, reactions and privacy tests passed' as test_result;
