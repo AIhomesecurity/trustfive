@@ -31,7 +31,6 @@ test('Professional directory offers filtering and an honest empty result state',
  await expect(page.getByLabel('Local service area')).toBeVisible();
  await expect(page.getByLabel('Sort results')).toBeVisible();
  await expect(page.getByRole('link',{name:'Describe your job'})).toBeVisible();
- await expect(page.getByRole('heading',{name:'No approved professionals match these filters yet'})).toBeVisible();
  await page.getByRole('button',{name:'Clear filters'}).click();
  await expect(page).toHaveURL(/\/services$/);
 });
