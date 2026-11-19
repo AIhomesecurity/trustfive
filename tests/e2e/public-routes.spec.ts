@@ -35,6 +35,15 @@ test('Professional directory offers filtering and an honest empty result state',
  await expect(page).toHaveURL(/\/services$/);
 });
 
+test('How TrustFive works explains the five-place rule without promising unavailable guarantees',async({page})=>{
+ await page.goto('/how-it-works');
+ await expect(page.getByRole('heading',{name:'Less searching. More confidence.'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'What the five-place rule actually means'})).toBeVisible();
+ await page.getByText('Are tradespeople employees of TrustFive?').click();
+ await expect(page.getByText('The professionals are independent businesses.')).toBeVisible();
+ await expect(page.getByRole('link',{name:'Browse trusted trades'})).toBeVisible();
+});
+
 test('Registration and sign-in tabs switch without a backend account',async({page})=>{
  await page.goto('/account');
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
