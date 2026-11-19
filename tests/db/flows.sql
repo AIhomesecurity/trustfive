@@ -175,5 +175,105 @@ do $$ begin
  end if;
 end $$;
 
+
+-- Private notifications: only recipients can read/mark their notifications.
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+do $
+declare v_note uuid; v_result boolean;
+begin
+ if (select count(*) from public.account_notifications where kind='new_quote')<>1 then
+  raise exception 'Customer quote notification missing';
+ end if;
+ select id into v_note from public.account_notifications where kind='new_quote' limit 1;
+ v_result:=public.mark_notification_read(v_note);
+ if not v_result then raise exception 'Owner could not mark notification read'; end if;
+ if not exists(select 1 from public.account_notifications
+   where id=v_note and read_at is not null) then
+  raise exception 'Notification read receipt not stored';
+ end if;
+end $;
+
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $
+begin
+ if exists(select 1 from public.account_notifications) then
+  raise exception 'Another user can read account notifications';
+ end if;
+ if public.mark_notification_read(
+  (select id from public.account_notifications limit 1)) then
+  raise exception 'Another user marked a notification read';
+ end if;
+end $;
+
+-- Community group membership and event RSVP permission checks.
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+insert into public.community_groups(id,area_id,creator_id,name,description)
+select '00000000-0000-0000-0006-000000000001',a.id,auth.uid(),
+ 'Central London gardeners','Neighbourhood group for small-space gardening and planting ideas'
+from public.service_areas a where a.area_name='Central London';
+do $
+begin
+ if not exists(select 1 from public.community_group_memberships
+  where group_id='00000000-0000-0000-0006-000000000001'
+  and user_id=auth.uid() and role='owner') then
+   raise exception 'Group creator membership not created';
+ end if;
+end $;
+insert into public.community_group_posts(id,group_id,author_id,body)
+values ('00000000-0000-0000-0007-000000000001',
+ '00000000-0000-0000-0006-000000000001',
+ '00000000-0000-0000-0000-000000000010',
+ 'Come and join our weekend gardening club');
+
+insert into public.community_events(id,area_id,host_id,title,description,venue_label,starts_at,ends_at)
+select '00000000-0000-0000-0008-000000000001',a.id,auth.uid(),
+ 'Community planting day','Plant flowers together with neighbours at the garden','Community garden entrance',
+ now()+interval '1 day',now()+interval '1 day 3 hours'
+from public.service_areas a where a.area_name='Central London';
+
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+do $
+begin
+ if (select count(*) from public.community_group_posts)<>0 then
+  raise exception 'Nonmember could read private group post';
+ end if;
+end $;
+insert into public.community_group_memberships(group_id,user_id,role)
+values('00000000-0000-0000-0006-000000000001',
+ '00000000-0000-0000-0000-000000000001','member');
+insert into public.community_group_posts(group_id,author_id,body)
+values('00000000-0000-0000-0006-000000000001',auth.uid(),
+ 'I can help with the planting plan.');
+select public.set_event_response('00000000-0000-0000-0008-000000000001','going');
+do $
+begin
+ if not exists(select 1 from public.community_event_rsvps
+  where event_id='00000000-0000-0000-0008-000000000001'
+   and user_id=auth.uid() and status='going') then
+  raise exception 'RSVP not recorded for account';
+ end if;
+ if (select count(*) from public.community_group_posts)<>2 then
+  raise exception 'Member cannot see group-only posts';
+ end if;
+end $;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
+do $
+begin
+ if exists(select 1 from public.community_event_rsvps) then
+  raise exception 'User could view another user RSVP';
+ end if;
+ if exists(select 1 from public.community_group_posts) then
+  raise exception 'User could view nonmember group posts';
+ end if;
+end $;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select public.set_event_response('00000000-0000-0000-0008-000000000001','none');
+do $
+begin
+ if exists(select 1 from public.community_event_rsvps where user_id=auth.uid()) then
+  raise exception 'Cancellation did not remove RSVP';
+ end if;
+end $;
+
 reset role;
-select 'TrustFive PostgreSQL security, booking, complaint and appeal tests passed' as test_result;
+select 'TrustFive network, booking, community, notification and RLS tests passed' as test_result;
