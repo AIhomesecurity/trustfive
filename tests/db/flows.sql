@@ -606,5 +606,53 @@ begin
  end if;
 end $share_test$;
 
+-- Consent is auditable, repeat submissions are idempotent, and the audit is not an API table.
+reset role;
+do $consent_audit$
+begin
+ if has_table_privilege('anon','public.booking_address_consent_events','SELECT')
+  or has_table_privilege('authenticated','public.booking_address_consent_events','SELECT')
+  or has_table_privilege('authenticated','public.booking_address_consent_events','INSERT') then
+  raise exception 'Booking address consent audit is exposed to client roles';
+ end if;
+end $consent_audit$;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+do $consent_audit$
+declare v_booking uuid;v_before bigint;v_after bigint;
+begin
+ select id into v_booking from public.job_bookings
+ where quote_id='00000000-0000-0000-0003-000000000001';
+ select count(*) into v_before from public.booking_address_consent_events;
+ perform public.set_booking_address_sharing(v_booking,true);
+ perform public.set_booking_address_sharing(v_booking,true);
+ perform public.set_booking_address_sharing(v_booking,false);
+ select count(*) into v_after from public.booking_address_consent_events;
+ if v_after-v_before<>2 then
+  raise exception 'Consent audit should log grant and revocation exactly once';
+ end if;
+ begin
+  perform public.set_booking_address_sharing(v_booking,null);
+  raise exception 'Null consent choice was accepted';
+ exception when others then
+  if sqlerrm='Null consent choice was accepted' then raise; end if;
+  if sqlerrm not like 'Explicit consent choice required%' then raise; end if;
+ end;
+end $consent_audit$;
+reset role;
+do $consent_audit$
+declare v_booking uuid;
+begin
+ select id into v_booking from public.job_bookings
+ where quote_id='00000000-0000-0000-0003-000000000001';
+ if (select count(*) from public.booking_address_consent_events where booking_id=v_booking)<>2 then
+  raise exception 'Consent audit history missing grant/revoke events';
+ end if;
+ if exists(select 1 from public.booking_address_consent_events
+  where customer_id<>'00000000-0000-0000-0000-000000000010'::uuid) then
+  raise exception 'Consent audit attributed to wrong customer';
+ end if;
+end $consent_audit$;
+
 reset role;
 select 'TrustFive booking, billing, network, neighbourhood and business review checks passed' as test_result;
