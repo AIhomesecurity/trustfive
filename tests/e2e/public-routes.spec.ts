@@ -40,11 +40,36 @@ test('Professional directory offers filtering and an honest empty result state',
  await page.goto('/services?trade=plumbing');
  await expect(page.getByRole('heading',{name:'Find a TrustFive professional'})).toBeVisible();
  await expect(page.getByLabel('Trade or service')).toBeVisible();
- await expect(page.getByLabel('Local service area')).toBeVisible();
+ await expect(page.getByLabel('Your postcode or street address')).toBeVisible();
  await expect(page.getByLabel('Sort results')).toBeVisible();
  await expect(page.getByRole('link',{name:'Describe your job'})).toBeVisible();
  await page.getByRole('button',{name:'Clear filters'}).click();
  await expect(page).toHaveURL(/\/services$/);
+});
+
+test('Address-first directory validates a UK postcode and offers location selection',async({page})=>{
+ await page.route('**/api/address/search',async route=>{
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({suggestions:[{
+   label:'SW1A 1AA, Westminster, United Kingdom',latitude:51.501,longitude:-0.142,
+   postcode:'SW1A 1AA',precision:'postcode',country:'GB'
+  }],message:'Postcode-centre location (not a specific house)'})});
+ });
+ await page.goto('/services?trade=plumbing');
+ const input=page.getByLabel('Your postcode or street address');
+ await input.fill('SW1A 1AA');
+ await expect(page.getByRole('option',{name:/SW1A 1AA/})).toBeVisible();
+ await page.getByRole('option',{name:/SW1A 1AA/}).click();
+ await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('SW1A 1AA');
+ await expect(page.getByText(/postcode centre, not your exact property/i)).toBeVisible();
+ await expect(page.getByLabel('Sort results')).toHaveValue('nearby');
+});
+
+test('Address search endpoint rejects invalid input without leaking an API key',async({request})=>{
+ const response=await request.post('/api/address/search',{data:{query:'X'}});
+ expect(response.status()).toBe(400);
+ const body=await response.json() as {suggestions:unknown[];message:string};
+ expect(body.suggestions).toHaveLength(0);
+ expect(JSON.stringify(body)).not.toContain('GEOAPIFY_API_KEY');
 });
 
 test('How TrustFive works explains the five-place rule without promising unavailable guarantees',async({page})=>{
