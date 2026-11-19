@@ -1,0 +1,47 @@
+'use client';
+import {FormEvent,useEffect,useState} from 'react';
+
+export type SelectedLocation={
+ label:string;latitude:number;longitude:number;postcode:string|null;precision:'address'|'postcode';country:string
+};
+type Props={onSelect:(location:SelectedLocation|null)=>void};
+export default function AddressSearch({onSelect}:Props){
+ const [query,setQuery]=useState(''),[suggestions,setSuggestions]=useState<SelectedLocation[]>([]);
+ const [selected,setSelected]=useState<SelectedLocation|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false);
+ const [version,setVersion]=useState(0);
+ useEffect(()=>{
+  if(selected||query.trim().length<5){setSuggestions([]);return;}
+  const abort=new AbortController();
+  const timer=setTimeout(async()=>{
+   setLoading(true);
+   try{
+    const result=await fetch('/api/address/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query}),signal:abort.signal,cache:'no-store'});
+    const json=await result.json() as {suggestions?:SelectedLocation[];message?:string};
+    if(!abort.signal.aborted){setSuggestions(json.suggestions||[]);setError(json.message&&(!json.suggestions?.length)?json.message:'');}
+   }catch{if(!abort.signal.aborted)setError('Address lookup is temporarily unavailable');}
+   finally{if(!abort.signal.aborted)setLoading(false);}
+  },500);
+  return()=>{clearTimeout(timer);abort.abort();};
+ },[query,selected,version]);
+ function choose(item:SelectedLocation){setSelected(item);setQuery(item.label);setSuggestions([]);setError('');onSelect(item);}
+ function change(value:string){setQuery(value);setSelected(null);onSelect(null);setError('');setVersion(v=>v+1);}
+ async function submit(e:FormEvent){e.preventDefault();if(suggestions[0])choose(suggestions[0]);else setVersion(v=>v+1);}
+ return <div className="address-finder">
+  <label htmlFor="directory-address">Your postcode or street address</label>
+  <form onSubmit={submit} role="search" className="address-finder-form">
+   <input id="directory-address" value={query} onChange={e=>change(e.target.value)} autoComplete="street-address" placeholder="e.g. SW1A 1AA or your street and house number" maxLength={160} aria-describedby="address-privacy"/>
+   <button className="btn secondary" type="submit" disabled={loading||query.trim().length<5}>{loading?'Finding…':'Find address'}</button>
+  </form>
+  {suggestions.length>0&&<div className="address-suggestions" role="listbox" aria-label="Matching addresses">
+    {suggestions.map((item,i)=><button type="button" key={i} role="option" aria-selected={false} onClick={()=>choose(item)}>
+      <strong>{item.label}</strong><span>{item.precision==='address'?'Street and property address':'Postcode area centre'}</span>
+    </button>)}
+   </div>}
+  {selected&&<div className="address-selection" role="status"><strong>Searching near:</strong> {selected.label}
+   <button type="button" onClick={()=>change('')}>Change</button>
+   {selected.precision==='postcode'&&<p>Distance uses the approximate postcode centre, not your exact property.</p>}
+  </div>}
+  {error&&<p className="muted-note" role="status">{error}</p>}
+  <p id="address-privacy" className="muted-note">Your address is used to find nearby professionals. It is not displayed on public business listings or stored in your directory search.</p>
+ </div>;
+}
