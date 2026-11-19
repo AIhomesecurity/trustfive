@@ -503,7 +503,7 @@ end $$;
 
 -- Customer job-site addresses must remain private even when job briefs are visible.
 reset role;
-do $
+do $private_test$
 begin
  if has_table_privilege('anon','public.job_site_locations','SELECT')
    or has_table_privilege('authenticated','public.job_site_locations','SELECT') then
@@ -513,10 +513,10 @@ begin
    or has_function_privilege('anon','public.customer_job_site_location(uuid)','EXECUTE') then
   raise exception 'Anonymous callers can access private job-site RPCs';
  end if;
-end $;
+end $private_test$;
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
-do $
+do $private_test$
 declare v_job uuid;v_trade uuid;v_area uuid;
 begin
  select id into v_trade from public.trades where slug='plumbing';
@@ -528,14 +528,14 @@ begin
   raise exception 'Owner cannot read their private job site';
  end if;
  perform set_config('trustfive.private_job_id',v_job::text,false);
-end $;
+end $private_test$;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
-do $
+do $private_test$
 begin
  if exists(select 1 from public.customer_job_site_location(
    current_setting('trustfive.private_job_id')::uuid)) then
   raise exception 'Professional accessed customer job-site address';
  end if;
-end $;
+end $private_test$;
 reset role;
 select 'TrustFive booking, billing, network, neighbourhood and business review checks passed' as test_result;
