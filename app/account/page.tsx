@@ -2,6 +2,12 @@
 import {FormEvent,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
+function jobReturnPath():string{
+ if(typeof window==='undefined')return '/dashboard';
+ const requested=new URLSearchParams(window.location.search).get('next')||'';
+ if(requested==='/jobs'||(requested.startsWith('/jobs?')&&!requested.includes('\\')&&!requested.includes('#')))return requested;
+ return '/dashboard';
+}
 export default function Account(){
  const [mode,setMode]=useState<'signup'|'signin'>('signup'),[role,setRole]=useState<'customer'|'professional'>('customer');
  const [name,setName]=useState(''),[phone,setPhone]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState('');
@@ -10,18 +16,18 @@ export default function Account(){
   const s=supabaseBrowser();
   if(mode==='signup'){
     if(name.trim().length<2)throw Error('Please enter your full name');
-    const {data,error}=await s.auth.signUp({email,password,options:{emailRedirectTo:location.origin+'/auth/callback',data:{full_name:name.trim(),phone:phone.trim(),requested_role:role}}});
+    const {data,error}=await s.auth.signUp({email,password,options:{emailRedirectTo:location.origin+'/auth/callback?next='+encodeURIComponent(jobReturnPath()),data:{full_name:name.trim(),phone:phone.trim(),requested_role:role}}});
     if(error)throw error;
-    if(data.session){location.assign('/dashboard');return}
+    if(data.session){location.assign(jobReturnPath());return}
     setMessage('Account created. Check your email for the confirmation link before signing in.');
   }else{
     const {error}=await s.auth.signInWithPassword({email,password});
     if(error)throw error;
-    location.assign('/dashboard');
+    location.assign(jobReturnPath());
   }
  }catch(e){setMessage(e instanceof Error?e.message:'Unable to continue')}finally{setBusy(false)}}
  async function oauth(provider:'google'|'apple'){setMessage('');try{
-  const {error}=await supabaseBrowser().auth.signInWithOAuth({provider,options:{redirectTo:location.origin+'/auth/callback'}});
+  const {error}=await supabaseBrowser().auth.signInWithOAuth({provider,options:{redirectTo:location.origin+'/auth/callback?next='+encodeURIComponent(jobReturnPath())}});
   if(error)throw error;
  }catch(e){setMessage(e instanceof Error?e.message:'OAuth login unavailable. Provider must be configured in Supabase.')}}
  return <main className="container" style={{maxWidth:560,paddingTop:50}}>
