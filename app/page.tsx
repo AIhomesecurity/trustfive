@@ -11,12 +11,12 @@ const services:Service[]=[
  {label:'Moving',icon:'🚚',slug:'moving',description:'Removals & deliveries'},
  {label:'Furniture assembly',icon:'🪑',slug:'furniture-assembly',description:'Flat-pack & fitting'},
  {label:'Roofing',icon:'🏠',slug:'roofing',description:'Roof repairs & gutters'},
- {label:'Heating & boilers',icon:'🔥',slug:'heating-boilers',description:'Heating & servicing'},
+ {label:'Heating & boilers',icon:'🔥',slug:'heating',description:'Heating & servicing'},
  {label:'Carpentry',icon:'🪚',slug:'carpentry',description:'Woodwork & joinery'},
  {label:'Home security',icon:'🔒',slug:'home-security',description:'Locks, alarms & cameras'},
  {label:'Bathrooms',icon:'🚿',slug:'bathrooms',description:'Bathrooms & tiling'},
  {label:'Kitchens',icon:'🍽️',slug:'kitchens',description:'Kitchen fitting'},
- {label:'Windows & doors',icon:'🪟',slug:'windows-doors',description:'Glazing & installations'},
+ {label:'Windows & doors',icon:'🪟',slug:'windows',description:'Glazing & installations'},
  {label:'Landscaping',icon:'🌳',slug:'landscaping',description:'Patios, paving & gardens'}
 ];
 export default function Home(){
