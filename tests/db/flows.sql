@@ -640,7 +640,8 @@ declare v_booking uuid;
 begin
  select id into v_booking from public.job_bookings
  where quote_id='00000000-0000-0000-0003-000000000001';
- if (select count(*) from public.booking_address_consent_events where booking_id=v_booking)<>2 then
+ -- The initial grant/revoke and the idempotency test grant/revoke are four real state transitions.
+ if (select count(*) from public.booking_address_consent_events where booking_id=v_booking)<>4 then
   raise exception 'Consent audit history missing grant/revoke events';
  end if;
  if exists(select 1 from public.booking_address_consent_events
