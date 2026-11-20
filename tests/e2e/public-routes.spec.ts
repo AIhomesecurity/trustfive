@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {jobAddressLabel} from '../../lib/job-address';
+import {canConfirmCompletedBooking} from '../../lib/booking-completion-guard';
 import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
 import {quoteMessagesHref,bookingScheduleHref,bookingHistoryHref,authorisedQuoteSelection,authorisedBookingSelection} from '../../lib/workflow-links';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
@@ -293,4 +294,16 @@ test('Professional opportunity counters count only unquoted matching jobs',()=>{
  const quotes=[{job_id:'a',status:'pending'},{job_id:'b',status:'accepted'},{job_id:'elsewhere',status:'declined'}];
  expect(professionalQuoteStats(leads,quotes)).toEqual({available:1,submitted:3,awaiting:1});
  expect(professionalQuoteStats([],[])).toEqual({available:0,submitted:0,awaiting:0});
+});
+
+test('Only the actual customer can confirm an awaiting-customer booking as completed',()=>{
+ const booking={id:'booking-1',customer_id:'customer-a',status:'awaiting_customer'};
+ expect(canConfirmCompletedBooking('booking-1',booking,'customer-a')).toBe(true);
+ expect(canConfirmCompletedBooking('booking-1',booking,'another-user')).toBe(false);
+ expect(canConfirmCompletedBooking('booking-2',booking,'customer-a')).toBe(false);
+ expect(canConfirmCompletedBooking(null,booking,'customer-a')).toBe(false);
+ expect(canConfirmCompletedBooking('booking-1',undefined,'customer-a')).toBe(false);
+ for(const status of ['booked','completed','cancelled']){
+  expect(canConfirmCompletedBooking('booking-1',{...booking,status},'customer-a')).toBe(false);
+ }
 });
