@@ -79,3 +79,18 @@ Check the latest GitHub Actions runs after commits `b504f2f` and `42b78af`. If b
 3. **P0** Improve unknown territory UX and avoid fallback selection when verified country boundaries exist but do not cover an address.
 4. **P0** Verify protected Vercel preview using authorised browser session; READY alone is not enough.
 5. **P1** Complete customer-to-quote-to-booking auth tests and individual SECURITY DEFINER/RLS audit; improve mobile/community and test-only payment flows.
+
+
+## 2026-11-20 01:56 UTC — CI territory contract correction
+- Re-inspected PR #1 (open/draft), master issue #12, branch commit history, latest CI, Vercel previews, staging Supabase data and security advisors. No production merge.
+- The latest application CI on `f4aab740` succeeded, but database integration failed at `tests/db/verified_territory_contract.sql:48` with `role "PUBLIC" does not exist`. The test incorrectly passed `PUBLIC` as a named role to `has_function_privilege`; PostgreSQL PUBLIC is a grant pseudo-role, not a login role. Since `anon` inherits PUBLIC grants, checking `has_function_privilege('anon',...)` covers both direct anonymous and PUBLIC execution. Corrected the test in commit `eb915548`. Fresh CI queued; not yet claimed green.
+- Vercel previously READY at https://trustfive-fcx9de740-trust-five.vercel.app for `f4aab740`; deployment of `eb915548` was BUILDING when inspected. A READY build does not prove authenticated protected-preview access.
+- Staging contains **zero** verified professional service locations, **zero** reviewed territories and **zero** active providers. Real-world proximity matching remains blocked on independent evidence and approved onboarding, not synthetic fixtures.
+- Security advisors report seven private RLS tables intentionally without direct policies and four anonymously callable SECURITY DEFINER functions. Review each public directory/helper function's output and permissions; do not blanket-grant private tables. Advisor: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+- Lovable paid Trade Finder is READY (prototype commit `a83baf2c`); free Experience Lab is blocked by exhausted credits. Neither is synchronized with canonical GitHub. No quota spent or demo listings imported.
+
+### Immediate priorities
+1. Confirm fresh database CI green after `eb915548`; if red, inspect logs and correct the precise regression.
+2. Human-verify actual territory polygons and professional coverage, then exercise authenticated private-location/quote flow.
+3. Audit exposed directory SECURITY DEFINER functions and tighten only demonstrably unnecessary privileges.
+4. Verify protected Vercel preview with authorised access, followed by mobile address-search and community interaction checks.
