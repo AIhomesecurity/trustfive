@@ -60,6 +60,9 @@ export default function Services(){
  const [catalogError,setCatalogError]=useState('');
  const [resultsError,setResultsError]=useState('');
  const [searchHint,setSearchHint]=useState('');
+ const [shortlistIds,setShortlistIds]=useState<string[]>([]);
+ const [shortlistReady,setShortlistReady]=useState(false);
+ const [shortlistNotice,setShortlistNotice]=useState('');
 
  useEffect(()=>{
   let active=true;
@@ -107,6 +110,18 @@ export default function Services(){
   return()=>{active=false};
  },[trade,area,location,retryVersion]);
 
+ useEffect(()=>{
+  try{
+   const stored=JSON.parse(window.localStorage.getItem('trustfive-shortlist-v1')||'[]');
+   if(Array.isArray(stored))setShortlistIds(stored.filter((id):id is string=>typeof id==='string'&&/^[0-9a-f-]{36}$/i.test(id)).slice(0,3));
+  }catch{/* Unsupported or private browsing storage must never block finding trades. */}
+  setShortlistReady(true);
+ },[]);
+ useEffect(()=>{
+  if(!shortlistReady)return;
+  try{window.localStorage.setItem('trustfive-shortlist-v1',JSON.stringify(shortlistIds));}catch{/* Browser storage is optional. */}
+ },[shortlistIds,shortlistReady]);
+
  const visible=useMemo(()=>{
   const list=[...pros];
   if(sort==='recommended'&&location)return list;
@@ -116,6 +131,12 @@ export default function Services(){
   else list.sort((a,b)=>b.quality_score-a.quality_score||b.review_count-a.review_count);
   return list;
  },[pros,sort,location]);
+ const compareVisible=visible.filter(p=>shortlistIds.includes(p.application_id));
+ function toggleShortlist(id:string){
+  if(shortlistIds.includes(id)){setShortlistIds(current=>current.filter(item=>item!==id));setShortlistNotice('Removed from your comparison.');return;}
+  if(shortlistIds.length>=3){setShortlistNotice('You can compare up to three approved professionals. Remove one first.');return;}
+  setShortlistIds(current=>[...current,id]);setShortlistNotice('Added to your comparison.');
+ }
  const tradeEntry=trades.find(t=>t.id===trade);
  const areaEntry=areas.find(a=>a.id===area);
  const jobParams=new URLSearchParams();
@@ -163,6 +184,19 @@ export default function Services(){
     {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
     {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
      <p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
+
+    {shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}
+    {shortlistIds.length>0&&<section className="directory-compare" aria-labelledby="directory-compare-title">
+     <div className="directory-compare-heading"><div><h3 id="directory-compare-title">Compare approved professionals</h3><p className="muted-note">{shortlistIds.length} saved on this browser · Maximum 3 · Only currently eligible matching results are shown</p></div><button type="button" className="btn secondary" onClick={()=>{setShortlistIds([]);setShortlistNotice('Comparison cleared.');}}>Clear comparison</button></div>
+     {compareVisible.length===0?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
+     <div className="directory-compare-grid">{compareVisible.map(p=><article className="directory-compare-card" key={p.application_id}>
+      <h4>{p.business_name}</h4><span className="pill">Currently approved in these results</span>
+      <p>{p.trade_name} · {p.area_name}</p>
+      <dl><div><dt>Independent quality</dt><dd>{p.quality_score}/100</dd></div><div><dt>Verified booking reviews</dt><dd>{p.review_count>0?Number(p.average_stars).toFixed(1)+'/5 ('+p.review_count+')':'None yet'}</dd></div>{location&&p.distance_km!=null&&<div><dt>Approximate distance</dt><dd>{Number(p.distance_km).toFixed(1)} km</dd></div>}</dl>
+      <Link className="btn secondary" href={'/business/'+p.application_id}>View full profile</Link>
+      <button type="button" className="directory-compare-remove" onClick={()=>toggleShortlist(p.application_id)}>Remove from comparison</button>
+     </article>)}</div>}
+    </section>}
     {!resultsLoading&&!resultsError&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
      <article className="directory-pro" key={p.application_id}>
       <div className="directory-pro-avatar" aria-hidden="true">{p.business_name.trim().charAt(0).toUpperCase()||'T'}</div>
@@ -175,7 +209,7 @@ export default function Services(){
         <span><strong>{p.quality_score}/100</strong> independent quality score</span>
         <span>{p.review_count>0?<><strong>★ {Number(p.average_stars).toFixed(1)}/5</strong> · {p.review_count} completed-booking review{p.review_count===1?'':'s'}</>:'No completed-booking reviews yet'}</span>
        </div>
-       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><Link href={jobHref}>Post a job →</Link></div>
+       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={jobHref}>Post a job →</Link></div>
       </div>
      </article>)}</div>}
     {!resultsLoading&&!resultsError&&visible.length===0&&
