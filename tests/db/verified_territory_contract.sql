@@ -130,3 +130,43 @@ begin
 end
 $tf$;
 rollback;
+
+
+-- Harden the administrative review and point resolver contracts. Both use
+-- SECURITY DEFINER to access private boundary records; neither may inherit
+-- a caller-controlled search_path or permit anonymous invocation.
+do $tf$
+declare
+ v_name text;
+ v_proc oid;
+begin
+ foreach v_name in array array[
+  'public.verify_service_territory(uuid,polygon,text)',
+  'public.resolve_trustfive_territory(text,double precision,double precision)'
+ ] loop
+  v_proc := to_regprocedure(v_name)::oid;
+  if v_proc is null then
+   raise exception 'Missing verified territory RPC: %',v_name;
+  end if;
+  if not exists (
+   select 1 from pg_proc p where p.oid=v_proc and p.prosecdef
+    and exists (
+     select 1 from unnest(p.proconfig) setting
+     where replace(setting,chr(34),'')='search_path='
+    )
+  ) then
+   raise exception 'Territory RPC lacks restricted SECURITY DEFINER search_path: %',v_name;
+  end if;
+  if has_function_privilege('anon',v_proc,'EXECUTE') then
+   raise exception 'Territory RPC anonymously executable: %',v_name;
+  end if;
+ end loop;
+ if not exists (
+  select 1 from pg_proc
+  where oid=to_regprocedure('public.resolve_trustfive_territory(text,double precision,double precision)')::oid
+   and provolatile='s'
+ ) then
+  raise exception 'Territory resolver must remain STABLE';
+ end if;
+end
+$tf$;
