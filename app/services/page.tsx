@@ -3,6 +3,7 @@ import {useEffect,useMemo,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
+import FairSelectionNotice from '../../components/fair-selection-notice';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
@@ -134,6 +135,7 @@ export default function Services(){
    <div><strong>Up to five approved professionals</strong><span> per trade, per defined local area — only when they qualify.</span></div>
    <Link href="/jobs" className="btn">Describe your job →</Link>
   </div>
+  <FairSelectionNotice />
   <div className="directory-layout">
    <aside className="directory-filters" aria-label="Filter professionals">
     <div className="directory-filter-heading"><h2>Find your match</h2><button type="button" className="directory-reset" onClick={clearFilters}>Clear filters</button></div>
