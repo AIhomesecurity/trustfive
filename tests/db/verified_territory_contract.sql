@@ -37,8 +37,9 @@ begin
  if not (select prosecdef from pg_proc where oid=v_proc) then
   raise exception 'Country coverage helper must use controlled SECURITY DEFINER context';
  end if;
- if has_function_privilege('anon',v_proc,'EXECUTE')
-    or has_function_privilege('PUBLIC',v_proc,'EXECUTE') then
+ -- The anon role inherits PUBLIC privileges; testing anon also catches
+ -- accidentally granted PUBLIC execution. PUBLIC is not a named SQL role.
+ if has_function_privilege('anon',v_proc,'EXECUTE') then
   raise exception 'Country coverage helper exposed to anonymous callers';
  end if;
  if not has_function_privilege('authenticated',v_proc,'EXECUTE') then
