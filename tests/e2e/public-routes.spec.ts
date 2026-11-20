@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {jobAddressLabel} from '../../lib/job-address';
+import {quoteMessagesHref,bookingScheduleHref,bookingHistoryHref,authorisedQuoteSelection,authorisedBookingSelection} from '../../lib/workflow-links';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
 
@@ -240,4 +241,37 @@ test('Unauthenticated users cannot accept a TrustFive job quote',async({page})=>
  await page.goto('/jobs');
  await expect(page).toHaveURL(/\/account\?next=/);
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
+});
+
+test('Marketplace deep links target the correct quote thread and booking without exposing addresses',()=>{
+ const quoteId='2e57b536-5117-46b0-b583-c264cb2314cb';
+ const bookingId='45e1e98a-8399-4f2c-b2c5-1ba707e7a302';
+ expect(quoteMessagesHref(quoteId)).toBe('/messages?quote='+quoteId);
+ expect(bookingScheduleHref(bookingId)).toBe('/schedule?booking='+bookingId);
+ expect(bookingHistoryHref(bookingId)).toBe('/bookings?booking='+bookingId);
+ for(const href of [quoteMessagesHref(quoteId),bookingScheduleHref(bookingId),bookingHistoryHref(bookingId)]){
+  expect(href).not.toContain('postcode');
+  expect(href).not.toContain('address');
+ }
+});
+
+test('A URL alone never grants access to a private quote conversation or booking',()=>{
+ const allowedQuotes=['own-quote-a','own-quote-b'];
+ const allowedBookings=['own-booking'];
+ expect(authorisedQuoteSelection('own-quote-b',allowedQuotes)).toBe('own-quote-b');
+ expect(authorisedQuoteSelection('other-customer-quote',allowedQuotes)).toBe('');
+ expect(authorisedQuoteSelection(null,allowedQuotes)).toBe('');
+ expect(authorisedBookingSelection('own-booking',allowedBookings)).toBe('own-booking');
+ expect(authorisedBookingSelection('other-booking',allowedBookings)).toBe('');
+ expect(authorisedBookingSelection(null,allowedBookings)).toBe('');
+});
+
+test('Unauthenticated deep links cannot show a private conversation or appointment',async({page})=>{
+ await page.goto('/messages?quote=other-customer-quote');
+ await expect(page.getByRole('heading',{name:'TrustFive Messages'})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Sign in to view messages'})).toBeVisible();
+ await expect(page.getByText('Other participant')).toHaveCount(0);
+ await page.goto('/schedule?booking=other-customer-booking');
+ await expect(page.getByRole('heading',{name:'Booking appointments'})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Sign in'})).toBeVisible();
 });
