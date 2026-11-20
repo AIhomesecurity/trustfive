@@ -37,6 +37,19 @@ begin
  if not (select prosecdef from pg_proc where oid=v_proc) then
   raise exception 'Country coverage helper must use controlled SECURITY DEFINER context';
  end if;
+ -- A SECURITY DEFINER helper must never inherit the caller's search_path:
+ -- a writable schema earlier in the path could shadow unqualified objects.
+ if not exists (
+  select 1 from pg_proc
+  where oid=v_proc and proconfig @> array['search_path=']::text[]
+ ) then
+  raise exception 'Country coverage helper must pin an empty search_path';
+ end if;
+ if not exists (
+  select 1 from pg_proc where oid=v_proc and provolatile='s'
+ ) then
+  raise exception 'Country coverage helper must remain STABLE (read-only contract)';
+ end if;
  -- The anon role inherits PUBLIC privileges; testing anon also catches
  -- accidentally granted PUBLIC execution. PUBLIC is not a named SQL role.
  if has_function_privilege('anon',v_proc,'EXECUTE') then
