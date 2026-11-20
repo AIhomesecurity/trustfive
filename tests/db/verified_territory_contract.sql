@@ -93,7 +93,12 @@ begin
  if has_table_privilege('anon','public.verified_service_territories','SELECT')
     or has_table_privilege('authenticated','public.verified_service_territories','SELECT')
     or has_table_privilege('authenticated','public.verified_service_territories','INSERT')
-    or has_table_privilege('authenticated','public.verified_service_territories','UPDATE') then
+    or has_table_privilege('authenticated','public.verified_service_territories','UPDATE')
+    or has_table_privilege('authenticated','public.verified_service_territories','DELETE')
+    or has_table_privilege('authenticated','public.verified_service_territories','TRUNCATE')
+    or has_table_privilege('anon','public.verified_service_territories','INSERT')
+    or has_table_privilege('anon','public.verified_service_territories','UPDATE')
+    or has_table_privilege('anon','public.verified_service_territories','DELETE') then
   raise exception 'Reviewed territory boundaries exposed to API roles';
  end if;
  if has_function_privilege('anon',v_verify,'EXECUTE')
