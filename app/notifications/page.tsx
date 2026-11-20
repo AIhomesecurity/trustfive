@@ -7,6 +7,7 @@ const allowedPaths=new Set(['/jobs','/bookings','/messages','/professional/apply
 export default function Notifications(){
  const [items,setItems]=useState<Notification[]>([]);
  const [signedIn,setSignedIn]=useState(false);
+ const [checkingAccount,setCheckingAccount]=useState(true);
  const [notice,setNotice]=useState('Loading your notifications…');
  const [busy,setBusy]=useState('');
  async function reload(){
@@ -23,6 +24,7 @@ export default function Notifications(){
    if(!user){setNotice('Sign in to see your private notifications.');return;}
    setSignedIn(true);await reload();setNotice('');
   }catch(error){setNotice(error instanceof Error?error.message:'Unable to load notifications');}
+  finally{setCheckingAccount(false);}
  })()},[]);
  async function markRead(id:string){
   if(busy)return;
@@ -39,7 +41,8 @@ export default function Notifications(){
   <div className="page-heading"><span className="eyebrow">Private account activity</span><h1>Notifications</h1>
   <p className="subtle">Keep track of quotes, bookings, messages and professional vacancy offers.</p></div>
   {notice&&<p className="notice" role="status">{notice}</p>}
-  {!signedIn?<Link className="btn" href="/account">Sign in</Link>:
+  {checkingAccount?<p role="status" aria-live="polite">Checking your account…</p>:
+   !signedIn?<Link className="btn" href="/account">Sign in</Link>:
    <section className="list" aria-label="Your notifications">
    {items.length===0&&!notice&&<div className="card"><h2>All caught up</h2><p>New account activity will appear here.</p></div>}
    {items.map(item=><article className="card" key={item.id}>
