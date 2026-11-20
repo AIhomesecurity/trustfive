@@ -175,3 +175,21 @@ begin
  end if;
 end
 $tf$;
+
+-- Privacy regression: job-site coordinates must never lose row-level security.
+-- A future migration must not accidentally expose customer property locations
+-- by disabling RLS or granting anonymous table reads.
+do $tf$
+begin
+ if not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='job_site_locations'
+    and c.relkind in ('r','p') and c.relrowsecurity
+ ) then
+  raise exception 'Customer job-site locations must have row-level security enabled';
+ end if;
+ if has_table_privilege('anon','public.job_site_locations','SELECT') then
+  raise exception 'Anonymous callers must not read customer job-site locations';
+ end if;
+end
+$tf$;
