@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {jobAddressLabel} from '../../lib/job-address';
+import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
 import {quoteMessagesHref,bookingScheduleHref,bookingHistoryHref,authorisedQuoteSelection,authorisedBookingSelection} from '../../lib/workflow-links';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
@@ -275,4 +276,21 @@ test('Unauthenticated marketplace deep links preserve the destination but never 
   await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
   await expect(page.getByText('Other participant')).toHaveCount(0);
  }
+});
+
+test('Professional quote preflight blocks duplicate quotes and missing allocations',()=>{
+ const leads=[{job_id:'job-a',allocation_id:'approved-a'},{job_id:'job-b',allocation_id:'approved-b'}];
+ const submitted=[{job_id:'job-a',status:'pending'}];
+ expect(canPrepareProfessionalQuote(leads[0],leads,submitted)).toBe(false);
+ expect(canPrepareProfessionalQuote(leads[1],leads,submitted)).toBe(true);
+ expect(canPrepareProfessionalQuote({job_id:'job-b',allocation_id:'somebody-elses-allocation'},leads,submitted)).toBe(false);
+ expect(canPrepareProfessionalQuote({job_id:'unknown',allocation_id:'approved-b'},leads,submitted)).toBe(false);
+ expect(canPrepareProfessionalQuote(null,leads,submitted)).toBe(false);
+});
+
+test('Professional opportunity counters count only unquoted matching jobs',()=>{
+ const leads=[{job_id:'a',allocation_id:'1'},{job_id:'b',allocation_id:'2'},{job_id:'c',allocation_id:'3'}];
+ const quotes=[{job_id:'a',status:'pending'},{job_id:'b',status:'accepted'},{job_id:'elsewhere',status:'declined'}];
+ expect(professionalQuoteStats(leads,quotes)).toEqual({available:1,submitted:3,awaiting:1});
+ expect(professionalQuoteStats([],[])).toEqual({available:0,submitted:0,awaiting:0});
 });
