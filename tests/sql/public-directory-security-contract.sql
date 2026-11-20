@@ -26,9 +26,19 @@ BEGIN
       SELECT array_agg(lower(pn)) INTO exposed
       FROM pg_proc p,unnest(p.proargnames,p.proargmodes) AS o(pn,mode)
       WHERE p.oid=f.oid AND mode IN ('o','b','t');
-      IF exposed && ARRAY['email','phone','address','street','postcode',
-                           'latitude','longitude','user_id','verified_by']
-      THEN RAISE EXCEPTION 'Private directory output: %',f.proname; END IF;
+      -- Positive allowlist: adding a sensitive field must fail even when its
+      -- name is not present in a hand-maintained denylist.
+      IF exposed IS NULL OR NOT (exposed <@ ARRAY[
+        'application_id','business_name','about','trade_name','area_name',
+        'city','country_code','quality_score','slot','average_stars',
+        'review_count','distance_km'
+      ]::text[])
+      THEN RAISE EXCEPTION 'Unexpected directory output: % (%)',f.proname,exposed; END IF;
+      IF NOT (ARRAY['application_id','business_name','trade_name','slot']::text[] <@ exposed)
+      THEN RAISE EXCEPTION 'Missing essential directory fields: %',f.proname; END IF;
+      IF f.proname='find_trustfive_professionals_nearby'
+         AND NOT ('distance_km'=ANY(exposed))
+      THEN RAISE EXCEPTION 'Nearby directory must return distance'; END IF;
     END IF;
   END LOOP;
   IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
