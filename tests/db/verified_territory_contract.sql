@@ -41,7 +41,10 @@ begin
  -- a writable schema earlier in the path could shadow unqualified objects.
  if not exists (
   select 1 from pg_proc
-  where oid=v_proc and proconfig @> array['search_path=']::text[]
+  where oid=v_proc and exists (
+   select 1 from unnest(proconfig) as setting
+   where replace(setting, chr(34), '')='search_path='
+  )
  ) then
   raise exception 'Country coverage helper must pin an empty search_path';
  end if;
