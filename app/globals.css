@@ -268,3 +268,28 @@
 .quote-confirmation-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}
 .quote-confirmation-actions .btn{flex:0 1 auto}
 @media(max-width:520px){.quote-confirmation{padding:13px}.quote-confirmation-actions{flex-direction:column}.quote-confirmation-actions .btn{width:100%}}
+
+
+/* Signed-in, consent-aware marketplace messaging. */
+.marketplace-messages{grid-template-columns:minmax(270px,.85fr) minmax(320px,1.15fr);align-items:start}
+.marketplace-messages>.card{min-width:0}
+.conversation-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.conversation-heading h2{margin:0;font-size:21px;overflow-wrap:anywhere}
+.conversation-heading>.btn{padding:8px 14px;min-height:40px;font-size:13px}
+.conversation-search-label{display:grid;gap:8px;margin:0 0 16px;font-size:13px;font-weight:750}
+.conversation-choice{width:100%;min-height:66px;text-align:left;border:1px solid var(--border);border-radius:13px;background:#fff;padding:14px 42px 14px 14px;position:relative;color:var(--dark);display:grid;gap:5px}
+.conversation-choice strong{font-size:15px;overflow-wrap:anywhere}
+.conversation-choice small{font-size:12px;color:var(--muted)}
+.conversation-choice>span{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--green)}
+.conversation-choice[aria-current="true"]{border-color:var(--green);background:#eff8f2;box-shadow:inset 3px 0 0 var(--green)}
+.conversation-choice:hover{border-color:#6fab86}
+.conversation-choice:focus-visible{outline:3px solid #21956d;outline-offset:2px}
+.conversation-messages{margin-top:13px;max-height:480px;overflow-y:auto;display:flex;flex-direction:column;gap:11px;padding:12px;background:#f5f8f5;border:1px solid var(--border);border-radius:12px;min-height:105px}
+.conversation-bubble{padding:12px 15px;border:1px solid #d9e8de;background:#fff;max-width:88%;align-self:flex-start;border-radius:12px}
+.conversation-bubble.mine{background:#ddf3e5;border-color:#b9d8c6;align-self:flex-end}
+.conversation-bubble strong{font-size:12px}
+.conversation-bubble p{white-space:pre-wrap;overflow-wrap:anywhere;margin:5px 0 9px;color:var(--dark)}
+.conversation-bubble small{font-size:11px;color:var(--muted)}
+.conversation-actions{display:flex;flex-wrap:wrap;gap:10px}
+@media(max-width:820px){.marketplace-messages{grid-template-columns:1fr}.conversation-messages{max-height:370px}}
+@media(max-width:520px){.conversation-actions{flex-direction:column}.conversation-actions .btn{width:100%}.conversation-bubble{max-width:95%}}
