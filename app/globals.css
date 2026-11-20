@@ -259,3 +259,12 @@
 .booking-overview .card>span{font-weight:700;font-size:13px;color:var(--muted)}
 @media(max-width:620px){.booking-overview{gap:8px}.booking-overview .card{padding:14px}.booking-overview .card>span{font-size:12px}}
 @media(max-width:370px){.booking-overview{grid-template-columns:1fr}}
+
+
+/* Job quote acceptance requires a separate, explicit customer confirmation. */
+.quote-confirmation{margin-top:14px;padding:17px;background:#fff;border:1px solid #94c4aa;border-radius:13px}
+.quote-confirmation h4{margin:0 0 9px;font-size:17px}
+.quote-confirmation p{margin:0 0 10px;line-height:1.5}
+.quote-confirmation-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}
+.quote-confirmation-actions .btn{flex:0 1 auto}
+@media(max-width:520px){.quote-confirmation{padding:13px}.quote-confirmation-actions{flex-direction:column}.quote-confirmation-actions .btn{width:100%}}
