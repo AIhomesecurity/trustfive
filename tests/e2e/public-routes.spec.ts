@@ -89,6 +89,18 @@ test('Address search endpoint rejects invalid input without leaking an API key',
  expect(JSON.stringify(body)).not.toContain('GEOAPIFY_API_KEY');
 });
 
+test('Address lookup is not a nested form and Enter cannot publish a job',async({page})=>{
+ await page.goto('/jobs?trade=plumbing');
+ // Anonymous customers are redirected before the protected job form renders.
+ await expect(page).toHaveURL(/\/account\?next=/);
+ // The shared address finder uses an explicit button, not a nested form,
+ // so the customer job form can own submission and validation.
+ await page.goto('/services');
+ const search=page.getByRole('search',{name:''}).filter({has:page.getByLabel('Your postcode or street address')});
+ await expect(search.locator('form')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Find address'})).toHaveAttribute('type','button');
+});
+
 test('How TrustFive works explains the five-place rule without promising unavailable guarantees',async({page})=>{
  await page.goto('/how-it-works');
  await expect(page.getByRole('heading',{name:'Less searching. More confidence.'})).toBeVisible();
