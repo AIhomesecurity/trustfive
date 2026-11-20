@@ -76,3 +76,57 @@ begin
 end
 $tf$;
 rollback;
+
+
+-- Negative security contract: a reviewed polygon must not become a public
+-- boundary-management or coordinate-enumeration endpoint. The territory
+-- resolver is available to signed-in users only, and invalid coordinates
+-- must never resolve to an area, regardless of configured country coverage.
+do $tf$
+declare
+ v_verify oid := to_regprocedure('public.verify_service_territory(uuid,polygon,text)')::oid;
+ v_resolve oid := to_regprocedure('public.resolve_trustfive_territory(text,double precision,double precision)')::oid;
+begin
+ if v_verify is null or v_resolve is null then
+  raise exception 'Verified territory review/resolver function missing';
+ end if;
+ if has_table_privilege('anon','public.verified_service_territories','SELECT')
+    or has_table_privilege('authenticated','public.verified_service_territories','SELECT')
+    or has_table_privilege('authenticated','public.verified_service_territories','INSERT')
+    or has_table_privilege('authenticated','public.verified_service_territories','UPDATE') then
+  raise exception 'Reviewed territory boundaries exposed to API roles';
+ end if;
+ if has_function_privilege('anon',v_verify,'EXECUTE')
+    or has_function_privilege('anon',v_resolve,'EXECUTE') then
+  raise exception 'Anonymous role can review or enumerate verified territories';
+ end if;
+ if not has_function_privilege('authenticated',v_verify,'EXECUTE')
+    or not has_function_privilege('authenticated',v_resolve,'EXECUTE') then
+  raise exception 'Signed-in territory RPC contract missing';
+ end if;
+ if not exists (
+  select 1 from pg_trigger t
+  join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='job_site_locations'
+    and t.tgname='enforce_verified_job_territory'
+    and t.tgenabled='O' and not t.tgisinternal
+ ) then
+  raise exception 'Verified territory enforcement trigger is disabled';
+ end if;
+end
+$tf$;
+
+begin;
+set local role authenticated;
+do $tf$
+begin
+ if public.resolve_trustfive_territory('GB',91,0) is not null
+    or public.resolve_trustfive_territory('GB',0,181) is not null
+    or public.resolve_trustfive_territory('GB',null,0) is not null
+    or public.resolve_trustfive_territory(null,0,0) is not null then
+  raise exception 'Invalid or missing location unexpectedly resolved to a territory';
+ end if;
+end
+$tf$;
+rollback;
