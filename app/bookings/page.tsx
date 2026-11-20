@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
@@ -16,7 +16,12 @@ export default function Bookings(){
  const [focusBooking,setFocusBooking]=useState(''),[unavailableBooking,setUnavailableBooking]=useState(false);
  const [selected,setSelected]=useState<Booking|null>(null),[stars,setStars]=useState('5'),[body,setBody]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  const [completionConfirmationId,setCompletionConfirmationId]=useState<string|null>(null);
+ const refreshRequest=useRef(0);
  async function refresh(user:string){
+  const currentRequest=++refreshRequest.current;
+  // Never retain previously retrieved private job-site addresses while
+  // booking ownership and consent are being rechecked.
+  setSites({});setSiteUnavailableIds([]);
   setLoadingBookings(true);
   try{
    const s=supabaseBrowser();
@@ -27,9 +32,8 @@ export default function Bookings(){
    ]);
    if(b.error)throw b.error;
    if(r.error)throw r.error;
+   if(currentRequest!==refreshRequest.current)return;
    const records=b.data||[];
-   // Clear previous address data before any renewed access check, including after revocation.
-   setSites({});setSiteUnavailableIds([]);
    setBookings(records);setReviews(r.data||[]);
    const requested=new URLSearchParams(window.location.search).get('booking');
    setFocusBooking(authorisedBookingSelection(requested,records.map(b=>b.id)));
@@ -44,9 +48,10 @@ export default function Bookings(){
      return (data?.[0]||null) as JobSite|null;
     }
    );
+   if(currentRequest!==refreshRequest.current)return;
    setSites(loadedSites);
    setSiteUnavailableIds(unavailableIds);
-  }finally{setLoadingBookings(false);}
+  }finally{if(currentRequest===refreshRequest.current)setLoadingBookings(false);}
  }
  useEffect(()=>{(async()=>{try{const {data:{user},error}=await supabaseBrowser().auth.getUser();if(error)throw error;if(!user){setNotice('Sign in to manage your bookings.');return}setUserId(user.id);await refresh(user.id)}catch(e){setNotice(e instanceof Error?e.message:'Unable to load bookings')}finally{setCheckingAccount(false)}})()},[]);
  async function act(action:'mark_job_ready_for_confirmation'|'confirm_job_completed',id:string){
@@ -70,7 +75,11 @@ export default function Bookings(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to update booking');}
   finally{setBusy(false);}
  }
- async function shareAddress(booking:Booking,enabled:boolean){if(busy||siteBusy)return;setSiteBusy(booking.id);setNotice('');try{const {error}=await supabaseBrowser().rpc('set_booking_address_sharing',{p_booking:booking.id,p_allow:enabled});if(error)throw error;await refresh(userId);setNotice(enabled?'Your selected address is now available to this booked professional.':'Exact address sharing has been turned off for this booking.')}catch(e){setNotice(e instanceof Error?e.message:'Unable to update address sharing')}finally{setSiteBusy('')}}
+ async function shareAddress(booking:Booking,enabled:boolean){if(busy||siteBusy)return;setSiteBusy(booking.id);setNotice('');
+  // Remove any cached address immediately. A failed change must not leave
+  // stale private address details displayed as though consent were current.
+  setSites({});setSiteUnavailableIds([]);
+  try{const {error}=await supabaseBrowser().rpc('set_booking_address_sharing',{p_booking:booking.id,p_allow:enabled});if(error)throw error;await refresh(userId);setNotice(enabled?'Your selected address is now available to this booked professional.':'Exact address sharing has been turned off for this booking.')}catch(e){setNotice(e instanceof Error?e.message:'Unable to update address sharing')}finally{setSiteBusy('')}}
  async function review(e:FormEvent){e.preventDefault();if(!selected||busy)return;setBusy(true);try{const rating=Number(stars);const {error}=await supabaseBrowser().from('booking_reviews').insert({booking_id:selected.id,author_id:userId,professional_id:selected.professional_id,stars:rating,body:body.trim()});if(error)throw error;await refresh(userId);setNotice('Review submitted for a confirmed completed booking.');setSelected(null);setBody('')}catch(e){setNotice(e instanceof Error?e.message:'Unable to submit review')}finally{setBusy(false)}}
  return <main className="container"><div className="page-heading"><span className="eyebrow">Bookings and quality</span><h1>My bookings</h1><p><Link className="btn secondary" href="/schedule">Manage appointment times</Link></p><p className="subtle">Professionals mark work ready; customers confirm completion. Reviews are linked to confirmed completed bookings.</p></div>{notice&&<p className="notice" role="status">{notice}</p>}
  {checkingAccount?<p className="notice" role="status" aria-live="polite">Checking your account and loading bookings…</p>:
