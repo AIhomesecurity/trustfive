@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
 import {jobAddressLabel} from '../../lib/job-address';
+import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 type Trade={id:string;name:string;slug:string};type Area={id:string;area_name:string;city:string};
 type Job={id:string;title:string;description:string;status:string;created_at:string;budget_pence:number|null};
 type Quote={quote_id:string;job_id:string;business_name:string;amount_pence:number;message:string;status:string};
@@ -80,9 +81,7 @@ export default function Jobs(){
   if(busy||confirmQuoteId!==quoteId)return;
   // Recheck the current in-memory state before invoking the separately
   // authorisation-checked database booking function.
-  const selectedQuote=quotes.find(q=>q.quote_id===quoteId&&q.status==='pending');
-  const selectedJob=selectedQuote&&jobs.find(j=>j.id===selectedQuote.job_id&&j.status==='open');
-  if(!selectedQuote||!selectedJob){setConfirmQuoteId(null);setMessage('This quote can no longer be accepted. Refresh your jobs and try again.');return;}
+  if(!canConfirmJobQuote(quoteId,quotes,jobs)){setConfirmQuoteId(null);setMessage('This quote can no longer be accepted. Refresh your jobs and try again.');return;}
   setBusy(true);setMessage('');
   try{
    const {error}=await supabaseBrowser().rpc('accept_job_quote',{p_quote:quoteId});
