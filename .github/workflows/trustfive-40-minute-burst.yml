@@ -1,0 +1,63 @@
+name: TrustFive bounded 40-minute development pulse
+
+# This is a read-only coordinator/verification pulse, NOT a paid coding agent.
+# Installed on main because GitHub cron only reads default-branch workflows.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: trustfive-2026-11-20-burst
+  cancel-in-progress: false
+
+jobs:
+  progress-pulse:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Confirm hard expiry (20 Nov 2026, 21:00 UTC)
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          now="$(date -u +%s)"
+          start="$(date -u -d '2026-11-20 20:19:00 UTC' +%s)"
+          end="$(date -u -d '2026-11-20 21:00:00 UTC' +%s)"
+          if (( now < start || now >= end )); then
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "### TrustFive burst expired; no work performed" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "active=true" >> "$GITHUB_OUTPUT"
+      - name: Audit current protected development branch and CI
+        if: steps.gate.outputs.active == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          branch='feature/verified-marketplace-core'
+          echo "### TrustFive 10-minute development checkpoint" >> "$GITHUB_STEP_SUMMARY"
+          echo "This run is read-only. It neither spends model credits nor modifies production." >> "$GITHUB_STEP_SUMMARY"
+          pr="$(gh api "repos/$GH_REPO/pulls/1" --jq '{draft,merged,head_sha:.head.sha,base_branch:.base.ref}')"
+          head_sha="$(printf '%s' "$pr" | jq -r '.head_sha')"
+          echo "Current development commit: \`$head_sha\`" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$pr" | jq -r '"Draft PR: \(.draft), merged: \(.merged), base: \(.base_branch)"' >> "$GITHUB_STEP_SUMMARY"
+          runs="$(gh api "repos/$GH_REPO/actions/runs?head_sha=$head_sha&per_page=35" 2>/dev/null || printf '%s' '{"workflow_runs":[]}')"
+          printf '%s' "$runs" | jq -r '.workflow_runs[] | select(.name=="TrustFive checks" or .name=="TrustFive database integration") | "- \(.name): \(.status) / \(.conclusion // "pending") — \(.html_url)"' >> "$GITHUB_STEP_SUMMARY"
+          if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.name=="TrustFive checks" and .conclusion=="success")' >/dev/null; then
+            echo "::warning::Latest development HEAD has no confirmed passing web/browser CI yet."
+          fi
+          if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.name=="TrustFive database integration" and .conclusion=="success")' >/dev/null; then
+            echo "::warning::Latest development HEAD has no confirmed passing PostgreSQL CI yet."
+          fi
+          echo "Coding agent status: GitHub's separate free-model coding job needs an available, tested OpenRouter key; this monitor does not assume it works." >> "$GITHUB_STEP_SUMMARY"
+          echo "Next priorities: fully authorised staging signup-to-booking tests; verified territory/provider onboarding; private-address and RLS checks." >> "$GITHUB_STEP_SUMMARY"
