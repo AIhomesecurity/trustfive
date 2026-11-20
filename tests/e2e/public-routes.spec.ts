@@ -1,4 +1,16 @@
 import {test,expect} from '@playwright/test';
+import {jobAddressLabel} from '../../lib/job-address';
+
+test('Postcode-only jobs require a private property line without inventing exact coordinates',()=>{
+ const postcode={label:'SW1A 1AA, Westminster, United Kingdom',latitude:51.501,longitude:-0.142,postcode:'SW1A 1AA',precision:'postcode' as const,country:'GB'};
+ expect(()=>jobAddressLabel(postcode,'')).toThrow(/house number\/name and street/);
+ expect(()=>jobAddressLabel(postcode,'12')).toThrow(/house number\/name and street/);
+ expect(jobAddressLabel(postcode,'  14   High Street  ')).toBe('14 High Street, SW1A 1AA, Westminster, United Kingdom');
+ expect(()=>jobAddressLabel({...postcode,label:'A'.repeat(160)},'B'.repeat(100))).toThrow(/too long/);
+ expect(jobAddressLabel({...postcode,precision:'address',label:'14 High Street, London'},'')).toBe('14 High Street, London');
+ expect(postcode.latitude).toBe(51.501);
+ expect(postcode.precision).toBe('postcode');
+});
 
 test('TrustFive landing page offers original service search and balanced trade navigation',async({page})=>{
  await page.goto('/');
