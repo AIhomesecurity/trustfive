@@ -14,6 +14,9 @@ test('Postcode-only jobs require a private property line without inventing exact
  expect(jobAddressLabel(postcode,'  14   High Street  ')).toBe('14 High Street, SW1A 1AA, Westminster, United Kingdom');
  expect(()=>jobAddressLabel({...postcode,label:'A'.repeat(160)},'B'.repeat(100))).toThrow(/too long/);
  expect(jobAddressLabel({...postcode,precision:'address',label:'14 High Street, London'},'')).toBe('14 High Street, London');
+ expect(()=>jobAddressLabel({...postcode,precision:'address',label:'   '},'')).toThrow(/valid job-site address/);
+ expect(()=>jobAddressLabel({...postcode,precision:'address',label:'X'.repeat(251)},'')).toThrow(/valid job-site address/);
+ expect(()=>jobAddressLabel({...postcode,label:'   '},'14 High Street')).toThrow(/valid job-site address/);
  expect(postcode.latitude).toBe(51.501);
  expect(postcode.precision).toBe('postcode');
 });
