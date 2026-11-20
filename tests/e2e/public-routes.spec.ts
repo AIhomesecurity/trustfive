@@ -266,12 +266,13 @@ test('A URL alone never grants access to a private quote conversation or booking
  expect(authorisedBookingSelection(null,allowedBookings)).toBe('');
 });
 
-test('Unauthenticated deep links cannot show a private conversation or appointment',async({page})=>{
- await page.goto('/messages?quote=other-customer-quote');
- await expect(page.getByRole('heading',{name:'TrustFive Messages'})).toBeVisible();
- await expect(page.getByRole('link',{name:'Sign in to view messages'})).toBeVisible();
- await expect(page.getByText('Other participant')).toHaveCount(0);
- await page.goto('/schedule?booking=other-customer-booking');
- await expect(page.getByRole('heading',{name:'Booking appointments'})).toBeVisible();
- await expect(page.getByRole('link',{name:'Sign in'})).toBeVisible();
+test('Unauthenticated marketplace deep links preserve the destination but never expose private records',async({page})=>{
+ for(const destination of ['/messages?quote=other-customer-quote','/schedule?booking=other-customer-booking','/bookings?booking=other-customer-booking']){
+  await page.goto(destination);
+  await expect(page).toHaveURL(/\/account\?next=/);
+  const url=new URL(page.url());
+  expect(url.searchParams.get('next')).toBe(destination);
+  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
+  await expect(page.getByText('Other participant')).toHaveCount(0);
+ }
 });
