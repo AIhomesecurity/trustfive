@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {jobAddressLabel} from '../../lib/job-address';
+import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
 
 test('Postcode-only jobs require a private property line without inventing exact coordinates',()=>{
@@ -214,6 +215,29 @@ test('Private booking address lookups have a strict concurrency limit',async()=>
 
 test('Anonymous visitors cannot see private booking information',async({page})=>{
  await page.goto('/bookings');
+ await expect(page).toHaveURL(/\/account\?next=/);
+ await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
+});
+
+test('Only a pending quote attached to an open job can be confirmed',()=>{
+ const jobs=[{id:'open-job',status:'open'},{id:'booked-job',status:'booked'},{id:'closed-job',status:'completed'}];
+ const quotes=[
+  {quote_id:'eligible',job_id:'open-job',status:'pending'},
+  {quote_id:'already-declined',job_id:'open-job',status:'declined'},
+  {quote_id:'already-booked',job_id:'booked-job',status:'pending'},
+  {quote_id:'already-completed',job_id:'closed-job',status:'pending'}
+ ];
+ expect(canConfirmJobQuote('eligible',quotes,jobs)).toBe(true);
+ for(const quote of ['already-declined','already-booked','already-completed','missing']){
+  expect(canConfirmJobQuote(quote,quotes,jobs)).toBe(false);
+ }
+ expect(canConfirmJobQuote(null,quotes,jobs)).toBe(false);
+ expect(canConfirmJobQuote('eligible',quotes,[])).toBe(false);
+ expect(canConfirmJobQuote('eligible',[],jobs)).toBe(false);
+});
+
+test('Unauthenticated users cannot accept a TrustFive job quote',async({page})=>{
+ await page.goto('/jobs');
  await expect(page).toHaveURL(/\/account\?next=/);
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
 });
