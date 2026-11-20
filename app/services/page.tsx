@@ -26,15 +26,15 @@ const aliases:Record<string,string>={
  'cctv installer':'cctv-installation','cctv installation':'cctv-installation',
  'security camera installation':'cctv-installation','video surveillance':'cctv-installation',
  'home surveillance':'cctv-installation',surveillance:'cctv-installation',
- 'ring doorbell':'cctv-installation','video doorbell':'cctv-installation',
- 'alarm system':'home-security','burglar alarm':'home-security','intruder alarm':'home-security'
+ 'ring doorbell':'cctv-installation','video doorbell':'cctv-installation','doorbell camera':'cctv-installation','ip camera':'cctv-installation','ip cameras':'cctv-installation',
+ 'alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
 };
 
 function resolveTrade(input:string,trades:Trade[]):Trade|undefined{
- const value=input.trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\\s+/g,' ').trim();
+ const value=input.trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
  const query=aliases[value]||value;
  if(!query)return undefined;
- const normalized=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\\s+/g,' ').trim();
+ const normalized=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
  const exact=trades.find(t=>normalized(t.slug)===normalized(query)||normalized(t.name)===normalized(query));
  if(exact)return exact;
  // Prefer a single explicit task synonym before less precise description matching.
