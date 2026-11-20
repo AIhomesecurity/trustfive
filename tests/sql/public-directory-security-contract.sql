@@ -1,0 +1,39 @@
+-- Read-only public directory security contract. No fixture or data mutation.
+-- Execute with psql -v ON_ERROR_STOP=1 -f tests/sql/public-directory-security-contract.sql
+DO $audit$
+DECLARE f record; definition text; exposed text[];
+BEGIN
+  FOR f IN SELECT p.oid,p.proname,p.proconfig
+    FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public' AND p.proname IN
+      ('find_trustfive_professionals','find_trustfive_professionals_with_reviews',
+       'find_trustfive_professionals_nearby','is_active_approved_application')
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM unnest(coalesce(f.proconfig,ARRAY[]::text[])) config
+      WHERE config IN ('search_path=','search_path=""')
+    ) THEN RAISE EXCEPTION 'Unsafe search_path: %',f.proname; END IF;
+    definition:=lower(pg_get_functiondef(f.oid));
+    IF definition NOT LIKE '%security definer%'
+       OR definition NOT LIKE '%active_allocations%'
+       OR definition NOT LIKE '%verification_state%'
+    THEN RAISE EXCEPTION 'Missing security/verification gate: %',f.proname; END IF;
+    IF f.proname='find_trustfive_professionals_nearby'
+       AND (definition NOT LIKE '%service_radius_km%'
+            OR definition NOT LIKE '%professional_service_locations%')
+    THEN RAISE EXCEPTION 'Nearby directory missing verified radius gate'; END IF;
+    IF f.proname LIKE 'find_trustfive_professionals%' THEN
+      SELECT array_agg(lower(pn)) INTO exposed
+      FROM pg_proc p,unnest(p.proargnames,p.proargmodes) AS o(pn,mode)
+      WHERE p.oid=f.oid AND mode IN ('o','b','t');
+      IF exposed && ARRAY['email','phone','address','street','postcode',
+                           'latitude','longitude','user_id','verified_by']
+      THEN RAISE EXCEPTION 'Private directory output: %',f.proname; END IF;
+    END IF;
+  END LOOP;
+  IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname='public' AND p.proname IN
+      ('find_trustfive_professionals','find_trustfive_professionals_with_reviews',
+       'find_trustfive_professionals_nearby','is_active_approved_application'))<>4
+  THEN RAISE EXCEPTION 'Expected four directory functions'; END IF;
+END $audit$;
