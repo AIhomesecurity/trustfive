@@ -19,7 +19,23 @@ permissions:
   contents: read
 
 jobs:
+  verify-gemini-secret:
+    name: Check Gemini secret (no API calls)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check whether GEMINI_API_KEY is configured
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY is not set or is unavailable to this workflow."
+            exit 1
+          fi
+          echo "GEMINI_API_KEY is present. Key validity, API quotas and billing have NOT been verified."
   gemini-review:
+    needs: verify-gemini-secret
     if: ${{ inputs.confirm_external_ai == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 7
