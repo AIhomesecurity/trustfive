@@ -2,11 +2,10 @@
 import {FormEvent,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
+import {safeAuthReturnPath} from '../../lib/auth-return-path';
 function jobReturnPath():string{
  if(typeof window==='undefined')return '/dashboard';
- const requested=new URLSearchParams(window.location.search).get('next')||'';
- if(requested==='/jobs'||(requested.startsWith('/jobs?')&&!requested.includes('\\')&&!requested.includes('#')))return requested;
- return '/dashboard';
+ return safeAuthReturnPath(new URLSearchParams(window.location.search).get('next'));
 }
 export default function Account(){
  const [mode,setMode]=useState<'signup'|'signin'>('signup'),[role,setRole]=useState<'customer'|'professional'>('customer');
