@@ -47,8 +47,9 @@ elif [[ "$quota_exit" != 0 ]]; then
   exit "$quota_exit"
 fi
 
-# One bounded agent cycle; the scheduled workflow is responsible for resuming.
+# Leave ~16 minutes of the 45-minute GitHub job for npm install, TypeScript,
+# build and draft-PR submission. More model time is not a quota guarantee.
 # Never silently switch to a paid model.
-timeout --signal=TERM --kill-after=30s 21m \
+timeout --signal=TERM --kill-after=30s 29m \
   opencode run --model openrouter/openrouter/free \
   "$(cat scripts/agent/PROMPT.md)"
