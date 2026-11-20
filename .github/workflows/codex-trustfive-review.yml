@@ -21,18 +21,23 @@ jobs:
   credential-check:
     name: Check Codex API key without spending tokens
     runs-on: ubuntu-latest
+    outputs:
+      key_available: ${{ steps.check.outputs.key_available }}
     timeout-minutes: 3
     steps:
       - name: Check OPENAI_API_KEY availability (not validity)
+        id: check
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         shell: bash
         run: |
           if [[ -z "$OPENAI_API_KEY" ]]; then
+            echo "key_available=false" >> "$GITHUB_OUTPUT"
             echo "::notice::OPENAI_API_KEY is not configured. Codex cannot run in GitHub Actions yet."
             echo "### Codex not connected" >> "$GITHUB_STEP_SUMMARY"
             echo "Add an API key as the repository Actions secret OPENAI_API_KEY, and explicitly opt in before running a review. ChatGPT subscription login is not automatically an API key." >> "$GITHUB_STEP_SUMMARY"
           else
+            echo "key_available=true" >> "$GITHUB_OUTPUT"
             echo "### Codex API secret is present" >> "$GITHUB_STEP_SUMMARY"
             echo "This is a presence check, not API validation. No tokens were consumed." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -40,7 +45,7 @@ jobs:
   codex-review:
     name: One read-only Codex code review
     needs: credential-check
-    if: ${{ inputs.confirm_api_usage == true }}
+    if: ${{ inputs.confirm_api_usage == true && needs.credential-check.outputs.key_available == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
