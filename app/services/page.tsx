@@ -55,6 +55,7 @@ export default function Services(){
  const [pros,setPros]=useState<Professional[]>([]);
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [resultsLoading,setResultsLoading]=useState(true);
+ const [retryVersion,setRetryVersion]=useState(0);
  const [catalogError,setCatalogError]=useState('');
  const [resultsError,setResultsError]=useState('');
  const [searchHint,setSearchHint]=useState('');
@@ -103,7 +104,7 @@ export default function Services(){
    }finally{if(active)setResultsLoading(false);}
   })();
   return()=>{active=false};
- },[trade,area,location]);
+ },[trade,area,location,retryVersion]);
 
  const visible=useMemo(()=>{
   const list=[...pros];
@@ -157,7 +158,7 @@ export default function Services(){
       </select>
      </label>
     </div>
-    {resultsError&&<p role="alert" className="notice error">Professional search unavailable. {resultsError}</p>}
+    {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
     {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
      <p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
     {!resultsLoading&&!resultsError&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
