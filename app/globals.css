@@ -143,3 +143,63 @@
 .directory-filters>.address-finder{min-width:0}
 @media(max-width:900px){.directory-filters>.address-finder{grid-column:1/-1}}
 @media(max-width:560px){.directory-filters>.address-finder{grid-column:1}.address-finder-form{flex-wrap:wrap}.address-finder-form .btn{width:100%}}
+
+
+/* TrustFive connected account command centre — keyboard, mobile and reduced-motion friendly. */
+.dashboard-page{padding-bottom:36px}
+.dashboard-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.dashboard-heading .eyebrow{margin-bottom:8px}
+.dashboard-heading .subtle{margin:9px 0 0}
+.dashboard-signin{display:grid;justify-items:start;gap:15px;max-width:640px}
+.dashboard-signin h2,.dashboard-signin p{margin:0}
+.dashboard-view-tabs{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:26px 0 25px;border-bottom:1px solid var(--border);padding-bottom:14px}
+.dashboard-tab{width:auto;padding:12px 20px;background:#fff;color:var(--dark);border:1px solid #c7ddce;border-radius:12px;font-size:14px;font-weight:800;min-height:44px}
+.dashboard-tab.active{background:var(--dark);color:#fff;border-color:var(--dark)}
+.dashboard-tab:hover:not(.active){background:#e9f7ee}
+.dashboard-tab:focus-visible,.dashboard-action:focus-visible,.dashboard-activity-row:focus-visible,.dashboard-stat:focus-visible{outline:3px solid #289963;outline-offset:3px}
+.dashboard-notification-link{margin-left:auto;display:inline-flex;gap:8px;align-items:center;font-weight:700;padding:8px 2px}
+.dashboard-notification-link:hover,.dashboard-section-heading a:hover,.dashboard-empty a:hover{text-decoration:underline}
+.dashboard-unread{border-radius:50px;background:#d5efe0;color:#08623b;font-size:12px;padding:3px 9px;white-space:nowrap}
+.dashboard-section-title{font-size:21px;letter-spacing:-.02em;margin:0 0 15px}
+.dashboard-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.dashboard-stat{display:flex;flex-direction:column;gap:6px;min-width:0;transition:border-color .15s,transform .15s}
+.dashboard-stat:hover{border-color:#8ac8a4;transform:translateY(-2px)}
+.dashboard-stat>strong{font-size:clamp(30px,4vw,47px);letter-spacing:-.055em;line-height:1.2;color:var(--green)}
+.dashboard-stat>span{font-weight:800}
+.dashboard-stat>small{color:var(--muted);font-size:13px}
+.dashboard-next-panel{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:27px 0 30px;padding:24px 28px;background:linear-gradient(110deg,#e6f5eb,#f7fcf9);border:1px solid #bedccc;border-radius:18px}
+.dashboard-next-panel .eyebrow{margin-bottom:5px}
+.dashboard-next-panel h2{font-size:clamp(20px,2.5vw,27px);margin:0 0 5px;letter-spacing:-.025em}
+.dashboard-next-panel p{max-width:640px;margin:0;color:#4d6658}
+.dashboard-next-panel .btn{flex-shrink:0}
+.dashboard-columns{display:grid;grid-template-columns:1.15fr 1fr;gap:23px;align-items:start}
+.dashboard-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 13px}
+.dashboard-section-heading h2{font-size:21px;letter-spacing:-.02em;margin:0}
+.dashboard-section-heading>a{font-size:13px;font-weight:800;color:var(--green)}
+.dashboard-activity-list{display:grid;gap:10px}
+.dashboard-activity-row{display:flex;align-items:center;gap:14px;border:1px solid var(--border);border-radius:13px;padding:17px;background:#fff;min-width:0}
+.dashboard-activity-row:hover{border-color:#8ac8a4}
+.dashboard-activity-row>span:first-child{font-size:20px;flex-shrink:0}
+.dashboard-activity-row>span:nth-child(2){display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.dashboard-activity-row strong{font-size:14px;overflow-wrap:anywhere}
+.dashboard-activity-row small{font-size:12px;color:var(--muted)}
+.dashboard-activity-row .pill{white-space:normal;text-align:center;font-size:11px}
+.dashboard-empty p{margin-bottom:10px}
+.dashboard-empty a{font-weight:800;color:var(--green)}
+.dashboard-actions-section{margin-top:35px}
+.dashboard-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.dashboard-action{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:20px;min-height:176px;box-shadow:none;transition:transform .15s,border-color .15s}
+.dashboard-action:hover{transform:translateY(-2px);border-color:#8ac8a4}
+.dashboard-action-icon{background:#e8f6ed;border-radius:11px;padding:9px;font-size:23px;line-height:1.25}
+.dashboard-action>span:nth-child(2){display:flex;flex-direction:column;gap:6px}
+.dashboard-action strong{font-size:15px;line-height:1.3}
+.dashboard-action small{font-size:12px;line-height:1.45;color:var(--muted)}
+.dashboard-action-arrow{font-weight:800;color:var(--green);margin-top:auto}
+.dashboard-bottom-links{display:flex;align-items:center;gap:10px 23px;flex-wrap:wrap;margin:25px 0 0}
+.dashboard-bottom-links a{font-weight:750;font-size:14px;color:var(--green)}
+.dashboard-bottom-links a:hover{text-decoration:underline}
+.dashboard-footnote{margin-top:22px}
+@media(max-width:980px){.dashboard-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-action{min-height:150px}.dashboard-columns{grid-template-columns:1fr}}
+@media(max-width:640px){.dashboard-view-tabs{gap:8px}.dashboard-tab{flex:1;padding:11px 8px}.dashboard-notification-link{width:100%;margin-left:0;padding-top:10px}.dashboard-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.dashboard-stat{padding:16px}.dashboard-stat:last-child{grid-column:1/-1}.dashboard-next-panel{padding:20px;align-items:stretch;flex-direction:column;gap:16px}.dashboard-next-panel .btn{width:100%}.dashboard-action-grid{grid-template-columns:1fr 1fr;gap:9px}.dashboard-action{padding:15px;min-height:156px}.dashboard-activity-row{padding:12px;gap:10px}.dashboard-activity-row .pill{font-size:10px}.dashboard-heading .btn{margin-top:0}}
+@media(max-width:370px){.dashboard-action-grid{grid-template-columns:1fr}.dashboard-stat-grid{grid-template-columns:1fr}.dashboard-stat:last-child{grid-column:auto}}
+@media(prefers-reduced-motion:reduce){.dashboard-action,.dashboard-stat{transition:none}.dashboard-action:hover,.dashboard-stat:hover{transform:none}}
