@@ -34,6 +34,31 @@ jobs:
             exit 1
           fi
           echo "GEMINI_API_KEY is present. Key validity, API quotas and billing have NOT been verified."
+      - name: Diagnose Gemini model catalogue without generation
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+          url = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100"
+          req = urllib.request.Request(url, headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]})
+          try:
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  models = json.load(response).get("models", [])
+          except urllib.error.HTTPError as e:
+              print(f"::warning::Gemini read-only model catalogue returned HTTP {e.code}. No tokens generated.")
+          except (urllib.error.URLError, ValueError, TimeoutError):
+              print("::warning::Gemini model catalogue unavailable; no generation attempted.")
+          else:
+              permitted = sorted(m["name"] for m in models
+                  if "generateContent" in m.get("supportedGenerationMethods", []))
+              print(f"Gemini catalogue reachable; {len(permitted)} generation-capable models listed.")
+              for name in permitted[:30]:
+                  print("Available model:", name)
+              if "models/gemini-2.5-flash" not in permitted:
+                  print("::warning::Default gemini-2.5-flash was not found in this response; choose a listed model before any opt-in inference.")
+          PY
   gemini-review:
     needs: verify-gemini-secret
     if: ${{ inputs.confirm_external_ai == true }}
