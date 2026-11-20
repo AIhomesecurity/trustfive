@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {jobAddressLabel} from '../../lib/job-address';
+import {popularTradeChoices} from '../../components/trade-quick-pick';
 import {canConfirmCompletedBooking} from '../../lib/booking-completion-guard';
 import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
 import {quoteMessagesHref,bookingScheduleHref,bookingHistoryHref,authorisedQuoteSelection,authorisedBookingSelection} from '../../lib/workflow-links';
@@ -306,4 +307,18 @@ test('Only the actual customer can confirm an awaiting-customer booking as compl
  for(const status of ['booked','completed','cancelled']){
   expect(canConfirmCompletedBooking('booking-1',{...booking,status},'customer-a')).toBe(false);
  }
+});
+
+test('Quick trade chooser uses only genuine taxonomy rows, never Lovable demo providers',()=>{
+ const available=[
+  {id:'trade-b',slug:'plumbing',name:'Plumbing'},
+  {id:'trade-a',slug:'cctv-installation',name:'CCTV installation'},
+  {id:'trade-c',slug:'building',name:'Building'},
+  {id:'trade-d',slug:'home-security',name:'Home security'},
+  {id:'trade-e',slug:'electrical',name:'Electrical'}
+ ];
+ expect(popularTradeChoices(available).map(x=>x.id)).toEqual(['trade-a','trade-d','trade-b','trade-e']);
+ expect(popularTradeChoices([],6)).toEqual([]);
+ expect(popularTradeChoices(available,2)).toHaveLength(2);
+ expect(popularTradeChoices(available).every(x=>available.includes(x))).toBe(true);
 });
