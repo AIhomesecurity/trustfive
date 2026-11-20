@@ -1,6 +1,5 @@
 import {NextRequest,NextResponse} from 'next/server';
-
-type Suggestion={label:string;latitude:number;longitude:number;postcode:string|null;precision:'address'|'postcode';country:string};
+import {geoapifySuggestions,type AddressSuggestion} from '../../../../lib/address-suggestions';
 const postcode=/^(GIR\s?0AA|(?:[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}))$/i;
 const fail=(message:string,status=400)=>NextResponse.json({suggestions:[],message},{status,headers:{'Cache-Control':'no-store'}});
 export async function POST(request:NextRequest){
@@ -19,12 +18,8 @@ export async function POST(request:NextRequest){
    url.searchParams.set('apiKey',key);
    const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(5500)});
    if(response.ok){
-    const data=await response.json() as {results?:Array<{formatted?:string;lat?:number;lon?:number;postcode?:string;country_code?:string;housenumber?:string}>};
-    const suggestions:Suggestion[]=(data.results||[]).filter(item=>Number.isFinite(item.lat)&&Number.isFinite(item.lon)).map(item=>({
-     label:item.formatted||query,latitude:item.lat!,longitude:item.lon!,postcode:item.postcode||null,
-     country:(item.country_code||'').toUpperCase(),
-     precision:item.housenumber?'address':'postcode'
-    }));
+    const data=await response.json() as {results?:unknown};
+    const suggestions=geoapifySuggestions(data.results);
     return NextResponse.json({suggestions,message:suggestions.length?'':'No matching addresses found'},{headers:{'Cache-Control':'no-store'}});
    }
   }
@@ -35,6 +30,6 @@ export async function POST(request:NextRequest){
   const data=await response.json() as {result?:{postcode?:string;latitude?:number;longitude?:number;admin_district?:string}};
   const info=data.result;
   if(!info||!Number.isFinite(info.latitude)||!Number.isFinite(info.longitude))return fail('Location unavailable for this postcode',200);
-  return NextResponse.json({suggestions:[{label:[info.postcode,info.admin_district,'United Kingdom'].filter(Boolean).join(', '),latitude:info.latitude!,longitude:info.longitude!,postcode:info.postcode||null,precision:'postcode',country:'GB'} satisfies Suggestion],message:'Postcode-centre location (not a specific house)'},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({suggestions:[{label:[info.postcode,info.admin_district,'United Kingdom'].filter(Boolean).join(', '),latitude:info.latitude!,longitude:info.longitude!,postcode:info.postcode||null,precision:'postcode',country:'GB'} satisfies AddressSuggestion],message:'Postcode-centre location (not a specific house)'},{headers:{'Cache-Control':'no-store'}});
  }catch{return fail('Address lookup is temporarily unavailable',503);}
 }
