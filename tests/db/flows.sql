@@ -650,5 +650,42 @@ begin
  end if;
 end $consent_audit$;
 
+-- Regression: an expired/completed booking cannot retain or re-grant exact-address
+-- access to the professional, even if consent had previously been granted.
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+select public.set_booking_address_sharing(
+ (select id from public.job_bookings
+  where quote_id='00000000-0000-0000-0003-000000000001'),true);
+reset role;
+update public.job_bookings set status='completed'
+ where quote_id='00000000-0000-0000-0003-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+do $completed_address$
+begin
+ if exists(select 1 from public.booking_job_site_address(
+  (select id from public.job_bookings
+   where quote_id='00000000-0000-0000-0003-000000000001'))) then
+  raise exception 'Completed booking leaked previously consented home address';
+ end if;
+end $completed_address$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',false);
+do $completed_address$
+declare v_booking uuid;
+begin
+ select id into v_booking from public.job_bookings
+ where quote_id='00000000-0000-0000-0003-000000000001';
+ begin
+  perform public.set_booking_address_sharing(v_booking,true);
+  raise exception 'Customer re-enabled exact address sharing after completion';
+ exception when insufficient_privilege then null;
+ end;
+ if not exists(select 1 from public.booking_job_site_address(v_booking)) then
+  raise exception 'Customer lost access to their own address after completion';
+ end if;
+end $completed_address$;
+
 reset role;
 select 'TrustFive booking, billing, network, neighbourhood and business review checks passed' as test_result;
