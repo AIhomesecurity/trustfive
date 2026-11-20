@@ -164,5 +164,24 @@ begin
  end;
 end $territory$;
 
+
+-- Public discovery must reject malformed coordinates even when a valid,
+-- approved provider is present in this fixture. This also guards against
+-- accidental worldwide matches from invalid address-geocoding responses.
+set role anon;
+do $invalid_coordinates$
+declare v_trade uuid;
+begin
+ select id into v_trade from public.trades where slug='plumbing';
+ if exists(select 1 from public.find_trustfive_professionals_nearby(91,0,v_trade))
+    or exists(select 1 from public.find_trustfive_professionals_nearby(-91,0,v_trade))
+    or exists(select 1 from public.find_trustfive_professionals_nearby(0,181,v_trade))
+    or exists(select 1 from public.find_trustfive_professionals_nearby(0,-181,v_trade))
+    or exists(select 1 from public.find_trustfive_professionals_nearby(null,0,v_trade))
+    or exists(select 1 from public.find_trustfive_professionals_nearby(0,null,v_trade)) then
+  raise exception 'Public nearby directory accepted invalid coordinates';
+ end if;
+end $invalid_coordinates$;
+
 reset role;
 rollback;
