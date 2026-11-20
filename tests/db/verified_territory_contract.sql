@@ -23,3 +23,39 @@ begin
 end
 $tf$;
 select 'Verified territory contract checks passed' as result;
+
+-- Country-coverage signal added in migration 0029 must not expose boundaries
+-- or become an anonymous enumeration endpoint. This is a read-only contract
+-- test; it intentionally does not depend on any particular country being seeded.
+do $tf$
+declare v_proc oid;
+begin
+ select to_regprocedure('public.has_verified_trustfive_territories(text)')::oid into v_proc;
+ if v_proc is null then
+  raise exception 'Country coverage helper missing';
+ end if;
+ if not (select prosecdef from pg_proc where oid=v_proc) then
+  raise exception 'Country coverage helper must use controlled SECURITY DEFINER context';
+ end if;
+ if has_function_privilege('anon',v_proc,'EXECUTE')
+    or has_function_privilege('PUBLIC',v_proc,'EXECUTE') then
+  raise exception 'Country coverage helper exposed to anonymous callers';
+ end if;
+ if not has_function_privilege('authenticated',v_proc,'EXECUTE') then
+  raise exception 'Authenticated customers cannot query country coverage';
+ end if;
+end
+$tf$;
+
+begin;
+set local role authenticated;
+do $tf$
+begin
+ if public.has_verified_trustfive_territories(null) is distinct from false
+    or public.has_verified_trustfive_territories('') is distinct from false
+    or public.has_verified_trustfive_territories('GBR') is distinct from false then
+  raise exception 'Malformed country code unexpectedly has coverage';
+ end if;
+end
+$tf$;
+rollback;
