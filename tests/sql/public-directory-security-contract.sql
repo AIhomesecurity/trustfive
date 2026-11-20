@@ -72,3 +72,29 @@ BEGIN
       AND qual LIKE '%published%'
   ) THEN RAISE EXCEPTION 'Public business-page vetting policy missing'; END IF;
 END $approval_policy$;
+
+-- RLS policies are permissive (OR-combined). A second anonymous SELECT
+-- policy can silently bypass the verified/published rule above. Guard the
+-- entire anonymous policy surface, while leaving owner/admin policies intact.
+DO $public_visibility$
+DECLARE public_policy_count integer;
+BEGIN
+  SELECT count(*) INTO public_policy_count
+  FROM pg_policies
+  WHERE schemaname='public' AND tablename='professional_business_pages'
+    AND cmd IN ('SELECT','ALL')
+    AND ('anon'=ANY(roles) OR 'public'=ANY(roles));
+  IF public_policy_count <> 1 THEN
+    RAISE EXCEPTION 'Unexpected anonymous business-page SELECT policy count: %',public_policy_count;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='public' AND tablename='professional_business_pages'
+      AND cmd IN ('SELECT','ALL')
+      AND ('anon'=ANY(roles) OR 'public'=ANY(roles))
+      AND (qual IS NULL OR qual NOT LIKE '%is_active_approved_application(application_id)%'
+           OR qual NOT LIKE '%published%')
+  ) THEN RAISE EXCEPTION 'Anonymous business-page policy bypasses published/verified gate'; END IF;
+  IF public.is_active_approved_application(NULL::uuid) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'NULL application must never pass public approval gate'; END IF;
+END $public_visibility$;
