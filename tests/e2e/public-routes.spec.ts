@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {jobAddressLabel} from '../../lib/job-address';
+import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
 
 test('Postcode-only jobs require a private property line without inventing exact coordinates',()=>{
  const postcode={label:'SW1A 1AA, Westminster, United Kingdom',latitude:51.501,longitude:-0.142,postcode:'SW1A 1AA',precision:'postcode' as const,country:'GB'};
@@ -180,4 +181,39 @@ test('Mobile TrustFive navigation reveals account and community routes without s
  await mobile.getByRole('link',{name:'Find a professional'}).click();
  await expect(page).toHaveURL(/\/services$/);
  await expect(page.getByRole('button',{name:'Open navigation menu'})).toHaveAttribute('aria-expanded','false');
+});
+
+test('Booking address lookups isolate an unavailable private-address RPC without hiding bookings',async()=>{
+ const started:string[]=[];
+ const result=await loadBookingSiteBatch(['own','revoked','offline','other'],async id=>{
+  started.push(id);
+  if(id==='offline')throw new Error('Permission check unavailable');
+  if(id==='revoked')return null;
+  return {address_label:id==='own'?'Example Street, Test City':'Other authorised address'};
+ },2);
+ expect(started).toEqual(['own','revoked','offline','other']);
+ expect(result.sites.own).toEqual({address_label:'Example Street, Test City'});
+ expect(result.sites.revoked).toBeNull();
+ expect(result.sites.offline).toBeNull();
+ expect(result.unavailableIds).toEqual(['offline']);
+ expect(result.sites.other).toEqual({address_label:'Other authorised address'});
+});
+
+test('Private booking address lookups have a strict concurrency limit',async()=>{
+ let active=0,maxActive=0;
+ const result=await loadBookingSiteBatch(['a','b','c','d','e','f','g'],async id=>{
+  active+=1;maxActive=Math.max(maxActive,active);
+  await Promise.resolve();
+  active-=1;return id;
+ },3);
+ expect(maxActive).toBeLessThanOrEqual(3);
+ expect(result.unavailableIds).toEqual([]);
+ expect(Object.values(result.sites)).toHaveLength(7);
+ await expect(loadBookingSiteBatch([],async()=>null,0)).rejects.toThrow('Invalid booking-site batch size');
+});
+
+test('Anonymous visitors cannot see private booking information',async({page})=>{
+ await page.goto('/bookings');
+ await expect(page).toHaveURL(/\/account\?next=/);
+ await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
 });
