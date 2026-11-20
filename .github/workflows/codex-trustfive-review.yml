@@ -1,0 +1,84 @@
+name: Codex bounded TrustFive review
+
+# Manual-only. No automatic OpenAI API spending or production writes.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_api_usage:
+        description: "I approve one bounded OpenAI API review; usage may be billable"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trustfive-codex-review
+  cancel-in-progress: false
+
+jobs:
+  credential-check:
+    name: Check Codex API key without spending tokens
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check OPENAI_API_KEY availability (not validity)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$OPENAI_API_KEY" ]]; then
+            echo "::notice::OPENAI_API_KEY is not configured. Codex cannot run in GitHub Actions yet."
+            echo "### Codex not connected" >> "$GITHUB_STEP_SUMMARY"
+            echo "Add an API key as the repository Actions secret OPENAI_API_KEY, and explicitly opt in before running a review. ChatGPT subscription login is not automatically an API key." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Codex API secret is present" >> "$GITHUB_STEP_SUMMARY"
+            echo "This is a presence check, not API validation. No tokens were consumed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  codex-review:
+    name: One read-only Codex code review
+    needs: credential-check
+    if: ${{ inputs.confirm_api_usage == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Require an API key before contacting OpenAI
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          test -n "$OPENAI_API_KEY" || { echo "::error::OPENAI_API_KEY missing"; exit 1; }
+      - name: Checkout TrustFive development branch (no write credentials)
+        uses: actions/checkout@v4
+        with:
+          ref: feature/verified-marketplace-core
+          persist-credentials: false
+      - name: Run bounded independent security and customer journey review
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":read-only"
+          prompt: |
+            Review the checked out TrustFive Next.js/Supabase development repository.
+            Prioritise bugs and independently verifiable fixes in these areas:
+            customer jobs, quote eligibility, authenticated booking, appointment
+            confirmation, private-address access, five approved active professionals
+            per vetted territory, and community privacy. Never invent test evidence.
+            Do not edit files, perform writes, access secrets, or contact external APIs.
+            Give concise file-specific issues with remediation and validation steps.
+      - name: Save report as short-lived GitHub Actions artifact
+        shell: bash
+        env:
+          CODEX_REPORT: ${{ steps.codex.outputs.final-message }}
+        run: |
+          printf '%s\n' '# TrustFive Codex review — suggestions only, not applied' '' "$CODEX_REPORT" > codex-review.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-review
+          path: codex-review.md
+          retention-days: 7
