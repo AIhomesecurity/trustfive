@@ -3,6 +3,7 @@ import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
+import {jobAddressLabel} from '../../lib/job-address';
 type Trade={id:string;name:string;slug:string};type Area={id:string;area_name:string;city:string};
 type Job={id:string;title:string;description:string;status:string;created_at:string;budget_pence:number|null};
 type Quote={quote_id:string;job_id:string;business_name:string;amount_pence:number;message:string;status:string};
@@ -57,14 +58,14 @@ export default function Jobs(){
  async function submit(e:FormEvent){e.preventDefault();if(!userId||busy)return;setBusy(true);setMessage('');
   try{
    if(!site)throw Error('Select your job-site address from the suggestions first');
-   if(site.precision==='postcode'&&manualProperty.trim().length<5)throw Error('Enter your house number/name and street for a postcode-only location');
+   const privateAddress=jobAddressLabel(site,manualProperty);
    if(territoryChecking)throw Error('Wait for the territory check to finish');
    if(!territoryVerified&&!manualFallbackAllowed)throw Error('This address is not currently eligible for posting, or territory verification is unavailable');
    const amount=budget?Math.round(Number(budget)*100):null;
    if(amount!==null&&(!Number.isSafeInteger(amount)||amount<0))throw Error('Enter a valid budget');
    const {error}=await supabaseBrowser().rpc('create_job_with_private_location',{
     p_title:title.trim(),p_description:description.trim(),p_trade:trade,p_area:area,p_budget_pence:amount,
-    p_address:site.precision==='postcode'?manualProperty.trim()+', '+site.label:site.label,p_postcode:site.postcode,p_country:site.country,
+    p_address:privateAddress,p_postcode:site.postcode,p_country:site.country,
     p_lat:site.latitude,p_lon:site.longitude,p_precision:site.precision
    });
    if(error)throw error;
