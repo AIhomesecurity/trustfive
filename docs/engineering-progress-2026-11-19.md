@@ -94,3 +94,19 @@ Check the latest GitHub Actions runs after commits `b504f2f` and `42b78af`. If b
 2. Human-verify actual territory polygons and professional coverage, then exercise authenticated private-location/quote flow.
 3. Audit exposed directory SECURITY DEFINER functions and tighten only demonstrably unnecessary privileges.
 4. Verify protected Vercel preview with authorised access, followed by mobile address-search and community interaction checks.
+
+
+## 2026-11-20 03:01 UTC — Country coverage contract regression repair
+- Inspected current PR #1 (open/draft), tracker #12, branch commits, CI logs, staging counts and security advisors, Vercel previews, and both separate Lovable projects before editing. The latest app checks passed at `3ee2d4a2`, while database CI failed at the country coverage helper's empty-search-path assertion.
+- Root cause: PostgreSQL serializes an explicitly empty `search_path` with quotation marks in `pg_proc.proconfig` on this runner. The contract asserted only the unquoted spelling `search_path=`, producing a false failure. Updated the test to accept either serialized representation **without allowing a nonempty search_path**. Commit `f837930b`. New CI was running at checkpoint; do not mark green before observing results.
+- Latest previously READY Vercel deployment: https://trustfive-clyp9rlom-trust-five.vercel.app (`3ee2d4a2`). New `f837930b` deployment was BUILDING. Protected authenticated preview remains untested.
+- Staging still has zero active professionals, zero verified professional locations and zero reviewed territories. The country coverage RPC migration `0029` is present in the branch but not yet in staging; align after passing CI, without creating synthetic data.
+- Supabase security advisor still reports seven RLS tables without direct policies (private by design) and four anonymously executable SECURITY DEFINER directory functions. Audit each function rather than removing intentional public discovery blindly.
+- Paid Lovable Trade Finder remains READY at prototype SHA `a83baf2c`, free Experience Lab still reports out_of_credits; no new generations, credits, demo data or GitHub sync.
+
+### Updated immediate backlog
+1. Confirm database CI after `f837930b`; if red, inspect exact failing assertion and fix it.
+2. Apply tested country coverage helper to staging and validate its permissions and negative-input behavior.
+3. Obtain independently verified territory boundaries and professional coverage; maintain zero-fabrication rule.
+4. Verify authenticated protected Vercel preview and complete customer-to-professional booking path.
+5. Audit public directory SECURITY DEFINER functions, rate limiting and community permissions.
