@@ -47,3 +47,28 @@ BEGIN
        'find_trustfive_professionals_nearby','is_active_approved_application'))<>4
   THEN RAISE EXCEPTION 'Expected four directory functions'; END IF;
 END $audit$;
+
+-- The approval helper is deliberately callable by anonymous visitors because
+-- PostgreSQL evaluates EXECUTE privileges for public business-page RLS.
+-- Do not blindly revoke it to silence the advisor: that would break SELECT.
+-- Instead pin its boolean-only signature and the published+vetted RLS gate.
+DO $approval_policy$
+DECLARE helper oid;
+BEGIN
+  SELECT p.oid INTO STRICT helper
+  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE n.nspname='public' AND p.proname='is_active_approved_application'
+    AND pg_get_function_identity_arguments(p.oid)='p_application uuid';
+  IF (SELECT prorettype FROM pg_proc WHERE oid=helper) <> 'boolean'::regtype
+  THEN RAISE EXCEPTION 'Approval helper must return boolean only'; END IF;
+  IF NOT has_function_privilege('anon',helper,'EXECUTE')
+     OR NOT has_function_privilege('authenticated',helper,'EXECUTE')
+  THEN RAISE EXCEPTION 'Public business-page RLS requires helper EXECUTE'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='public' AND tablename='professional_business_pages'
+      AND cmd='SELECT' AND roles @> ARRAY['anon','authenticated']::name[]
+      AND qual LIKE '%is_active_approved_application(application_id)%'
+      AND qual LIKE '%published%'
+  ) THEN RAISE EXCEPTION 'Public business-page vetting policy missing'; END IF;
+END $approval_policy$;
