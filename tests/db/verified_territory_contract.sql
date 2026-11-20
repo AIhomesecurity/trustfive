@@ -223,3 +223,37 @@ begin
  end loop;
 end
 $tf$;
+
+-- Private address RPCs are deliberately callable by signed-in users only.
+-- Their own owner/booking checks must remain the sole disclosure mechanism;
+-- do not allow an anonymous grant or caller-controlled SECURITY DEFINER path.
+do $tf$
+declare
+ v_signature text;
+ v_proc oid;
+begin
+ foreach v_signature in array array[
+  'public.customer_job_site_location(uuid)',
+  'public.booking_job_site_address(uuid)',
+  'public.set_booking_address_sharing(uuid,boolean)'
+ ] loop
+  v_proc := to_regprocedure(v_signature)::oid;
+  if v_proc is null then
+   raise exception 'Missing private address RPC: %',v_signature;
+  end if;
+  if has_function_privilege('anon',v_proc,'EXECUTE')
+     or not has_function_privilege('authenticated',v_proc,'EXECUTE') then
+   raise exception 'Private address RPC access contract changed: %',v_signature;
+  end if;
+  if not exists (
+   select 1 from pg_proc p where p.oid=v_proc and p.prosecdef
+     and exists (
+      select 1 from unnest(p.proconfig) setting
+      where replace(setting,chr(34),'')='search_path='
+     )
+  ) then
+   raise exception 'Private address RPC must pin SECURITY DEFINER search_path: %',v_signature;
+  end if;
+ end loop;
+end
+$tf$;
