@@ -2,6 +2,7 @@
 import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
+import {authorisedBookingSelection,bookingHistoryHref} from '../../lib/workflow-links';
 type Booking={id:string;customer_id:string;professional_id:string;status:string};
 type Appointment={booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string};
 export default function BookingSchedule(){
@@ -9,13 +10,23 @@ export default function BookingSchedule(){
  const [appointments,setAppointments]=useState<Appointment[]>([]);
  const [selected,setSelected]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [zone,setZone]=useState('Europe/London'),[notice,setNotice]=useState('Loading your bookings…'),[busy,setBusy]=useState(false);
+ const [unavailableBooking,setUnavailableBooking]=useState(false);
  async function refresh(){
   const s=supabaseBrowser();const [b,a]=await Promise.all([
    s.from('job_bookings').select('id,customer_id,professional_id,status').order('created_at',{ascending:false}),
    s.from('booking_appointments').select('booking_id,proposed_by,starts_at,ends_at,timezone_name,status')
   ]);
   if(b.error)throw b.error;if(a.error)throw a.error;
-  setBookings(b.data||[]);setAppointments(a.data||[]);
+  const current=b.data||[];
+  setBookings(current);setAppointments(a.data||[]);
+  const requested=new URLSearchParams(window.location.search).get('booking');
+  if(requested){
+   const eligible=current.filter(b=>b.status==='booked'||b.status==='awaiting_customer').map(b=>b.id);
+   const allowed=authorisedBookingSelection(requested,eligible);
+   setUnavailableBooking(!allowed);
+   if(allowed)setSelected(allowed);
+   else setSelected('');
+  }
  }
  useEffect(()=>{(async()=>{try{
   const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -51,6 +62,7 @@ export default function BookingSchedule(){
   <div className="page-heading"><span className="eyebrow">Agree a time together</span><h1>Booking appointments</h1>
   <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments cannot overlap for the same professional.</p></div>
   {notice&&<p role="status" className="notice">{notice}</p>}
+  {unavailableBooking&&<p role="alert" className="notice">That appointment is not available to your account, or the booking is no longer active. Choose an eligible booking below.</p>}
   {!userId?<Link href="/account" className="btn">Sign in</Link>:
   <div className="two-col">
    <section className="card"><h2>Propose or change a time</h2>
@@ -67,8 +79,8 @@ export default function BookingSchedule(){
    </section>
    <section><h2>Appointment calendar</h2><div className="list">
     {bookings.length===0&&<div className="card">No bookings yet. <Link href="/jobs">Post a job</Link> to get started.</div>}
-    {bookings.map(b=>{const a=appointments.find(v=>v.booking_id===b.id);return <article className="card" key={b.id}>
-     <span className="pill">{b.status}</span><h3 style={{marginTop:12}}>Booking #{b.id.slice(0,8)}</h3>
+    {bookings.map(b=>{const a=appointments.find(v=>v.booking_id===b.id);return <article className="card" id={'booking-'+b.id} key={b.id} style={selected===b.id?{borderColor:'#087c46'}:undefined}>
+     <span className="pill">{b.status}</span><h3 style={{marginTop:12}}>Booking #{b.id.slice(0,8)}</h3><p className="muted-note"><Link href={bookingHistoryHref(b.id)}>Open booking details →</Link></p>
      {!a?<p>No time has been proposed yet.</p>:<>
       <p><strong>Appointment:</strong> {a.status}</p>
       <p>{new Date(a.starts_at).toLocaleString('en-GB')} — {new Date(a.ends_at).toLocaleString('en-GB')}</p>
