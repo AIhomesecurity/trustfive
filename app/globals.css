@@ -229,3 +229,24 @@
  .logo{width:156px}
  .mobile-navigation-inner{grid-template-columns:1fr}
 }
+
+
+/* Verified directory: browser-local shortlist, never a separate approval registry. */
+.directory-compare{border:1px solid #c3ddcb;background:#f2faf4;border-radius:18px;padding:20px;margin:15px 0 23px}
+.directory-compare-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:16px}
+.directory-compare-heading h3{font-size:20px;margin:0 0 4px}
+.directory-compare-heading p{margin:0}
+.directory-compare-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.directory-compare-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:17px;background:#fff;border:1px solid var(--border);border-radius:14px}
+.directory-compare-card h4{font-size:17px;margin:0;overflow-wrap:anywhere}
+.directory-compare-card>p{font-size:13px;color:var(--muted);margin:0}
+.directory-compare-card .pill{align-self:flex-start;white-space:normal}
+.directory-compare-card dl{display:grid;gap:10px;margin:8px 0}
+.directory-compare-card dl>div{border-bottom:1px solid #e7efe9;padding-bottom:8px}
+.directory-compare-card dt{font-size:12px;color:var(--muted)}
+.directory-compare-card dd{font-size:16px;font-weight:800;color:var(--dark);margin:2px 0 0}
+.directory-compare-card .btn{margin-top:auto;font-size:13px;padding:9px 12px;min-height:40px}
+.directory-compare-remove{width:auto;align-self:center;border:0;background:transparent;color:#145b37;text-decoration:underline;font-size:12px;font-weight:700}
+.directory-compare-remove:focus-visible{outline:3px solid #289963;outline-offset:3px}
+@media(max-width:900px){.directory-compare-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:550px){.directory-compare{padding:13px}.directory-compare-grid{grid-template-columns:1fr}.directory-compare-heading>.btn{width:100%}}
