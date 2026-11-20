@@ -13,6 +13,7 @@ export default function CommunityEvents(){
  const [area,setArea]=useState(''),[title,setTitle]=useState(''),[description,setDescription]=useState('');
  const [venue,setVenue]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+ const [loading,setLoading]=useState(true);
  async function refresh(){
   const s=supabaseBrowser();
   const [e,r]=await Promise.all([
@@ -31,7 +32,7 @@ export default function CommunityEvents(){
   if(error)throw error;
   if(!user){setNotice('Sign in to view and join local events.');return;}
   if(a.error)throw a.error;setUserId(user.id);setAreas(a.data||[]);await refresh();
- }catch(e){setNotice(e instanceof Error?e.message:'Unable to load events');}})()},[]);
+ }catch(e){setNotice(e instanceof Error?e.message:'Unable to load events');}finally{setLoading(false);}})()},[]);
  async function publish(e:FormEvent){e.preventDefault();if(busy||!userId)return;setBusy(true);setNotice('');
   try{
    const begins=new Date(start),finishes=new Date(end);
@@ -58,7 +59,7 @@ export default function CommunityEvents(){
   <div className="page-heading"><span className="eyebrow">Bring neighbours together</span><h1>Local events</h1>
    <p className="subtle">Find and organise community meetups, projects and neighbourhood activities.</p></div>
   {notice&&<p className="notice" role="status">{notice}</p>}
-  {!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
+  {loading?<p role="status">Loading local events…</p>:!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
    <section className="card"><h2>Organise an event</h2>
     <form className="form" onSubmit={publish}>
      <label>Neighbourhood<select required value={area} onChange={e=>setArea(e.target.value)}>
@@ -83,9 +84,9 @@ export default function CommunityEvents(){
      <p><strong>Where:</strong> {e.venue_label}</p>
      {r&&<p className="muted-note">Your RSVP: {r}</p>}
      <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
-      <button className="btn" disabled={busy} onClick={()=>respond(e.id,'going')}>I'm going</button>
-      <button className="btn secondary" disabled={busy} onClick={()=>respond(e.id,'interested')}>Interested</button>
-      {r&&<button className="btn secondary" disabled={busy} onClick={()=>respond(e.id,'none')}>Cancel RSVP</button>}
+      <button className="btn" disabled={busy} aria-pressed={r==='going'} aria-label={`Going to ${e.title}`} onClick={()=>respond(e.id,'going')}>I'm going</button>
+      <button className="btn secondary" disabled={busy} aria-pressed={r==='interested'} aria-label={`Interested in ${e.title}`} onClick={()=>respond(e.id,'interested')}>Interested</button>
+      {r&&<button className="btn secondary" disabled={busy} aria-label={`Cancel RSVP for ${e.title}`} onClick={()=>respond(e.id,'none')}>Cancel RSVP</button>}
      </div>
     </article>})}
    </div></section>
