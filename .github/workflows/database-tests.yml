@@ -55,5 +55,9 @@ jobs:
       - name: Check trigger function execution permissions
         run: psql -v ON_ERROR_STOP=1 -f tests/db/security-definer-trigger-acl.sql
 
+
+      - name: Audit public directory SECURITY DEFINER and output allowlist
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/public-directory-security-contract.sql
+
       - name: Verify geographic territory enforcement contract
         run: psql -v ON_ERROR_STOP=1 -f tests/db/verified_territory_contract.sql
