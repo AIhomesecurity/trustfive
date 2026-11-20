@@ -5,7 +5,7 @@ name: TrustFive bounded 40-minute development pulse
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '20,30,40,50 20 20 11 *'
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   progress-pulse:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '20,30,40,50 20 20 11 *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
