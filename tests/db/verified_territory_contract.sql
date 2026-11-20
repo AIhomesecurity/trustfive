@@ -193,3 +193,33 @@ begin
  end if;
 end
 $tf$;
+
+
+-- Guard the private-location and consent audit tables as a single contract.
+-- Access must remain mediated by narrow, independently authorised RPCs rather
+-- than direct PostgREST table SELECT, including for signed-in callers.
+do $tf$
+declare
+ v_table text;
+ v_oid oid;
+begin
+ foreach v_table in array array[
+  'job_site_locations',
+  'booking_address_consent_events',
+  'professional_service_locations',
+  'verified_service_territories'
+ ] loop
+  select c.oid into v_oid
+  from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname=v_table
+    and c.relkind in ('r','p') and c.relrowsecurity;
+  if v_oid is null then
+   raise exception 'Private table missing or RLS disabled: %',v_table;
+  end if;
+  if has_table_privilege('anon',v_oid,'SELECT')
+     or has_table_privilege('authenticated',v_oid,'SELECT') then
+   raise exception 'Private table directly readable by API role: %',v_table;
+  end if;
+ end loop;
+end
+$tf$;
