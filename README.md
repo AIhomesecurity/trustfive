@@ -1,6 +1,6 @@
 # TrustFive.co.uk
 
-An original, UK-first marketplace and neighbourhood community platform, designed for future worldwide expansion.
+An original worldwide-oriented marketplace and neighbourhood community platform. The UK is the initial staging and regulatory validation region, not a restriction on the intended service footprint. New countries must be enabled only after territory, address, compliance, payments and moderation requirements have been reviewed for that jurisdiction.
 
 ## Development status
 
