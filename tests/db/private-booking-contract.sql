@@ -182,3 +182,17 @@ begin
  end if;
 end
 $tf$;
+
+-- Regression: property coordinates remain behind row-level security even
+-- when a future migration changes address RPC grants. Catalog-only check.
+do $tf$
+begin
+ if not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='job_site_locations'
+    and c.relkind='r' and c.relrowsecurity
+ ) then
+  raise exception 'Private job-site location table missing or RLS disabled';
+ end if;
+end
+$tf$;
