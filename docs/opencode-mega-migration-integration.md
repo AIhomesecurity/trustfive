@@ -62,6 +62,12 @@ and `country-release-signoff-contract.sql`).
 5. **Two `0035_*` migrations already exist at the integration base.** This is
    not a new regression from these PRs, but it confirms that the project has
    not yet adopted a strict one-version-one-file policy.
+6. **CI collection fix is a prerequisite for green build checks.** At the base
+   integration tip, `tests/e2e/professional-quotes-anonymous-boundary.spec.ts`
+   puts worker-scoped `trace`/`screenshot`/`video` options inside `describe`,
+   which aborts Playwright collection and fails the `build` job. The identical
+   one-file fix validated in PR #37 is included in this branch so the migration
+   slice can pass CI independently; merged integration must include that fix.
 
 ## Recommended merge plan (owner action)
 
