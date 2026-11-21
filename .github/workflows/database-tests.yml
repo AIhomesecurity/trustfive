@@ -85,3 +85,6 @@ jobs:
 
       - name: Verify country release evidence, role isolation and payment revocation gate
         run: psql -v ON_ERROR_STOP=1 -f tests/db/country-release-signoff-contract.sql
+
+      - name: Enforce nationwide pending-area interest privacy and no self-approval
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/uk-area-interest-contract.sql
