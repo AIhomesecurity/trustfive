@@ -46,7 +46,7 @@ export default function CommunityEvents(){
    });
    if(error)throw error;setTitle('');setDescription('');setVenue('');setStart('');setEnd('');
    await refresh();setNotice('Your event is published to signed-in community members.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to publish event');}
+  }catch(e){setNotice(e instanceof Error&&e.message==='Choose a future event with a valid end time.'?e.message:'Unable to publish this event. Please check the details and try again.');}
   finally{setBusy(false);}
  }
  async function respond(id:string,status:'going'|'interested'|'none'){
@@ -54,7 +54,7 @@ export default function CommunityEvents(){
   try{
    const {error}=await supabaseBrowser().rpc('set_event_response',{p_event:id,p_status:status});
    if(error)throw error;await refresh();setNotice(status==='none'?'Your RSVP was cancelled.':'Your response has been saved.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to update your RSVP');}
+  }catch{setNotice('Unable to update your RSVP. Please try again.');}
   finally{setBusy(false);}
  }
  return <main className="container">
