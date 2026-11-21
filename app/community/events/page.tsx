@@ -81,7 +81,7 @@ export default function CommunityEvents(){
      <label>About the event<textarea minLength={15} maxLength={2000} required value={description} onChange={e=>setDescription(e.target.value)}/></label>
      <label>Meeting place (public; avoid private addresses)<input minLength={3} maxLength={160} required value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
      <label>Starts<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
-     <label>Ends<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
+     <label>Ends<input type="datetime-local" required min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
      <button className="btn" type="submit" disabled={busy||areas.length===0} aria-busy={busy}>Publish event</button>
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
@@ -92,8 +92,8 @@ export default function CommunityEvents(){
      <span className="pill">{areas.find(a=>a.id===e.area_id)?.area_name||'Local event'}</span>
      <h3 style={{marginTop:12}}>{e.title}</h3>
      <p style={{marginBottom:9}}>{e.description}</p>
-     <p><strong>Starts:</strong> {new Date(e.starts_at).toLocaleString('en-GB')}</p>
-     <p><strong>Ends:</strong> {new Date(e.ends_at).toLocaleString('en-GB')}</p>
+     <p><strong>Starts:</strong> <time dateTime={e.starts_at}>{new Date(e.starts_at).toLocaleString('en-GB')}</time></p>
+     <p><strong>Ends:</strong> <time dateTime={e.ends_at}>{new Date(e.ends_at).toLocaleString('en-GB')}</time></p>
      <p><strong>Where:</strong> {e.venue_label}</p>
      {r&&<p className="muted-note">Your RSVP: {r}</p>}
      <div role="group" aria-label={`RSVP for ${e.title}`} aria-busy={busy} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
