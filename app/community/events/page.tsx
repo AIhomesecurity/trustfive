@@ -93,13 +93,13 @@ export default function CommunityEvents(){
     {!loadError&&events.length===0&&<div className="card">No upcoming events. Why not organise one?</div>}
     {!loadError&&events.map(e=>{const savedResponse=responses.find(a=>a.event_id===e.id)?.status;const r=savedResponse==='going'||savedResponse==='interested'?savedResponse:undefined;return <article className="card" key={e.id}>
      <span className="pill">{areas.find(a=>a.id===e.area_id)?.area_name||'Local event'}</span>
-     <h3 style={{marginTop:12}}>{e.title}</h3>
+     <h3 id={`event-title-${e.id}`} style={{marginTop:12}}>{e.title}</h3>
      <p style={{marginBottom:9}}>{e.description}</p>
      <p><strong>Starts:</strong> <time dateTime={e.starts_at}>{new Date(e.starts_at).toLocaleString('en-GB')}</time></p>
      <p><strong>Ends:</strong> <time dateTime={e.ends_at}>{new Date(e.ends_at).toLocaleString('en-GB')}</time></p>
      <p><strong>Where:</strong> {e.venue_label}</p>
      {r&&<p className="muted-note">Your RSVP: {r}</p>}
-     <div role="group" aria-label={`RSVP for ${e.title}`} aria-busy={pendingRsvpEventId===e.id} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
+     <div role="group" aria-labelledby={`event-title-${e.id}`} aria-busy={pendingRsvpEventId===e.id} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
       <button className="btn" disabled={busy||r==='going'} aria-pressed={r==='going'} aria-label={`Going to ${e.title}`} onClick={()=>respond(e.id,'going')}>I'm going</button>
       <button className="btn secondary" disabled={busy||r==='interested'} aria-pressed={r==='interested'} aria-label={`Interested in ${e.title}`} onClick={()=>respond(e.id,'interested')}>Interested</button>
       {r&&<button className="btn secondary" disabled={busy} aria-label={`Cancel RSVP for ${e.title}`} onClick={()=>respond(e.id,'none')}>Cancel RSVP</button>}
