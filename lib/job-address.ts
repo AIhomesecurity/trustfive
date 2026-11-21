@@ -1,3 +1,4 @@
+import {meaningfulJobTextLength} from './job-text';
 import type {SelectedLocation} from '../components/address-search';
 
 // A postcode centroid is not a property address. Require the customer to supply
@@ -11,7 +12,7 @@ export function jobAddressLabel(site:SelectedLocation,propertyDetails:string):st
  if(!selectedLabel||selectedLabel.length>250)throw new Error('Select a valid job-site address from the suggestions');
  if(site.precision==='address')return selectedLabel;
  const property=propertyDetails.trim().replace(/\s+/g,' ');
- if(property.length<5||property.length>100)throw new Error('Enter your house number/name and street for a postcode-only location');
+ if(property.length<5||property.length>100||meaningfulJobTextLength(property)<2)throw new Error('Enter your house number/name and street for a postcode-only location');
  const full=property+', '+selectedLabel;
  if(full.length>250)throw new Error('The combined property address is too long');
  return full;
