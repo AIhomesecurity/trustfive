@@ -59,7 +59,10 @@ export default function CommunityEvents(){
   if(busy)return;setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().rpc('set_event_response',{p_event:id,p_status:status});
-   if(error)throw error;await refresh();setNotice(status==='none'?'Your RSVP was cancelled.':'Your response has been saved.');
+   if(error)throw error;
+   // A saved RSVP must not be reported as failed if the subsequent list refresh fails.
+   try{await refresh();setNotice(status==='none'?'Your RSVP was cancelled.':'Your response has been saved.');}
+   catch{setLoadError(true);setNotice('Your RSVP was saved, but upcoming events could not be refreshed. Please retry loading the list.');}
   }catch{setNotice('Unable to update your RSVP. Please try again.');}
   finally{setBusy(false);}
  }
