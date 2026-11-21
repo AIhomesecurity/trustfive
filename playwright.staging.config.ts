@@ -16,8 +16,11 @@ export default defineConfig({
  reporter:'list',
  use:{
   baseURL,
-  trace:'retain-on-failure',
-  screenshot:'only-on-failure',
+  // Auth tests enter live staging credentials. Never retain traces, videos
+  // or screenshots because these may contain passwords or private records.
+  trace:'off',
+  screenshot:'off',
+  video:'off',
   actionTimeout:20000
  },
  projects:[{name:'staging-chromium',use:{...devices['Desktop Chrome']}}]
