@@ -211,7 +211,11 @@ begin
  if not (select p.prosecdef from pg_proc p where p.oid=v_proc) then
   raise exception 'Booking consent writer lost SECURITY DEFINER contract';
  end if;
- if not coalesce('search_path=' = any(v_config),false) then
+ -- PostgreSQL serialises an empty GUC as either search_path= or
+ -- search_path="" depending on server/catalog formatting. Both mean an
+ -- explicitly fixed empty path; no schema names may be present.
+ if not (coalesce('search_path=' = any(v_config),false)
+         or coalesce('search_path=""' = any(v_config),false)) then
   raise exception 'Booking consent writer must use empty fixed search_path';
  end if;
 end
