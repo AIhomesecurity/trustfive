@@ -7,6 +7,7 @@ import TradeSearchField from '../../components/trade-search-field';
 import FairSelectionNotice from '../../components/fair-selection-notice';
 import DirectoryEmptyState from '../../components/directory-empty-state';
 import {resolveTradeQuery} from '../../lib/trade-search';
+import {clearSearchLocation,saveSearchLocation} from '../../lib/search-location-handoff';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
@@ -116,10 +117,15 @@ export default function Services(){
  if(areaEntry)jobParams.set('area',areaEntry.id);
  const jobHref='/jobs'+(jobParams.size?'?'+jobParams.toString():'');
  const signInHref='/account?next='+encodeURIComponent(jobHref);
- function clearFilters(){setTrade('');setArea('');setLocation(null);setAddressVersion(v=>v+1);setInitialQuery('');setSearchVersion(v=>v+1);setSort('quality');window.history.replaceState(null,'','/services');}
+ function clearFilters(){setTrade('');setArea('');setLocation(null);clearSearchLocation();setAddressVersion(v=>v+1);setInitialQuery('');setSearchVersion(v=>v+1);setSort('quality');window.history.replaceState(null,'','/services');}
  function updateTrade(value:string){setTrade(value);const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
  function selectTrade(value:string){if(!value){setInitialQuery('');setSearchVersion(v=>v+1);}updateTrade(value);}
- function updateArea(value:string){setArea(value);setLocation(null);setAddressVersion(v=>v+1);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
+ function updateArea(value:string){setArea(value);setLocation(null);clearSearchLocation();setAddressVersion(v=>v+1);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
+ function handleLocation(point:SelectedLocation|null){
+  setLocation(point);setSort(point?'recommended':'quality');
+  if(point){saveSearchLocation(point);setArea('');const p=new URLSearchParams(window.location.search);p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
+  else clearSearchLocation();
+ }
 
  return <main className="container directory-page">
   <div className="page-heading"><span className="eyebrow">Find trusted local help</span>
@@ -144,9 +150,9 @@ export default function Services(){
      <option value="">All defined areas</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}{a.city?', '+a.city:''}</option>)}
     </select>
     <p id="area-note" className="muted-note">Choose an area, or use the address search below for nearby results. Selecting an address clears the area filter.</p>
-    <AddressSearch key={addressVersion} onSelect={point=>{setLocation(point);setSort(point?'recommended':'quality');if(point){setArea('');const p=new URLSearchParams(window.location.search);p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}}}/>
+    <AddressSearch key={addressVersion} onSelect={handleLocation}/>
     <p className="muted-note">Nearby results use verified professional service locations. Distance is approximate straight-line distance, not travel time. Providers without verified locations do not appear in proximity results.</p>
-    <p className="muted-note"><Link href={signInHref}>Sign in to keep your trade and area →</Link></p>
+    <p className="muted-note"><Link href={signInHref}>Sign in to keep your trade and location →</Link></p>
     <div className="directory-filter-guide"><strong>How to choose</strong><p>Review experience, approved quality scores and feedback from completed bookings before agreeing work.</p></div>
    </aside>
    <section className="directory-results" aria-label="Approved professional results">

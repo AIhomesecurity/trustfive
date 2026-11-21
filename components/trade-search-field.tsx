@@ -34,6 +34,11 @@ export default function TradeSearchField({trades,value,initialQuery='',resetSign
     if(selected)setQuery(selected.name);
   },[value,trades]);
 
+  useEffect(()=>{
+    if(!open||activeIndex<0)return;
+    document.getElementById(`${listId}-option-${activeIndex}`)?.scrollIntoView({block:'nearest'});
+  },[open,activeIndex,listId]);
+
   function choose(trade:TradeChoice){
     setQuery(trade.name);setOpen(false);setActiveIndex(-1);onSelect(trade.id);
     inputRef.current?.focus();
@@ -43,24 +48,38 @@ export default function TradeSearchField({trades,value,initialQuery='',resetSign
     if(value)onSelect('');
   }
   function keydown(event:KeyboardEvent<HTMLInputElement>){
-    if(event.key==='Escape'){setOpen(false);setActiveIndex(-1);return;}
-    if(event.key==='Tab'){setOpen(false);return;}
+    if(event.key==='Escape'){
+      if(open){event.preventDefault();event.stopPropagation();}
+      setOpen(false);setActiveIndex(-1);
+      return;
+    }
+    if(event.key==='Tab'){setOpen(false);setActiveIndex(-1);return;}
     const options=result.matches;
     if(event.key==='ArrowDown'||event.key==='ArrowUp'){
-      if(!open||options.length===0)return;
+      if(options.length===0)return;
       event.preventDefault();
-      setOpen(true);
-      setActiveIndex(current=>{
-        const step=event.key==='ArrowDown'?1:-1;
-        return (current+step+options.length)%options.length;
-      });
+      const step=event.key==='ArrowDown'?1:-1;
+      if(!open){
+        setOpen(true);
+        setActiveIndex(step===1?0:options.length-1);
+      }else{
+        setActiveIndex(current=>{
+          const next=current+step;
+          if(next<0)return options.length-1;
+          if(next>=options.length)return 0;
+          return next;
+        });
+      }
       return;
     }
     if(event.key==='Enter'){
-      event.preventDefault();
-      if(open&&activeIndex>=0&&options[activeIndex])choose(options[activeIndex].trade);
-      else if(result.best)choose(result.best.trade);
-      else setOpen(false);
+      if(open&&activeIndex>=0&&options[activeIndex]){
+        event.preventDefault();
+        choose(options[activeIndex].trade);
+      }else if(result.best){
+        event.preventDefault();
+        choose(result.best.trade);
+      }else setOpen(false);
     }
   }
 
@@ -76,6 +95,7 @@ export default function TradeSearchField({trades,value,initialQuery='',resetSign
     maxLength={120}
     role="combobox"
     aria-autocomplete="list"
+    aria-haspopup="listbox"
     aria-expanded={open&&result.matches.length>0}
     aria-controls={listId}
     aria-activedescendant={activeIndex>=0?`${listId}-option-${activeIndex}`:undefined}

@@ -23,6 +23,7 @@ test('Common customer terms and alternative wording resolve to real categories',
  expect(slugFor('burst pipe')).toBe('plumbing');
  expect(slugFor('leaking tap')).toBe('plumbing');
  expect(slugFor('electrician')).toBe('electrical');
+ expect(slugFor('electricians')).toBe('electrical');
  expect(slugFor('rewiring')).toBe('electrical');
  expect(slugFor('roofer')).toBe('roofing');
  expect(slugFor('guttering')).toBe('roofing');
@@ -30,7 +31,9 @@ test('Common customer terms and alternative wording resolve to real categories',
 });
 
 test('Security search terms resolve to the correct separate trade categories',()=>{
+ expect(slugFor('CCTV')).toBe('cctv-installation');
  expect(slugFor('CCTV installation')).toBe('cctv-installation');
+ expect(slugFor('security camera')).toBe('cctv-installation');
  expect(slugFor('security cameras')).toBe('cctv-installation');
  expect(slugFor('video doorbell')).toBe('cctv-installation');
  expect(slugFor('alarms')).toBe('home-security');
