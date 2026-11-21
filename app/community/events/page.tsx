@@ -13,6 +13,7 @@ export default function CommunityEvents(){
  const [area,setArea]=useState(''),[title,setTitle]=useState(''),[description,setDescription]=useState('');
  const [venue,setVenue]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+ const [pendingRsvpEventId,setPendingRsvpEventId]=useState<string|null>(null);
  const [loading,setLoading]=useState(true);
  const [loadError,setLoadError]=useState(false);
  async function refresh(){
@@ -56,7 +57,7 @@ export default function CommunityEvents(){
   finally{setBusy(false);}
  }
  async function respond(id:string,status:'going'|'interested'|'none'){
-  if(busy)return;setBusy(true);setNotice('');
+  if(busy)return;setBusy(true);setPendingRsvpEventId(id);setNotice('');
   try{
    const {error}=await supabaseBrowser().rpc('set_event_response',{p_event:id,p_status:status});
    if(error)throw error;
@@ -64,7 +65,7 @@ export default function CommunityEvents(){
    try{await refresh();setNotice(status==='none'?'Your RSVP was cancelled.':'Your response has been saved.');}
    catch{setLoadError(true);setNotice('Your RSVP was saved, but upcoming events could not be refreshed. Please retry loading the list.');}
   }catch{setNotice('Unable to update your RSVP. Please try again.');}
-  finally{setBusy(false);}
+  finally{setPendingRsvpEventId(null);setBusy(false);}
  }
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Bring neighbours together</span><h1>Local events</h1>
@@ -96,10 +97,11 @@ export default function CommunityEvents(){
      <p><strong>Ends:</strong> <time dateTime={e.ends_at}>{new Date(e.ends_at).toLocaleString('en-GB')}</time></p>
      <p><strong>Where:</strong> {e.venue_label}</p>
      {r&&<p className="muted-note">Your RSVP: {r}</p>}
-     <div role="group" aria-label={`RSVP for ${e.title}`} aria-busy={busy} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
+     <div role="group" aria-label={`RSVP for ${e.title}`} aria-busy={pendingRsvpEventId===e.id} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
       <button className="btn" disabled={busy||r==='going'} aria-pressed={r==='going'} aria-label={`Going to ${e.title}`} onClick={()=>respond(e.id,'going')}>I'm going</button>
       <button className="btn secondary" disabled={busy||r==='interested'} aria-pressed={r==='interested'} aria-label={`Interested in ${e.title}`} onClick={()=>respond(e.id,'interested')}>Interested</button>
       {r&&<button className="btn secondary" disabled={busy} aria-label={`Cancel RSVP for ${e.title}`} onClick={()=>respond(e.id,'none')}>Cancel RSVP</button>}
+      {pendingRsvpEventId===e.id&&<span role="status">Saving your RSVP…</span>}
      </div>
     </article>})}
    </div></section>
