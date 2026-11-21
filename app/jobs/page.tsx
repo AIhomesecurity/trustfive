@@ -10,6 +10,7 @@ import {jobPublishBlocker} from '../../lib/job-publish-readiness';
 import TradeQuickPick from '../../components/trade-quick-pick';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
+import {areaForJobForm,resolveJobFormContext} from '../../lib/job-form-context';
 type Trade={id:string;name:string;slug:string};type Area={id:string;area_name:string;city:string};
 type Job={id:string;title:string;description:string;status:string;created_at:string;budget_pence:number|null};
 type Quote={quote_id:string;job_id:string;business_name:string;amount_pence:number;message:string;status:string};
@@ -26,17 +27,14 @@ export default function Jobs(){
 
  async function refresh(){const s=supabaseBrowser();const [j,q]=await Promise.all([s.from('jobs').select('id,title,description,status,created_at,budget_pence').order('created_at',{ascending:false}).limit(100),s.rpc('customer_quotes')]);if(j.error)throw j.error;if(q.error)throw q.error;setJobs(j.data||[]);setQuotes(q.data||[])}
  useEffect(()=>{(async()=>{try{const s=supabaseBrowser();const [u,t,a]=await Promise.all([s.auth.getUser(),s.from('trades').select('id,name,slug').order('name'),s.from('service_areas').select('id,area_name,city').order('city')]);if(!u.data.user){setMessage('Sign in to post and manage jobs.');return}setUserId(u.data.user.id);if(t.error)throw t.error;if(a.error)throw a.error;setTrades(t.data||[]);setAreas(a.data||[]);
- const params=new URLSearchParams(window.location.search);
- const requestedTrade=params.get('trade')||'';
- const requestedArea=params.get('area')||'';
- const matchedTrade=(t.data||[]).find(item=>item.slug===requestedTrade);
- if(matchedTrade)setTrade(matchedTrade.id);
- if((a.data||[]).some(item=>item.id===requestedArea))setArea(requestedArea);
+ const initial=resolveJobFormContext(new URLSearchParams(window.location.search),t.data||[],a.data||[]);
+ if(initial.trade)setTrade(initial.trade);
+ if(initial.area)setArea(initial.area);
  await refresh()}catch(e){setMessage(e instanceof Error?e.message:'Could not load jobs')}finally{setInitialLoading(false)}})()},[]);
  useEffect(()=>{
   let active=true;
-  if(!site){setCheckedSite(null);setTerritoryFailed(false);setTerritoryVerified(false);setManualFallbackAllowed(false);setTerritoryNotice('');setTerritoryChecking(false);setArea('');return;}
-  setCheckedSite(null);setTerritoryFailed(false);setTerritoryChecking(true);setTerritoryVerified(false);setManualFallbackAllowed(false);setTerritoryNotice('Checking verified TrustFive territory coverage…');setArea('');
+  if(!site){setCheckedSite(null);setTerritoryFailed(false);setTerritoryVerified(false);setManualFallbackAllowed(false);setTerritoryNotice('');setTerritoryChecking(false);setArea(current=>areaForJobForm(current,false,''));return;}
+  setCheckedSite(null);setTerritoryFailed(false);setTerritoryChecking(true);setTerritoryVerified(false);setManualFallbackAllowed(false);setTerritoryNotice('Checking verified TrustFive territory coverage…');setArea(current=>areaForJobForm(current,true,''));
   (async()=>{
    try{
     const {data,error}=await supabaseBrowser().rpc('resolve_trustfive_territory',{
@@ -45,7 +43,7 @@ export default function Jobs(){
     if(!active)return;
     if(error)throw error;
     if(data&&areas.some(a=>a.id===data)){
-     setArea(data);setCheckedSite(site);setTerritoryVerified(true);setManualFallbackAllowed(false);
+     setArea(current=>areaForJobForm(current,true,data));setCheckedSite(site);setTerritoryVerified(true);setManualFallbackAllowed(false);
      setTerritoryNotice('Verified territory selected automatically from your address.');
     }else{
      const coverage=await supabaseBrowser().rpc('has_verified_trustfive_territories',{p_country:site.country});

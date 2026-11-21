@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 // Independent quality lane: directory usability without creating fake providers.
-for (const width of [360, 390, 768]) {
+for (const width of [320, 375, 768, 1280]) {
   test(`Professional directory remains usable at ${width}px without horizontal overflow`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/services?trade=plumbing');

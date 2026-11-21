@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {areaForJobForm,jobPostingHref,resolveJobFormContext} from '../../lib/job-form-context';
 
 // P0: authenticated customer journey acceptance — password recovery, trade/area
 // preservation through authentication, and pre-journey access fencing.
@@ -61,4 +62,29 @@ test('Anonymous customer journey never reaches the protected job form',async({pa
   await expect(page).toHaveURL(/\/account\?next=/);
   const preserved=new URL(page.url()).searchParams.get('next')||'';
   expect(preserved).toBe('/jobs?trade=plumbing&area=test-area');
+});
+
+test('P0: selected CCTV trade and area survive the hand-off into the job form',()=>{
+  const context=resolveJobFormContext(
+    new URLSearchParams('trade=cctv-installation&area=verified-area'),
+    [{id:'cctv-trade-id',slug:'cctv-installation'},{id:'plumbing-trade-id',slug:'plumbing'}],
+    [{id:'verified-area'},{id:'other-area'}]
+  );
+  expect(context).toEqual({trade:'cctv-trade-id',area:'verified-area'});
+  // Directory and auth effects run before an address is chosen: keep both hints.
+  expect(areaForJobForm(context.area,false,'')).toBe('verified-area');
+  // A new address may only replace the area with one verified for that address.
+  expect(areaForJobForm(context.area,true,'')).toBe('');
+  expect(areaForJobForm(context.area,true,'address-area')).toBe('address-area');
+  expect(jobPostingHref('cctv-installation','verified-area')).toBe('/jobs?trade=cctv-installation&area=verified-area');
+});
+
+test('Unknown trade or area hints fail closed on the job form',()=>{
+  expect(resolveJobFormContext(
+    new URLSearchParams('trade=unknown-trade&area=unknown-area'),
+    [{id:'cctv-trade-id',slug:'cctv-installation'}],
+    [{id:'verified-area'}]
+  )).toEqual({trade:'',area:''});
+  expect(resolveJobFormContext(new URLSearchParams(),[],[])).toEqual({trade:'',area:''});
+  expect(jobPostingHref('','')).toBe('/jobs');
 });

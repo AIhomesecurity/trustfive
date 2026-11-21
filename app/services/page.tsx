@@ -5,6 +5,9 @@ import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
 import FairSelectionNotice from '../../components/fair-selection-notice';
 import DirectoryEmptyState from '../../components/directory-empty-state';
+import {jobPostingHref} from '../../lib/job-form-context';
+import DirectoryStatePanel from '../../components/directory-state-panel';
+import {directoryStateCopy,directoryViewState} from '../../lib/directory-view-state';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
@@ -67,6 +70,7 @@ export default function Services(){
 
  useEffect(()=>{
   let active=true;
+  setCatalogLoading(true);setCatalogError('');
   (async()=>{
    try{
     const s=supabaseBrowser();
@@ -91,7 +95,7 @@ export default function Services(){
    }finally{if(active)setCatalogLoading(false);}
   })();
   return()=>{active=false};
- },[]);
+  },[retryVersion]);
 
  useEffect(()=>{
   let active=true;
@@ -140,22 +144,20 @@ export default function Services(){
  }
  const tradeEntry=trades.find(t=>t.id===trade);
  const areaEntry=areas.find(a=>a.id===area);
- const jobParams=new URLSearchParams();
- if(tradeEntry)jobParams.set('trade',tradeEntry.slug);
- if(areaEntry)jobParams.set('area',areaEntry.id);
- const jobHref='/jobs'+(jobParams.size?'?'+jobParams.toString():'');
+ const jobHref=jobPostingHref(tradeEntry?.slug||'',areaEntry?.id||'');
  function clearFilters(){setTrade('');setArea('');setLocation(null);setAddressVersion(v=>v+1);setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
  function updateTrade(value:string){setTrade(value);setSearchHint('');const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
  function updateArea(value:string){setArea(value);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
 
- return <main className="container directory-page">
+  const viewState=directoryViewState({catalogLoading,catalogError,resultsLoading,resultsError,resultCount:visible.length});
+  return <main className="container directory-page">
   <div className="page-heading"><span className="eyebrow">Find trusted local help</span>
    <h1>Find a TrustFive professional</h1>
    <p className="subtle">Enter your postcode or address to find nearby approved tradespeople. Distances and independently assessed quality help you compare.</p>
   </div>
   <div className="directory-intro">
    <div><strong>Up to five approved professionals</strong><span> per trade, per defined local area — only when they qualify.</span></div>
-   <Link href="/jobs" className="btn">Describe your job →</Link>
+   <Link href={jobHref} className="btn">Describe your job →</Link>
   </div>
   <FairSelectionNotice />
   <div className="directory-layout">
@@ -170,8 +172,6 @@ export default function Services(){
     <div className="directory-filter-guide"><strong>How to choose</strong><p>Review experience, approved quality scores and feedback from completed bookings before agreeing work.</p></div>
    </aside>
    <section className="directory-results" aria-label="Approved professional results">
-    {catalogLoading&&<p role="status">Loading service categories…</p>}
-    {catalogError&&<p role="alert" className="notice error">Could not load service filters. {catalogError}</p>}
     {searchHint&&<p role="status" className="notice">{searchHint}</p>}
     <div className="directory-results-heading">
      <div><span className="eyebrow">Your local directory</span><h2>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
@@ -182,14 +182,15 @@ export default function Services(){
       </select>
      </label>
     </div>
-    {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
-    {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
-     <p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
+    {viewState==='catalog-error'&&<DirectoryStatePanel tone="error" copy={directoryStateCopy('catalog-error')} jobHref={jobHref} onRetry={()=>setRetryVersion(v=>v+1)}/>}
+    {viewState==='search-error'&&<DirectoryStatePanel tone="error" copy={directoryStateCopy('search-error')} jobHref={jobHref} onRetry={()=>setRetryVersion(v=>v+1)}/>}
+    {viewState==='searching'&&<DirectoryStatePanel tone="loading" copy={directoryStateCopy('searching')} jobHref={jobHref}/>}
+    {viewState==='results'&&<p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
 
-    {shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}
-    {shortlistIds.length>0&&<section className="directory-compare" aria-labelledby="directory-compare-title">
+    {(viewState==='results'||viewState==='empty'||viewState==='catalog-error'||viewState==='search-error')&&shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}
+    {(viewState==='results'||viewState==='empty'||viewState==='catalog-error'||viewState==='search-error')&&shortlistIds.length>0&&<section className="directory-compare" aria-labelledby="directory-compare-title">
      <div className="directory-compare-heading"><div><h3 id="directory-compare-title">Compare approved professionals</h3><p className="muted-note">{shortlistIds.length} saved on this browser · Maximum 3 · Only currently eligible matching results are shown</p></div><button type="button" className="btn secondary" onClick={()=>{setShortlistIds([]);setShortlistNotice('Comparison cleared.');}}>Clear comparison</button></div>
-     {compareVisible.length===0?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
+     {(viewState!=='results'||compareVisible.length===0)?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
      <div className="directory-compare-grid">{compareVisible.map(p=><article className="directory-compare-card" key={p.application_id}>
       <h4>{p.business_name}</h4><span className="pill">Currently approved in these results</span>
       <p>{p.trade_name} · {p.area_name}</p>
@@ -198,7 +199,7 @@ export default function Services(){
       <button type="button" className="directory-compare-remove" onClick={()=>toggleShortlist(p.application_id)}>Remove from comparison</button>
      </article>)}</div>}
     </section>}
-    {!resultsLoading&&!resultsError&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
+    {viewState==='results'&&<div className="directory-result-list">{visible.map(p=>
      <article className="directory-pro" key={p.application_id}>
       <div className="directory-pro-avatar" aria-hidden="true">{p.business_name.trim().charAt(0).toUpperCase()||'T'}</div>
       <div className="directory-pro-body">
@@ -213,7 +214,7 @@ export default function Services(){
        <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={jobHref}>Post a job →</Link></div>
       </div>
      </article>)}</div>}
-    {!resultsLoading&&!resultsError&&visible.length===0&&
+    {viewState==='empty'&&
      <DirectoryEmptyState context={{hasLocation:Boolean(location),hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={clearFilters} jobHref={jobHref}/>}
 
    </section>

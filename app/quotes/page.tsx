@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {quoteMessagesHref,bookingHistoryHref,bookingScheduleHref} from '../../lib/workflow-links';
 import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
+import {validateProfessionalQuote,type ProfessionalQuoteField} from '../../lib/professional-quote-validation';
 
 type Lead={job_id:string;title:string;description:string;budget_pence:number|null;trade_name:string;area_name:string;allocation_id:string;created_at:string};
 type Quote={quote_id:string;job_id:string;job_title:string;amount_pence:number;message:string;status:string;created_at:string};
@@ -24,6 +25,7 @@ export default function Quotes(){
  const [refreshing,setRefreshing]=useState(false);
  const [filter,setFilter]=useState('');
  const [view,setView]=useState<'all'|'unquoted'>('unquoted');
+ const [fieldErrors,setFieldErrors]=useState<Partial<Record<ProfessionalQuoteField,string>>>({});
 
  async function refresh(){
   setRefreshing(true);
@@ -69,14 +71,13 @@ export default function Quotes(){
   if(!canPrepareProfessionalQuote(chosen,leads,quotes)){
    setChosen(null);setNotice('This opportunity is no longer available for a new quote. Refresh your leads.');return;
   }
-  setBusy(true);setNotice('');
+  const validated=validateProfessionalQuote({amount,message});
+  if(!validated.ok){setFieldErrors({[validated.field]:validated.message} as Partial<Record<ProfessionalQuoteField,string>>);return;}
+  setFieldErrors({});setBusy(true);setNotice('');
   try{
-   const pence=Math.round(Number(amount)*100);
-   if(!Number.isSafeInteger(pence)||pence<100||pence>1000000000)throw Error('Quote must be between £1 and £10 million');
-   if(message.trim().length<10)throw Error('Describe the scope of work in at least 10 non-whitespace characters');
    const {error}=await supabaseBrowser().from('job_quotes').insert({
     job_id:chosen.job_id,professional_allocation_id:chosen.allocation_id,
-    professional_id:userId,amount_pence:pence,message:message.trim(),status:'pending'
+    professional_id:userId,amount_pence:validated.amountPence,message:validated.message,status:'pending'
    });
    if(error)throw error;
    setChosen(null);setAmount('');setMessage('');
@@ -135,7 +136,7 @@ export default function Quotes(){
          <div className="professional-lead-actions">
           {existing?<><span className="muted-note">Your {existing.status} quote is already recorded.</span>
             <Link className="btn secondary" href={quoteMessagesHref(existing.quote_id)}>Open conversation</Link></>:
-           <button type="button" className="btn" disabled={busy} onClick={()=>{setChosen(job);setNotice('');}}>Prepare a quote</button>}
+           <button type="button" className="btn" disabled={busy} onClick={()=>{setChosen(job);setNotice('');setFieldErrors({});}}>Prepare a quote</button>}
          </div>
         </article>;
        })}
@@ -147,11 +148,11 @@ export default function Quotes(){
        <p className="muted-note">{chosen.trade_name} · {chosen.area_name}</p>
        {existingForChosen?<div className="notice">A quote has already been submitted for this job. <Link href={quoteMessagesHref(existingForChosen.quote_id)}>Open conversation</Link>.</div>:
        <form className="form" onSubmit={submit}>
-        <label>Your quote (£)<input type="number" min="1" max="10000000" step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)}/></label>
-        <label>Message and scope of work<textarea minLength={10} maxLength={3000} required value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe materials, timing, exclusions and assumptions"/></label>
+        <label>Your quote (£)<input type="number" min="1" max="10000000" step="0.01" required value={amount} aria-invalid={Boolean(fieldErrors.amount)} aria-describedby={fieldErrors.amount?'quote-amount-error':undefined} onChange={e=>{setAmount(e.target.value);setFieldErrors(current=>({...current,amount:undefined}));}}/>{fieldErrors.amount&&<span id="quote-amount-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.amount}</span>}</label>
+        <label>Message and scope of work<textarea minLength={10} maxLength={3000} required value={message} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message?'quote-message-error':undefined} onChange={e=>{setMessage(e.target.value);setFieldErrors(current=>({...current,message:undefined}));}} placeholder="Describe materials, timing, exclusions and assumptions"/>{fieldErrors.message&&<span id="quote-message-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.message}</span>}</label>
         <p className="muted-note">Make sure the price and scope are accurate. This sends a quote, not a payment request.</p>
         <div className="professional-lead-actions"><button type="submit" disabled={busy||refreshing} className="btn">{busy?'Sending…':'Send quote'}</button>
-         <button type="button" disabled={busy} className="btn secondary" onClick={()=>setChosen(null)}>Cancel</button>
+         <button type="button" disabled={busy} className="btn secondary" onClick={()=>{setChosen(null);setFieldErrors({});}}>Cancel</button>
         </div>
        </form>}
       </div>}

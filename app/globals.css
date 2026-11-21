@@ -340,3 +340,12 @@
 .trade-quick-fieldset .muted-note{margin:9px 0 0}
 @media(max-width:680px){.trade-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:380px){.trade-quick-grid{grid-template-columns:1fr}}
+
+.directory-state-panel{text-align:center;background:white;border:1px solid var(--border);border-radius:20px;padding:30px 24px}
+.directory-state-panel[data-tone="error"]{background:#fff7f7;border-color:#e9aaaa}
+.directory-state-icon{font-size:36px}
+.directory-state-panel h3{font-size:21px;line-height:1.3;margin:10px 0}
+.directory-state-panel>p{color:var(--muted);max-width:520px;margin:0 auto}
+.directory-state-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:20px}
+@media(max-width:560px){.directory-state-panel{padding:22px 16px}.directory-state-actions{display:grid;grid-template-columns:1fr;gap:10px}.directory-state-actions .btn{width:100%}}
+@media(max-width:360px){.directory-empty{padding:20px 14px}.directory-empty-icon,.directory-state-icon{font-size:30px}.directory-empty h3,.directory-state-panel h3{font-size:19px}.directory-empty-actions{display:grid;grid-template-columns:1fr;gap:10px;margin:18px 0}.directory-empty-actions .btn{width:100%}}

@@ -2,6 +2,7 @@
 import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
+import {validateBusinessProfile,type BusinessProfileField} from '../../../lib/business-profile-validation';
 type Application={id:string;business_name:string|null;status:string};
 type Page={application_id:string;display_name:string;description:string;website_url:string|null;public_phone:string|null;status:string;review_note:string|null};
 export default function BusinessPageEditor(){
@@ -10,6 +11,7 @@ export default function BusinessPageEditor(){
  const [selected,setSelected]=useState(''),[name,setName]=useState(''),[description,setDescription]=useState('');
  const [website,setWebsite]=useState(''),[phone,setPhone]=useState('');
  const [notice,setNotice]=useState('Loading your business applications…'),[busy,setBusy]=useState(false);
+ const [fieldErrors,setFieldErrors]=useState<Partial<Record<BusinessProfileField,string>>>({});
  const current=pages.find(p=>p.application_id===selected);
  async function refresh(){
   const s=supabaseBrowser();const [a,p]=await Promise.all([
@@ -25,16 +27,18 @@ export default function BusinessPageEditor(){
   setUserId(user.id);await refresh();setNotice('');
  }catch(e){setNotice(e instanceof Error?e.message:'Unable to load your business page');}})()},[]);
  function choose(id:string){
-  setSelected(id);const p=pages.find(v=>v.application_id===id);
+  setSelected(id);setFieldErrors({});const p=pages.find(v=>v.application_id===id);
   const a=applications.find(v=>v.id===id);
   setName(p?.display_name||a?.business_name||'');
   setDescription(p?.description||'');setWebsite(p?.website_url||'');setPhone(p?.public_phone||'');
  }
- async function save(e:FormEvent){e.preventDefault();if(!selected||busy)return;setBusy(true);setNotice('');
+ async function save(e:FormEvent){e.preventDefault();if(!selected||busy)return;setNotice('');
+  const validated=validateBusinessProfile({name,description,website,phone});
+  if(!validated.ok){setFieldErrors({[validated.field]:validated.message} as Partial<Record<BusinessProfileField,string>>);return;}
+  setFieldErrors({});setBusy(true);
   try{
-   if(website.trim()&&!website.startsWith('https://'))throw Error('Business websites must begin with https://');
-   const data={display_name:name.trim(),description:description.trim(),
-    website_url:website.trim()||null,public_phone:phone.trim()||null};
+   const data={display_name:validated.values.displayName,description:validated.values.description,
+    website_url:validated.values.websiteUrl,public_phone:validated.values.publicPhone};
    const s=supabaseBrowser();
    const result=current?
     await s.from('professional_business_pages').update(data).eq('application_id',selected):
@@ -69,10 +73,10 @@ export default function BusinessPageEditor(){
      <p style={{marginTop:16}}><span className="pill">{current?.status||'New draft'}</span></p>
      {current?.review_note&&<div className="notice"><strong>Reviewer notes:</strong> {current.review_note}</div>}
      {(!current||current.status==='draft')?<form className="form" onSubmit={save}>
-      <label>Business name<input required minLength={2} maxLength={120} value={name} onChange={e=>setName(e.target.value)}/></label>
-      <label>Public description<textarea required minLength={30} maxLength={4000} value={description} onChange={e=>setDescription(e.target.value)}/></label>
-      <label>Public website (optional, HTTPS only)<input type="url" value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://yourbusiness.example"/></label>
-      <label>Public business phone (optional)<input type="tel" minLength={7} maxLength={30} value={phone} onChange={e=>setPhone(e.target.value)}/></label>
+      <label>Business name<input required minLength={2} maxLength={120} value={name} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name?'business-name-error':undefined} onChange={e=>{setName(e.target.value);setFieldErrors(current=>({...current,name:undefined}));}}/>{fieldErrors.name&&<span id="business-name-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.name}</span>}</label>
+      <label>Public description<textarea required minLength={30} maxLength={4000} value={description} aria-invalid={Boolean(fieldErrors.description)} aria-describedby={fieldErrors.description?'business-description-error':undefined} onChange={e=>{setDescription(e.target.value);setFieldErrors(current=>({...current,description:undefined}));}}/>{fieldErrors.description&&<span id="business-description-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.description}</span>}</label>
+      <label>Public website (optional, HTTPS only)<input type="url" value={website} aria-invalid={Boolean(fieldErrors.website)} aria-describedby={fieldErrors.website?'business-website-error':undefined} onChange={e=>{setWebsite(e.target.value);setFieldErrors(current=>({...current,website:undefined}));}} placeholder="https://yourbusiness.example"/>{fieldErrors.website&&<span id="business-website-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.website}</span>}</label>
+      <label>Public business phone (optional)<input type="tel" minLength={7} maxLength={30} value={phone} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone?'business-phone-error':undefined} onChange={e=>{setPhone(e.target.value);setFieldErrors(current=>({...current,phone:undefined}));}}/>{fieldErrors.phone&&<span id="business-phone-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.phone}</span>}</label>
       <p className="muted-note">The name, description, website and phone become publicly visible if your page is approved. Do not enter personal addresses or private details.</p>
       <button className="btn" type="submit" disabled={busy}>Save private draft</button>
      </form>:<p className="subtle">This page is under review or published. To request changes, contact TrustFive support.</p>}
