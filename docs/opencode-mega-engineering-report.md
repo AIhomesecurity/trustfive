@@ -48,7 +48,7 @@ bases, incomplete privilege pinning and no authenticated staging run.
 allowlists (`0002_verified_network.sql:286-306`; `0006_directory_ratings.sql:4-33`),
 waitlist ordering independent of payment (`0002_verified_network.sql:134-169`),
 consent-based private address disclosure with audit
-(`0025_consent_booking_address.sql:4-53`, `0026_booking_address_consent_audit.sql`),
+(`0025_consent_based_booking_address.sql:4-53`, `0026_booking_address_consent_audit.sql`),
 country release gates (`0033`-`0035`) and Stripe test-mode pinning
 (`0009_stripe_test_memberships.sql:1-3,69-72`, `app/api/billing/checkout/route.ts:11-39`).
 
@@ -92,8 +92,8 @@ Initial lint baseline before fixes: 15 messages (12 errors, 3 warnings) across 1
 
 **Overall status: NO-GO for production merge or deployment.** The individual
 slices have strong local evidence, but the integrated product is not ready:
-migration versions collide, one browser-test collection defect must be present
-in the merged result, real staging acceptance has not been performed, and
+migration versions collide, one browser-test collection defect must be fixed in
+the merged result, real staging acceptance has not been performed, and
 Vercel preview deployment is rate-limited. This is a review/recommendation, not
 an authorisation to merge or deploy.
 
