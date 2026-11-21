@@ -130,3 +130,33 @@ begin
   raise exception 'Client role gained release history table permissions';
  end if;
 end $history_acl$;
+
+-- Column ACLs are independent of whole-table ACLs. A future migration must
+-- not expose reviewer identity, evidence references or release decisions via
+-- per-column SELECT/INSERT/UPDATE grants, including on newly added columns.
+-- Catalog-only: never inspect signoff records or claim human approval.
+do $history_column_acl$
+declare v_column record;
+begin
+ if not exists (
+   select 1 from pg_class
+   where oid='public.country_release_signoff_events'::regclass
+     and relrowsecurity
+ ) then
+  raise exception 'Country release history lost row-level security';
+ end if;
+ for v_column in
+  select attname from pg_attribute
+  where attrelid='public.country_release_signoff_events'::regclass
+    and attnum>0 and not attisdropped
+ loop
+  if has_column_privilege('anon','public.country_release_signoff_events',v_column.attname,'SELECT')
+     or has_column_privilege('authenticated','public.country_release_signoff_events',v_column.attname,'SELECT')
+     or has_column_privilege('anon','public.country_release_signoff_events',v_column.attname,'INSERT')
+     or has_column_privilege('authenticated','public.country_release_signoff_events',v_column.attname,'INSERT')
+     or has_column_privilege('anon','public.country_release_signoff_events',v_column.attname,'UPDATE')
+     or has_column_privilege('authenticated','public.country_release_signoff_events',v_column.attname,'UPDATE') then
+   raise exception 'Client role gained column privilege on private release history: %',v_column.attname;
+  end if;
+ end loop;
+end $history_column_acl$;
