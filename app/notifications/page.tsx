@@ -2,8 +2,8 @@
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
+import {safeNotificationTarget} from '../../lib/notification-target';
 type Notification={id:string;kind:string;title:string;body:string;target_path:string;created_at:string;read_at:string|null};
-const allowedPaths=new Set(['/jobs','/bookings','/messages','/professional/apply']);
 export default function Notifications(){
  const [items,setItems]=useState<Notification[]>([]);
  const [signedIn,setSignedIn]=useState(false);
@@ -50,7 +50,7 @@ export default function Notifications(){
     <h2 style={{margin:'8px 0'}}>{item.title}</h2><p>{item.body}</p>
     <p className="muted-note" style={{marginTop:9}}>{new Date(item.created_at).toLocaleString('en-GB')}</p>
     <div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:15}}>
-     {allowedPaths.has(item.target_path)&&<Link className="btn secondary" href={item.target_path}>View details</Link>}
+     {safeNotificationTarget(item.target_path)&&<Link className="btn secondary" href={safeNotificationTarget(item.target_path)!}>View details</Link>}
      {!item.read_at&&<button type="button" disabled={busy!==''} className="btn secondary" onClick={()=>markRead(item.id)}>
        {busy===item.id?'Saving…':'Mark as read'}</button>}
     </div>
