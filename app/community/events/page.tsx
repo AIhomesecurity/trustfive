@@ -92,7 +92,8 @@ export default function CommunityEvents(){
      <span className="pill">{areas.find(a=>a.id===e.area_id)?.area_name||'Local event'}</span>
      <h3 style={{marginTop:12}}>{e.title}</h3>
      <p style={{marginBottom:9}}>{e.description}</p>
-     <p><strong>When:</strong> {new Date(e.starts_at).toLocaleString('en-GB')}</p>
+     <p><strong>Starts:</strong> {new Date(e.starts_at).toLocaleString('en-GB')}</p>
+     <p><strong>Ends:</strong> {new Date(e.ends_at).toLocaleString('en-GB')}</p>
      <p><strong>Where:</strong> {e.venue_label}</p>
      {r&&<p className="muted-note">Your RSVP: {r}</p>}
      <div role="group" aria-label={`RSVP for ${e.title}`} aria-busy={busy} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
