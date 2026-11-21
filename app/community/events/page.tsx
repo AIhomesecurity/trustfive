@@ -48,7 +48,10 @@ export default function CommunityEvents(){
     venue_label:venue.trim(),starts_at:begins.toISOString(),ends_at:finishes.toISOString()
    });
    if(error)throw error;setTitle('');setDescription('');setVenue('');setStart('');setEnd('');
-   await refresh();setNotice('Your event is published to signed-in community members.');
+   // Publishing succeeded even if the follow-up listing refresh fails. Do not
+   // invite a duplicate submission by reporting a successful insert as failed.
+   try{await refresh();setNotice('Your event is published to signed-in community members.');}
+   catch{setLoadError(true);setNotice('Your event was published, but upcoming events could not be refreshed. Please retry loading the list.');}
   }catch(e){setNotice(e instanceof Error&&e.message==='Choose a future event with a valid end time.'?e.message:'Unable to publish this event. Please check the details and try again.');}
   finally{setBusy(false);}
  }
