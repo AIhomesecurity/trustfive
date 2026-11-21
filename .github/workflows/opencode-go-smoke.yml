@@ -26,7 +26,16 @@ jobs:
             --data '{"model":"glm-5.3-flash","messages":[{"role":"user","content":"Reply with OK only."}],"max_tokens":512}' \
             https://opencode.ai/inference/go/v1/chat/completions)
           if [[ "$status" != 200 ]]; then
-            echo "::error::OpenCode Go returned HTTP $status"
+            if grep -Eiq 'invalid.{0,18}(api.?key|credential)|unauthorized|authentication|invalid.*token' "$response_file"; then
+            echo 'Provider reported an authentication problem.'
+          elif grep -Eiq 'subscription|billing|payment|balance|credit|workspace' "$response_file"; then
+            echo 'Provider reported an account, subscription, or billing problem.'
+          elif grep -Eiq 'model' "$response_file"; then
+            echo 'Provider reported a model-related problem.'
+          else
+            echo 'Provider error did not match a known category.'
+          fi
+          echo "::error::OpenCode Go returned HTTP $status"
             exit 1
           fi
           if ! jq -e '(.choices[0].message.content // "") | test("^\\s*OK[.!]?\\s*$"; "i")' "$response_file" >/dev/null; then
