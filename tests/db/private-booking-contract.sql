@@ -196,3 +196,23 @@ begin
  end if;
 end
 $tf$;
+
+-- Negative privilege regression: the consent writer executes with elevated
+-- privileges, so it must keep a fixed empty search_path to prevent object
+-- shadowing through caller-controlled schemas. Catalog-only, no private data.
+do $tf$
+declare v_proc oid; v_config text[];
+begin
+ v_proc := to_regprocedure('public.set_booking_address_sharing(uuid,boolean)')::oid;
+ if v_proc is null then
+  raise exception 'Audited booking consent writer missing';
+ end if;
+ select p.proconfig into v_config from pg_proc p where p.oid=v_proc;
+ if not (select p.prosecdef from pg_proc p where p.oid=v_proc) then
+  raise exception 'Booking consent writer lost SECURITY DEFINER contract';
+ end if;
+ if not coalesce('search_path=' = any(v_config),false) then
+  raise exception 'Booking consent writer must use empty fixed search_path';
+ end if;
+end
+$tf$;
