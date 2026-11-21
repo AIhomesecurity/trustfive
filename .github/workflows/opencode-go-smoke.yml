@@ -23,8 +23,8 @@ jobs:
             --output "$response_file" --write-out '%{http_code}' \
             --header "Authorization: Bearer $OPENCODE_GO_API_KEY" \
             --header 'Content-Type: application/json' \
-            --data '{"model":"glm-5.3-flash","messages":[{"role":"user","content":"Reply with OK only."}],"max_tokens":128}' \
-            https://opencode.ai/zen/go/v1/chat/completions)
+            --data '{"model":"glm-5.3-flash","messages":[{"role":"user","content":"Reply with OK only."}],"max_tokens":512}' \
+            https://opencode.ai/inference/go/v1/chat/completions)
           if [[ "$status" != 200 ]]; then
             echo "::error::OpenCode Go returned HTTP $status"
             exit 1
