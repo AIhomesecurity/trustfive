@@ -8,10 +8,12 @@ import { expect, test } from '@playwright/test';
 const storageState = process.env.TRUSTFIVE_CUSTOMER_STORAGE_STATE;
 const acceptanceEnabled = Boolean(storageState && process.env.TRUSTFIVE_STAGING_ACCEPTANCE === '1');
 
+// Authenticated pages may contain private addresses and session cookies.
+// Worker-scoped Playwright options must be configured at file scope.
+// Never retain traces, screenshots or videos for these opt-in tests.
+test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
 test.describe('authorised customer read-only staging acceptance', () => {
-  // Authenticated pages may contain private addresses and session cookies.
-  // Never retain traces, screenshots or videos for these opt-in tests.
-  test.use({ trace: 'off', screenshot: 'off', video: 'off' });
   test.skip(!acceptanceEnabled, 'Requires opt-in and an existing authorised staging customer session');
 
   test('customer can open their job workspace without publishing a job', async ({ browser, baseURL }) => {
