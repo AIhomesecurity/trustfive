@@ -18,13 +18,13 @@ export default function AddressSearch({onSelect}:Props){
     const result=await fetch('/api/address/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query}),signal:abort.signal,cache:'no-store'});
     const json=await result.json() as {suggestions?:SelectedLocation[];message?:string};
     if(!abort.signal.aborted){setSuggestions(json.suggestions||[]);setError(json.message&&(!json.suggestions?.length)?json.message:'');}
-   }catch{if(!abort.signal.aborted)setError('Address lookup is temporarily unavailable');}
+   }catch{if(!abort.signal.aborted){setSuggestions([]);setError('Address lookup is temporarily unavailable');}}
    finally{if(!abort.signal.aborted)setLoading(false);}
   },500);
   return()=>{clearTimeout(timer);abort.abort();};
  },[query,selected,version]);
  function choose(item:SelectedLocation){setSelected(item);setQuery(item.label);setSuggestions([]);setError('');onSelect(item);}
- function change(value:string){setQuery(value);setSelected(null);onSelect(null);setError('');setVersion(v=>v+1);}
+ function change(value:string){setQuery(value);setSelected(null);setSuggestions([]);onSelect(null);setError('');setVersion(v=>v+1);}
  function find(){if(suggestions.length===1)choose(suggestions[0]);else if(suggestions.length>1)setError('Choose your exact address from the suggestions below.');else setVersion(v=>v+1);}
  function onInputKeyDown(e:KeyboardEvent<HTMLInputElement>){if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(!loading&&query.trim().length>=5)find();}}
  return <div className="address-finder">
