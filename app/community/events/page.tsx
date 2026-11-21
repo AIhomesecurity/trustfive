@@ -81,7 +81,7 @@ export default function CommunityEvents(){
      <label>Event title<input minLength={5} maxLength={120} required value={title} onChange={e=>setTitle(e.target.value)} placeholder="Saturday neighbourhood clean-up"/></label>
      <label>About the event<textarea minLength={15} maxLength={2000} required value={description} onChange={e=>setDescription(e.target.value)}/></label>
      <label>Meeting place (public; avoid private addresses)<input minLength={3} maxLength={160} required value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
-     <label>Starts<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
+     <label>Starts<input type="datetime-local" required value={start} onChange={e=>{const next=e.target.value;setStart(next);if(end&&next&&end<=next)setEnd('');}}/></label>
      <label>Ends<input type="datetime-local" required min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
      <button className="btn" type="submit" disabled={busy||areas.length===0} aria-busy={busy}>Publish event</button>
     </form>
