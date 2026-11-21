@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
 type Area={id:string;area_name:string;city:string};
@@ -17,6 +17,7 @@ export default function CommunityGroups(){
  const [notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(false);
  const [postsLoading,setPostsLoading]=useState(false),[postsError,setPostsError]=useState(false);
+ const latestGroupPostsRequest=useRef(0);
  async function load(){
   const s=supabaseBrowser();
   const [g,m]=await Promise.all([
@@ -27,21 +28,25 @@ export default function CommunityGroups(){
   setGroups(g.data||[]);setMemberships(m.data||[]);setLoadError(false);
  }
  async function loadPosts(id:string){
+  const request=++latestGroupPostsRequest.current;
   if(!id){setPosts([]);return;}
   const {data,error}=await supabaseBrowser().from('community_group_posts')
     .select('id,group_id,body,created_at').eq('group_id',id).order('created_at',{ascending:false}).limit(50);
-  if(error)throw error;setPosts(data||[]);
+  if(error)throw error;
+  if(request===latestGroupPostsRequest.current)setPosts(data||[]);
  }
  useEffect(()=>{(async()=>{try{
   const s=supabaseBrowser();
-  const [{data:{user}},a]=await Promise.all([
+  const [authResult,a]=await Promise.all([
    s.auth.getUser(),s.from('service_areas').select('id,area_name,city').order('city')
   ]);
+  if(authResult.error)throw authResult.error;
+  const user=authResult.data.user;
   if(!user){setNotice('Sign in to join community groups.');return;}
   if(a.error)throw a.error;setUserId(user.id);setAreas(a.data||[]);await load();
  }catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setLoading(false);}})()},[]);
  async function retryGroups(){if(busy)return;setBusy(true);setNotice('');try{await load();}catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setBusy(false);}}
- async function create(e:FormEvent){e.preventDefault();if(busy||!userId)return;
+ async function create(e:FormEvent){e.preventDefault();if(busy||!userId||!areas.some(a=>a.id===area)||name.trim().length<4||description.trim().length<15)return;
   setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().from('community_groups')
@@ -53,19 +58,23 @@ export default function CommunityGroups(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to create group');}
   finally{setBusy(false);}
  }
- async function join(groupId:string){if(busy)return;setBusy(true);
+ async function join(groupId:string){if(busy||!userId||memberships.some(m=>m.group_id===groupId))return;setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().from('community_group_memberships')
     .insert({group_id:groupId,user_id:userId,role:'member'});
-   if(error)throw error;await load();setNotice('You have joined this community group.');
+   if(error)throw error;
+   try{await load();setNotice('You have joined this community group.');}
+   catch{setLoadError(true);setNotice('You joined the group, but the group list could not be refreshed. Reload to see your membership.');}
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to join group');}
   finally{setBusy(false);}
  }
- async function choose(id:string){if(busy)return;setSelected(id);setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
-  try{await loadPosts(id)}catch{setPostsError(true);setNotice('Unable to load group posts. Please retry.');}
-  finally{setPostsLoading(false);}
+ async function choose(id:string){if(busy||!memberships.some(m=>m.group_id===id))return;
+  const request=latestGroupPostsRequest.current+1;
+  setSelected(id);setPostBody('');setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
+  try{await loadPosts(id)}catch{if(request===latestGroupPostsRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
+  finally{if(request===latestGroupPostsRequest.current)setPostsLoading(false);}
  }
- async function publish(e:FormEvent){e.preventDefault();if(!selected||busy||postsLoading||postsError||postBody.trim().length<8||!memberships.some(m=>m.group_id===selected))return;setBusy(true);
+ async function publish(e:FormEvent){e.preventDefault();if(!userId||!selected||busy||postsLoading||postsError||postBody.trim().length<8||!memberships.some(m=>m.group_id===selected))return;setBusy(true);
   try{
    const {error}=await supabaseBrowser().from('community_group_posts')
     .insert({group_id:selected,author_id:userId,body:postBody.trim()});
@@ -90,7 +99,7 @@ export default function CommunityGroups(){
      </select></label>
      <label>Group name<input required minLength={4} maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder="Community gardeners"/></label>
      <label>What is this group about?<textarea required minLength={15} maxLength={1200} value={description} onChange={e=>setDescription(e.target.value)}/></label>
-     <button className="btn" disabled={busy||areas.length===0} type="submit">Create community group</button>
+     <button className="btn" disabled={busy||areas.length===0||!areas.some(a=>a.id===area)||name.trim().length<4||description.trim().length<15} type="submit">Create community group</button>
     </form><p className="muted-note">Groups are publicly discoverable to signed-in members in this pilot. Address verification and private groups are not yet supported.</p>
    </div></section>
    <section><h2>Explore groups</h2><div className="list">
@@ -100,7 +109,7 @@ export default function CommunityGroups(){
      <span className="pill">{areas.find(a=>a.id===g.area_id)?.area_name||'Neighbourhood'}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
-      {member?<button type="button" className="btn secondary" onClick={()=>choose(g.id)}>Open group</button>:
+      {member?<button type="button" className="btn secondary" disabled={busy} onClick={()=>choose(g.id)}>Open group</button>:
        <button type="button" className="btn" disabled={busy} onClick={()=>join(g.id)}>Join group</button>}
      </div>
     </article>})}
