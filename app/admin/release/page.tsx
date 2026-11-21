@@ -2,6 +2,7 @@
 import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
+import ReleaseEvidenceMatrix from '../../../components/release-evidence-matrix';
 
 type Area={country_code:string;city:string};
 type Gate='legal_terms'|'privacy'|'payments'|'security'|'operational_support'|'authenticated_acceptance';
@@ -101,6 +102,7 @@ export default function ReleaseEvidence(){
       {status.missingApprovals.length===0?<p>None recorded as missing. Final owner production approval is still separate.</p>:
        <ul>{status.missingApprovals.map(item=><li key={item}>{names[item]||item}</li>)}</ul>}
       <p className="muted-note">Production automatically enabled: No. Reviews and revocations leave a private audit trail.</p>
+      <ReleaseEvidenceMatrix status={status}/>
      </>}
     </section>
     <section className="card">
