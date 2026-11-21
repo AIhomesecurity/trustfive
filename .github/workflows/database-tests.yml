@@ -64,3 +64,6 @@ jobs:
 
       - name: Assert private booking consent audit and verified-radius lead contracts
         run: psql -v ON_ERROR_STOP=1 -f tests/db/private-booking-contract.sql
+
+      - name: Verify complaint and appeal RLS negative contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/complaint-appeal-rls-contract.sql
