@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
 import FairSelectionNotice from '../../components/fair-selection-notice';
+import DirectoryEmptyState from '../../components/directory-empty-state';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
@@ -213,11 +214,8 @@ export default function Services(){
       </div>
      </article>)}</div>}
     {!resultsLoading&&!resultsError&&visible.length===0&&
-     <div className="directory-empty"><span aria-hidden="true" className="directory-empty-icon">🔎</span><h3>No approved professionals match your search yet</h3>
-      <p>We only show genuinely approved businesses. For nearby searches, professionals must also have a verified service location covering your address.</p>
-      <div className="directory-empty-actions"><button type="button" className="btn secondary" onClick={clearFilters}>Explore all areas and trades</button><Link className="btn" href={jobHref}>Post your job</Link></div>
-      <p className="muted-note">Are you a professional? <Link href="/professional/apply">Apply to join the verified network →</Link></p>
-     </div>}
+     <DirectoryEmptyState context={{hasLocation:Boolean(location),hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={clearFilters} jobHref={jobHref}/>}
+
    </section>
   </div>
  </main>;
