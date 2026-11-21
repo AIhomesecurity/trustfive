@@ -31,11 +31,11 @@ export function inspectOfficialGeoJSON(input,chosenCode=null){
  if(!Array.isArray(rings)||rings.length!==1)reasons.push('Polygon holes and multipart territory are not supported by the current 30-vertex admin input');
  const ring=Array.isArray(rings?.[0])?rings[0]:[];
  if(ring.length<4||!ring.every(finiteWgs84))reasons.push('Invalid or non-WGS84 longitude/latitude coordinates');
- const closed=ring.length>2&&ring[0][0]===ring[ring.length-1][0]&&ring[0][1]===ring[ring.length-1][1];
+ const closed=ring.length>2&&finiteWgs84(ring[0])&&finiteWgs84(ring[ring.length-1])&&ring[0][0]===ring[ring.length-1][0]&&ring[0][1]===ring[ring.length-1][1];
  if(!closed)reasons.push('GeoJSON exterior ring is not closed');
  const vertices=closed?ring.slice(0,-1):ring;
  if(vertices.length<3||vertices.length>30)reasons.push('Current PostgreSQL polygon intake supports 3–30 unique surveyed vertices; DO NOT truncate an authoritative outline');
- if(new Set(vertices.map(v=>v[0]+','+v[1])).size!==vertices.length)reasons.push('Repeated boundary vertices require independent GIS review');
+ if(vertices.every(finiteWgs84)&&new Set(vertices.map(v=>v[0]+','+v[1])).size!==vertices.length)reasons.push('Repeated boundary vertices require independent GIS review');
  if(vertices.some(v=>Array.isArray(v)&&v.length>2))reasons.push('Extra dimensions require review before longitude/latitude conversion');
  return {
   status:reasons.length?'MANUAL_GIS_REVIEW_REQUIRED':'GEOMETRY_READY_FOR_HUMAN_REVIEW',
