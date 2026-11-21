@@ -46,7 +46,7 @@ export default function Billing(){
     <h2 style={{fontSize:38,margin:'18px 0 8px'}}>£19.99 <span style={{fontSize:16,fontWeight:400}}>per month</span></h2>
     <p>Business software membership is entirely separate from verification, professional rankings and waiting-list priority.</p>
     <p style={{marginTop:20}}><strong>Payment integration:</strong> test mode only. No live Stripe payment can be processed by this implementation.</p>
-    {!signedIn?<p style={{marginTop:20}}><Link href="/account" className="btn">Sign in</Link></p>:
+    {!signedIn?<p style={{marginTop:20}}><Link href="/account?next=%2Fbilling" className="btn">Sign in</Link></p>:
      !professional?<p style={{marginTop:20}}><Link href="/professional/apply" className="btn secondary">Apply as a professional</Link></p>:
      active?<div className="notice">Membership status: <strong>{membership?.subscription_status}</strong>. Billing portal and cancellations are not yet available in-app.</div>:
      <div style={{marginTop:20}}>
