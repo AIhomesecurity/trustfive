@@ -1,7 +1,8 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
+import {eventPublicationError,filterCommunityEvents,type EventFilter,type EventTimeFilter} from '../../../lib/community-event-discovery';
 type Area={id:string;area_name:string;city:string};
 type Event={id:string;area_id:string;title:string;description:string;venue_label:string;starts_at:string;ends_at:string;host_id:string};
 type RSVP={event_id:string;status:string};
@@ -13,11 +14,17 @@ export default function CommunityEvents(){
  const [area,setArea]=useState(''),[title,setTitle]=useState(''),[description,setDescription]=useState('');
  const [venue,setVenue]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [endResetNotice,setEndResetNotice]=useState('');
+ const [searchArea,setSearchArea]=useState(''),[keyword,setKeyword]=useState('');
+ const [rsvpFilter,setRsvpFilter]=useState<EventFilter>('all'),[timeFilter,setTimeFilter]=useState<EventTimeFilter>('all');
+ const [nowMs,setNowMs]=useState(()=>Date.now());
+ const refreshGeneration=useRef(0);
+ const visibleEvents=useMemo(()=>filterCommunityEvents(events,responses,{area:searchArea,keyword,rsvp:rsvpFilter,time:timeFilter,nowMs}),[events,responses,searchArea,keyword,rsvpFilter,timeFilter,nowMs]);
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const [pendingRsvpEventId,setPendingRsvpEventId]=useState<string|null>(null);
  const [loading,setLoading]=useState(true);
  const [loadError,setLoadError]=useState(false);
  async function refresh(){
+  const request=++refreshGeneration.current;
   const s=supabaseBrowser();
   const [e,r]=await Promise.all([
    s.from('community_events').select('id,area_id,title,description,venue_label,starts_at,ends_at,host_id')
@@ -25,7 +32,8 @@ export default function CommunityEvents(){
    s.from('community_event_rsvps').select('event_id,status')
   ]);
   if(e.error)throw e.error;if(r.error)throw r.error;
-  setEvents(e.data||[]);setResponses(r.data||[]);setLoadError(false);
+  if(request!==refreshGeneration.current)return;
+  setEvents(e.data||[]);setResponses(r.data||[]);setNowMs(Date.now());setLoadError(false);
  }
  useEffect(()=>{(async()=>{try{
   const s=supabaseBrowser();
@@ -39,12 +47,9 @@ export default function CommunityEvents(){
  async function retryEvents(){if(busy)return;setBusy(true);setNotice('');try{await refresh();}catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setBusy(false);}}
  async function publish(e:FormEvent){e.preventDefault();if(busy||!userId)return;setBusy(true);setNotice('');
   try{
-   if(!areas.some(a=>a.id===area)||title.trim().length<5||description.trim().length<15||venue.trim().length<3){
-    setNotice('Choose a neighbourhood and enter a meaningful title, description and public meeting place.');return;
-   }
+   const errorMessage=eventPublicationError({area,availableAreaIds:areas.map(a=>a.id),title,description,venue,start,end,nowMs:Date.now()});
+   if(errorMessage){setNotice(errorMessage);return;}
    const begins=new Date(start),finishes=new Date(end);
-   if(!Number.isFinite(begins.getTime())||!Number.isFinite(finishes.getTime())
-    ||begins<=new Date()||finishes<=begins)throw Error('Choose a future event with a valid end time.');
    const {error}=await supabaseBrowser().from('community_events').insert({
     host_id:userId,area_id:area,title:title.trim(),description:description.trim(),
     venue_label:venue.trim(),starts_at:begins.toISOString(),ends_at:finishes.toISOString()
@@ -54,7 +59,7 @@ export default function CommunityEvents(){
    // invite a duplicate submission by reporting a successful insert as failed.
    try{await refresh();setNotice('Your event is published to signed-in community members.');}
    catch{setLoadError(true);setNotice('Your event was published, but upcoming events could not be refreshed. Please retry loading the list.');}
-  }catch(e){setNotice(e instanceof Error&&e.message==='Choose a future event with a valid end time.'?e.message:'Unable to publish this event. Please check the details and try again.');}
+  }catch{setNotice('Unable to publish this event. Please check the details and try again.');}
   finally{setBusy(false);}
  }
  async function respond(id:string,status:'going'|'interested'|'none'){
@@ -90,9 +95,17 @@ export default function CommunityEvents(){
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
    </section>
-   <section aria-labelledby="upcoming-events-heading"><h2 id="upcoming-events-heading">Upcoming events</h2>{!loadError&&<p className="muted-note" role="status">{events.length} upcoming {events.length===1?'event':'events'} listed.{events.length>0?' RSVP controls are available for each event below.':''}</p>}{loadError&&<div role="alert"><p>Upcoming events could not be refreshed. The list is hidden until it can be checked again.</p><button className="btn secondary" type="button" disabled={busy} onClick={retryEvents}>Try loading events again</button></div>}<div className="list">
+   <section aria-labelledby="upcoming-events-heading"><h2 id="upcoming-events-heading">Upcoming events</h2>
+    <div className="card" style={{marginBottom:14}}><h3>Find an event</h3><div className="form">
+      <label htmlFor="event-search-keyword">Search upcoming events<input id="event-search-keyword" type="search" maxLength={120} value={keyword} onChange={e=>setKeyword(e.target.value)} placeholder="Try gardening or community centre"/></label>
+      <label htmlFor="event-search-area">Neighbourhood<select id="event-search-area" value={searchArea} onChange={e=>setSearchArea(e.target.value)}><option value="">All listed neighbourhoods</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}, {a.city}</option>)}</select></label>
+      <label htmlFor="event-search-time">When<select id="event-search-time" value={timeFilter} onChange={e=>setTimeFilter(e.target.value as EventTimeFilter)}><option value="all">Any upcoming date</option><option value="week">Next 7 days</option><option value="month">Next 30 days</option></select></label>
+      <label htmlFor="event-search-rsvp">My RSVP<select id="event-search-rsvp" value={rsvpFilter} onChange={e=>setRsvpFilter(e.target.value as EventFilter)}><option value="all">All events</option><option value="going">I'm going</option><option value="interested">I'm interested</option></select></label>
+      <button type="button" className="btn secondary" onClick={()=>{setSearchArea('');setKeyword('');setRsvpFilter('all');setTimeFilter('all');}}>Clear event filters</button>
+    </div></div>{!loadError&&<p className="muted-note" role="status">{visibleEvents.length} of {events.length} upcoming {events.length===1?'event':'events'} matching your filters.{events.length>0?' RSVP controls are available for each event below.':''}</p>}{loadError&&<div role="alert"><p>Upcoming events could not be refreshed. The list is hidden until it can be checked again.</p><button className="btn secondary" type="button" disabled={busy} onClick={retryEvents}>Try loading events again</button></div>}<div className="list">
     {!loadError&&events.length===0&&<div className="card">No upcoming events. Why not organise one?</div>}
-    {!loadError&&events.map(e=>{const savedResponse=responses.find(a=>a.event_id===e.id)?.status;const r=savedResponse==='going'||savedResponse==='interested'?savedResponse:undefined;return <article className="card" key={e.id}>
+    {!loadError&&events.length>0&&visibleEvents.length===0&&<div className="card" role="status">No upcoming events match these filters. Try another neighbourhood, date or search term.</div>}
+    {!loadError&&visibleEvents.map(e=>{const savedResponse=responses.find(a=>a.event_id===e.id)?.status;const r=savedResponse==='going'||savedResponse==='interested'?savedResponse:undefined;return <article className="card" key={e.id}>
      <span className="pill">{areas.find(a=>a.id===e.area_id)?.area_name||'Local event'}</span>
      <h3 id={`event-title-${e.id}`} style={{marginTop:12}}>{e.title}</h3>
      <p style={{marginBottom:9}}>{e.description}</p>
