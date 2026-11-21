@@ -247,3 +247,27 @@ begin
  end if;
 end
 $tf$;
+
+
+-- Negative execution regression: a database role named authenticated is not
+-- sufficient to mutate customer consent without a real auth.uid(). The writer
+-- must fail before inspecting any booking or customer property data.
+-- No fixtures, private address reads or persistent writes are involved.
+begin;
+set local role authenticated;
+do $tf$
+declare v_denied boolean := false;
+begin
+ begin
+  perform public.set_booking_address_sharing(
+   '00000000-0000-0000-0000-000000000000'::uuid, false
+  );
+ exception when sqlstate '42501' then
+  v_denied := true;
+ end;
+ if not v_denied then
+  raise exception 'Consent revocation accepted a missing authenticated identity';
+ end if;
+end
+$tf$;
+rollback;
