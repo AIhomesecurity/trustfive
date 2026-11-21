@@ -180,3 +180,25 @@ begin
   raise exception 'Client role gained private release audit sequence privileges';
  end if;
 end $history_sequence_acl$;
+
+
+-- The immutable history is only useful when every INSERT and UPDATE is
+-- audited. A disabled or narrowed trigger could silently erase revocations.
+-- Inspect PostgreSQL trigger metadata only; never read human signoff records.
+do $history_trigger_events$
+declare v_enabled "char"; v_type integer;
+begin
+ select t.tgenabled,t.tgtype::integer into v_enabled,v_type
+ from pg_trigger t
+ where t.tgrelid='public.country_release_signoffs'::regclass
+   and t.tgname='audit_country_release_signoff_change'
+   and not t.tgisinternal;
+ if not found or v_enabled not in ('O','A')
+    or (v_type & 1) = 0  -- FOR EACH ROW
+    or (v_type & 2) <> 0 -- AFTER, not BEFORE
+    or (v_type & 4) = 0  -- INSERT
+    or (v_type & 16) = 0 -- UPDATE (including approval revocation)
+ then
+  raise exception 'Country release audit trigger disabled or missing row-level INSERT/UPDATE coverage';
+ end if;
+end $history_trigger_events$;
