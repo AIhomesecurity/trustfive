@@ -88,3 +88,6 @@ jobs:
 
       - name: Enforce nationwide pending-area interest privacy and no self-approval
         run: psql -v ON_ERROR_STOP=1 -f tests/db/uk-area-interest-contract.sql
+
+      - name: Verify job contact preferences, quote availability, withdrawal and privacy contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/job-quote-booking-workflow-contract.sql
