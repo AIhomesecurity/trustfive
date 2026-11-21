@@ -32,3 +32,20 @@ Mark the journey verified in issue #12 **only** after actual authenticated stagi
 ## Current known blockers (revalidate each run)
 
 The staging project previously had no independently verified professional service locations or reviewed territories. Protected Vercel preview browsing and real authenticated customer-to-professional tests remain unverified. Supabase security advisor flags restricted RLS-without-policy tables and anonymous SECURITY DEFINER directory functions; review intent and grants individually before changing access.
+
+## Opt-in real-account browser acceptance harness (new)
+
+The repository includes `playwright.staging.config.ts` and `tests/staging/authenticated-customer-smoke.spec.ts`. **These do not run in ordinary GitHub CI and never create staging profiles or approved listings.** To run them, a person with permission must supply an existing genuine staging preview URL and explicitly authorised staging-only customer/professional test credentials through ephemeral environment variables:
+
+```bash
+TRUSTFIVE_STAGING_BASE_URL=https://<protected-preview-url> \
+TRUSTFIVE_STAGING_CUSTOMER_EMAIL=<authorised-test-email> \
+TRUSTFIVE_STAGING_CUSTOMER_PASSWORD=<authorised-test-password> \
+TRUSTFIVE_STAGING_PRO_EMAIL=<authorised-professional-test-email> \
+TRUSTFIVE_STAGING_PRO_PASSWORD=<authorised-professional-test-password> \
+npx playwright test --config=playwright.staging.config.ts
+```
+
+Use secure local secret injection rather than shell history or plaintext files where available. Do not put credentials, real addresses, user IDs or preview bypass tokens into GitHub issues, logs, screenshots or test recordings. Only deploy and test against explicitly approved staging with provider-authorised access. Tests **skip** when role credentials are missing; a skip is not a pass. The smoke suite proves authenticated account navigation only. It does **not** certify the complete customer→eligible quote→booking→consent→review sequence, which remains blocked pending genuine vetting and verified territory evidence. Never invent these to satisfy a test.
+
+The independently checked SQL journey remains in `tests/db/flows.sql` in ephemeral PostgreSQL CI, with fixture identities and rollback/isolated DB protections. It is not evidence of real participant acceptance.
