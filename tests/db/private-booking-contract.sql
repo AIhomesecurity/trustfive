@@ -85,3 +85,23 @@ end
 $tf$;
 rollback;
 select 'Private booking address and radius contracts passed' as result;
+
+-- Consent revocation must be enforced at address-read time, not merely when
+-- a booking is first created. A later migration must not let professionals
+-- see an address after the customer disables sharing or the booking closes.
+-- Inspect function definition only; never select customer property values.
+do $tf$
+declare v_reader text;
+begin
+ v_reader := lower(pg_get_functiondef('public.booking_job_site_address(uuid)'::regprocedure));
+ if position('share_with_booked_professional' in v_reader)=0
+    or position('b.professional_id' in v_reader)=0
+    or position('b.customer_id' in v_reader)=0
+    or position('b.status' in v_reader)=0
+    or position('awaiting_customer' in v_reader)=0
+    or position('booked' in v_reader)=0
+    or position('auth.uid()' in v_reader)=0 then
+  raise exception 'Booking address reader lost live consent, booking-status or identity gate';
+ end if;
+end
+$tf$;
