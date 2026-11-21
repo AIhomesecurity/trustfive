@@ -6,17 +6,13 @@ import AddressSearch,{type SelectedLocation} from '../../components/address-sear
 import {jobAddressLabel} from '../../lib/job-address';
 import {parseJobBudgetPence} from '../../lib/job-budget';
 import {meaningfulJobTextLength} from '../../lib/job-text';
+import {jobPublishBlocker} from '../../lib/job-publish-readiness';
 import TradeQuickPick from '../../components/trade-quick-pick';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
 type Trade={id:string;name:string;slug:string};type Area={id:string;area_name:string;city:string};
 type Job={id:string;title:string;description:string;status:string;created_at:string;budget_pence:number|null};
 type Quote={quote_id:string;job_id:string;business_name:string;amount_pence:number;message:string;status:string};
-// Keep the publish button aligned with the private-address validator used on submit.
-function validPostcodeProperty(site:SelectedLocation|null,details:string):boolean{
- if(!site||site.precision!=='postcode')return true;
- try{jobAddressLabel(site,details);return true;}catch{return false;}
-}
 export default function Jobs(){
  const [jobs,setJobs]=useState<Job[]>([]),[quotes,setQuotes]=useState<Quote[]>([]),[trades,setTrades]=useState<Trade[]>([]),[areas,setAreas]=useState<Area[]>([]);
  const [title,setTitle]=useState(''),[description,setDescription]=useState(''),[trade,setTrade]=useState(''),[area,setArea]=useState(''),[budget,setBudget]=useState('');
@@ -26,21 +22,7 @@ export default function Jobs(){
  const [manualProperty,setManualProperty]=useState('');
  const [territoryRetry,setTerritoryRetry]=useState(0),[territoryFailed,setTerritoryFailed]=useState(false);
  const [territoryVerified,setTerritoryVerified]=useState(false),[territoryChecking,setTerritoryChecking]=useState(false),[territoryNotice,setTerritoryNotice]=useState(''),[manualFallbackAllowed,setManualFallbackAllowed]=useState(false);
- // Keep the publish affordance consistent with the same substantive text and
- // exact-pence budget rules enforced by submit(), not just HTML minLength.
- const validJobText=meaningfulJobTextLength(title)>=5&&meaningfulJobTextLength(description)>=15;
- const validBudget=(()=>{try{parseJobBudgetPence(budget);return true;}catch{return false;}})();
- // Explain why the primary action is unavailable instead of leaving customers
- // with an unexplained disabled button (especially on touch and keyboard).
- const publishBlocker=busy?'Saving your request…':
-  !validJobText?'Add a title (5 meaningful characters) and description (15 meaningful characters).':
-  !trade?'Choose a trade.':
-  !site?'Select a property address from the suggestions.':
-  !validPostcodeProperty(site,manualProperty)?'Enter a valid house number/name and street for this postcode.':
-  territoryChecking||checkedSite!==site?'Wait for this address to be checked against service territories.':
-  !territoryVerified&&!manualFallbackAllowed?'This address cannot be published until territory eligibility is confirmed.':
-  !area?'Choose a service territory.':
-  !validBudget?'Enter a valid budget in pounds and pence, or leave it blank.':'';
+ const publishBlocker=jobPublishBlocker({title,description,trade,site,manualProperty,area,budget,busy,territoryChecking,checkedSite,territoryVerified,manualFallbackAllowed});
 
  async function refresh(){const s=supabaseBrowser();const [j,q]=await Promise.all([s.from('jobs').select('id,title,description,status,created_at,budget_pence').order('created_at',{ascending:false}).limit(100),s.rpc('customer_quotes')]);if(j.error)throw j.error;if(q.error)throw q.error;setJobs(j.data||[]);setQuotes(q.data||[])}
  useEffect(()=>{(async()=>{try{const s=supabaseBrowser();const [u,t,a]=await Promise.all([s.auth.getUser(),s.from('trades').select('id,name,slug').order('name'),s.from('service_areas').select('id,area_name,city').order('city')]);if(!u.data.user){setMessage('Sign in to post and manage jobs.');return}setUserId(u.data.user.id);if(t.error)throw t.error;if(a.error)throw a.error;setTrades(t.data||[]);setAreas(a.data||[]);
