@@ -138,6 +138,45 @@ test('Ambiguous address lookup never silently chooses the first house',async({pa
  await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('12 Example Street');
 });
 
+test('Address suggestions render untrusted labels as text and never leak the property into the URL',async({page})=>{
+ const malicious='<img src=x onerror=alert(1)> 10 Test Street, London';
+ await page.route('**/api/address/search',async route=>{
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({suggestions:[{
+   label:malicious,latitude:51.5,longitude:-0.12,postcode:'SW1A 1AA',precision:'address',country:'GB'
+  }]})});
+ });
+ await page.goto('/services');
+ const input=page.getByLabel('Your postcode or street address');
+ await input.fill('10 Test Street London');
+ const option=page.getByRole('option',{name:/10 Test Street/});
+ await expect(option).toBeVisible();
+ await expect(option).toContainText(malicious);
+ await expect(option.locator('img')).toHaveCount(0);
+ await input.press('Enter');
+ await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('10 Test Street');
+ expect(page.url()).not.toContain('Test%20Street');
+ expect(page.url()).not.toContain('10%20Test');
+ expect(page.url()).not.toContain('img');
+});
+
+test('Changing a selected property clears location-based sorting and selection',async({page})=>{
+ await page.route('**/api/address/search',async route=>{
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({suggestions:[{
+   label:'10 Test Street, London',latitude:51.5,longitude:-0.12,postcode:'SW1A 1AA',precision:'address',country:'GB'
+  }]})});
+ });
+ await page.goto('/services');
+ const input=page.getByLabel('Your postcode or street address');
+ await input.fill('10 Test Street London');
+ await expect(page.getByRole('option',{name:/10 Test Street/})).toBeVisible();
+ await page.getByRole('option',{name:/10 Test Street/}).click();
+ await expect(page.getByLabel('Sort results')).toHaveValue('recommended');
+ await page.getByRole('button',{name:'Change'}).click();
+ await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toHaveCount(0);
+ await expect(page.getByLabel('Sort results')).toHaveValue('quality');
+ await expect(input).toHaveValue('');
+});
+
 test('Address search endpoint rejects invalid input without leaking an API key',async({request})=>{
  const response=await request.post('/api/address/search',{data:{query:'X'}});
  expect(response.status()).toBe(400);
