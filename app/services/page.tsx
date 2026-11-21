@@ -3,48 +3,16 @@ import {useEffect,useMemo,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
+import TradeSearchField from '../../components/trade-search-field';
 import FairSelectionNotice from '../../components/fair-selection-notice';
 import DirectoryEmptyState from '../../components/directory-empty-state';
+import {resolveTradeQuery} from '../../lib/trade-search';
+import {clearSearchLocation,saveSearchLocation} from '../../lib/search-location-handoff';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
 type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number;distance_km?:number|null};
 type Sort='recommended'|'nearby'|'quality'|'reviews'|'name';
-
-const aliases:Record<string,string>={
- plumber:'plumbing',plumbers:'plumbing',leak:'plumbing',tap:'plumbing',dripping:'plumbing',
- electrician:'electrical',electricians:'electrical',rewiring:'electrical',wiring:'electrical',
- roofer:'roofing',roofers:'roofing',guttering:'roofing',gutter:'roofing',
- gardener:'gardening',gardeners:'gardening',lawn:'gardening',
- painter:'painting',decorator:'painting',decorating:'painting',
- boiler:'heating',heating:'heating',radiator:'heating',gas:'heating',
- carpenter:'carpentry',joiner:'carpentry',woodwork:'carpentry',
- cleaner:'cleaning',housekeeping:'cleaning',deepclean:'cleaning',
- removals:'moving',removal:'moving',movers:'moving',
- locksmith:'home-security',locks:'home-security',
- landscaper:'landscaping',paving:'landscaping',patio:'landscaping',
- cctv:'cctv-installation',camera:'cctv-installation',cameras:'cctv-installation',
- 'security camera':'cctv-installation','security cameras':'cctv-installation',
- 'cctv installer':'cctv-installation','cctv installation':'cctv-installation',
- 'security camera installation':'cctv-installation','video surveillance':'cctv-installation',
- 'home surveillance':'cctv-installation',surveillance:'cctv-installation',
- 'ring doorbell':'cctv-installation','video doorbell':'cctv-installation','doorbell camera':'cctv-installation','ip camera':'cctv-installation','ip cameras':'cctv-installation',
- 'alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
-};
-
-function resolveTrade(input:string,trades:Trade[]):Trade|undefined{
- const value=input.trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
- const query=aliases[value]||value;
- if(!query)return undefined;
- const normalized=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
- const exact=trades.find(t=>normalized(t.slug)===normalized(query)||normalized(t.name)===normalized(query));
- if(exact)return exact;
- // Prefer a single explicit task synonym before less precise description matching.
- const matchingAlias=Object.entries(aliases).find(([key])=>value===key||value.startsWith(key+' ')||value.endsWith(' '+key));
- const match=matchingAlias?.[1]||query;
- return trades.find(t=>normalized(t.slug)===normalized(match))
-  ||trades.find(t=>normalized(t.slug).includes(normalized(match))||normalized(t.name).includes(normalized(match)));
-}
 
 export default function Services(){
  const [trades,setTrades]=useState<Trade[]>([]);
@@ -54,13 +22,14 @@ export default function Services(){
  const [sort,setSort]=useState<Sort>('quality');
  const [location,setLocation]=useState<SelectedLocation|null>(null);
  const [addressVersion,setAddressVersion]=useState(0);
+ const [searchVersion,setSearchVersion]=useState(0);
  const [pros,setPros]=useState<Professional[]>([]);
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [resultsLoading,setResultsLoading]=useState(true);
  const [retryVersion,setRetryVersion]=useState(0);
  const [catalogError,setCatalogError]=useState('');
  const [resultsError,setResultsError]=useState('');
- const [searchHint,setSearchHint]=useState('');
+ const [initialQuery,setInitialQuery]=useState('');
  const [shortlistIds,setShortlistIds]=useState<string[]>([]);
  const [shortlistReady,setShortlistReady]=useState(false);
  const [shortlistNotice,setShortlistNotice]=useState('');
@@ -81,9 +50,12 @@ export default function Services(){
     setTrades(availableTrades);setAreas(availableAreas);
     const params=new URLSearchParams(window.location.search);
     const requestedTrade=params.get('trade')||params.get('q')||'';
-    const selected=resolveTrade(requestedTrade,availableTrades);
-    if(selected)setTrade(selected.id);
-    else if(requestedTrade)setSearchHint('No exact category for “'+requestedTrade+'”. Choose from the available services.');
+    const selectedTrade=params.get('trade');
+    const resolved=selectedTrade
+     ?availableTrades.find(t=>t.slug===selectedTrade||t.id===selectedTrade)
+     :resolveTradeQuery(requestedTrade,availableTrades).best?.trade;
+    if(resolved)setTrade(resolved.id);
+    setInitialQuery(selectedTrade&&resolved?resolved.name:requestedTrade);
     const requestedArea=params.get('area')||'';
     if(availableAreas.some(a=>a.id===requestedArea))setArea(requestedArea);
    }catch(e){
@@ -144,35 +116,49 @@ export default function Services(){
  if(tradeEntry)jobParams.set('trade',tradeEntry.slug);
  if(areaEntry)jobParams.set('area',areaEntry.id);
  const jobHref='/jobs'+(jobParams.size?'?'+jobParams.toString():'');
- function clearFilters(){setTrade('');setArea('');setLocation(null);setAddressVersion(v=>v+1);setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
- function updateTrade(value:string){setTrade(value);setSearchHint('');const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
- function updateArea(value:string){setArea(value);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
+ const signInHref='/account?next='+encodeURIComponent(jobHref);
+ function clearFilters(){setTrade('');setArea('');setLocation(null);clearSearchLocation();setAddressVersion(v=>v+1);setInitialQuery('');setSearchVersion(v=>v+1);setSort('quality');window.history.replaceState(null,'','/services');}
+ function updateTrade(value:string){setTrade(value);const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
+ function selectTrade(value:string){if(!value){setInitialQuery('');setSearchVersion(v=>v+1);}updateTrade(value);}
+ function updateArea(value:string){setArea(value);setLocation(null);clearSearchLocation();setAddressVersion(v=>v+1);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
+ function handleLocation(point:SelectedLocation|null){
+  setLocation(point);setSort(point?'recommended':'quality');
+  if(point){saveSearchLocation(point);setArea('');const p=new URLSearchParams(window.location.search);p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
+  else clearSearchLocation();
+ }
 
  return <main className="container directory-page">
   <div className="page-heading"><span className="eyebrow">Find trusted local help</span>
    <h1>Find a TrustFive professional</h1>
-   <p className="subtle">Enter your postcode or address to find nearby approved tradespeople. Distances and independently assessed quality help you compare.</p>
+   <p className="subtle">Search by service, then enter your postcode or address to find nearby approved tradespeople. Distances and independently assessed quality help you compare.</p>
   </div>
   <div className="directory-intro">
    <div><strong>Up to five approved professionals</strong><span> per trade, per defined local area — only when they qualify.</span></div>
-   <Link href="/jobs" className="btn">Describe your job →</Link>
+   <Link href={jobHref} className="btn">Describe your job →</Link>
   </div>
   <FairSelectionNotice />
   <div className="directory-layout">
    <aside className="directory-filters" aria-label="Filter professionals">
     <div className="directory-filter-heading"><h2>Find your match</h2><button type="button" className="directory-reset" onClick={clearFilters}>Clear filters</button></div>
+    <TradeSearchField trades={trades} value={trade} initialQuery={initialQuery} resetSignal={searchVersion} catalogReady={!catalogLoading&&!catalogError} onSelect={updateTrade}/>
     <label htmlFor="directory-trade">Trade or service</label>
-    <select id="directory-trade" value={trade} onChange={e=>updateTrade(e.target.value)} disabled={catalogLoading}>
+    <select id="directory-trade" value={trade} onChange={e=>selectTrade(e.target.value)} disabled={catalogLoading}>
      <option value="">All services</option>{trades.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
     </select>
-    <AddressSearch key={addressVersion} onSelect={point=>{setLocation(point);setSort(point?'recommended':'quality');if(point){setArea('');const p=new URLSearchParams(window.location.search);p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}}}/>
+    <label htmlFor="directory-area">Area or town</label>
+    <select id="directory-area" value={area} onChange={e=>updateArea(e.target.value)} disabled={catalogLoading||Boolean(location)||areas.length===0} aria-describedby="area-note">
+     <option value="">All defined areas</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}{a.city?', '+a.city:''}</option>)}
+    </select>
+    <p id="area-note" className="muted-note">Choose an area, or use the address search below for nearby results. Selecting an address clears the area filter.</p>
+    <AddressSearch key={addressVersion} onSelect={handleLocation}/>
     <p className="muted-note">Nearby results use verified professional service locations. Distance is approximate straight-line distance, not travel time. Providers without verified locations do not appear in proximity results.</p>
+    <p className="muted-note"><Link href={signInHref}>Sign in to keep your trade and location →</Link></p>
     <div className="directory-filter-guide"><strong>How to choose</strong><p>Review experience, approved quality scores and feedback from completed bookings before agreeing work.</p></div>
    </aside>
    <section className="directory-results" aria-label="Approved professional results">
     {catalogLoading&&<p role="status">Loading service categories…</p>}
     {catalogError&&<p role="alert" className="notice error">Could not load service filters. {catalogError}</p>}
-    {searchHint&&<p role="status" className="notice">{searchHint}</p>}
+    {!catalogLoading&&!catalogError&&areas.length===0&&<p className="notice" role="status">No service areas are defined in the directory yet. We will not infer coverage or invent local professionals. <Link href="/coverage">Register interest in your area →</Link></p>}
     <div className="directory-results-heading">
      <div><span className="eyebrow">Your local directory</span><h2>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
       <p className="subtle">{location?'Near '+location.label:areaEntry?areaEntry.area_name+', '+areaEntry.city:'Enter your address to find the nearest verified professionals'}</p></div>
@@ -183,7 +169,7 @@ export default function Services(){
      </label>
     </div>
     {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
-    {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
+    {resultsLoading?<div className="directory-loading" role="status" aria-live="polite"><p>Searching approved professionals…</p><div className="directory-skeleton" aria-hidden="true"><span/><span/></div></div>:
      <p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
 
     {shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}

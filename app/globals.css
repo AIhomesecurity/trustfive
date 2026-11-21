@@ -340,3 +340,21 @@
 .trade-quick-fieldset .muted-note{margin:9px 0 0}
 @media(max-width:680px){.trade-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:380px){.trade-quick-grid{grid-template-columns:1fr}}
+
+/* Original customer service finder: keyword matching against live trade rows. */
+.trade-finder{display:grid;gap:8px;min-width:0;position:relative}
+.trade-finder>label{font-size:14px;font-weight:750}
+.trade-finder input{min-width:0}
+.trade-finder .muted-note{margin:0;font-size:12px;line-height:1.45}
+.trade-finder-options{position:absolute;z-index:20;left:0;right:0;top:calc(100% - 12px);list-style:none;margin:0;padding:7px;background:#fff;border:1px solid #b7d5c2;border-radius:12px;box-shadow:0 12px 28px rgba(18,60,43,.13);max-height:235px;overflow-y:auto}
+.trade-finder-options li+li{margin-top:3px}
+.trade-finder-options button{display:grid;gap:2px;width:100%;text-align:left;border:0;border-radius:8px;padding:9px 11px;background:#f6fbf8;color:var(--dark)}
+.trade-finder-options li[aria-selected="true"] button,.trade-finder-options button:hover{background:#e4f4eb}
+.trade-finder-options button strong{font-size:14px}
+.trade-finder-options button span{font-size:12px;color:var(--muted)}
+.directory-skeleton{display:grid;gap:10px;margin-top:14px}
+.directory-skeleton span{display:block;height:74px;border-radius:14px;background:linear-gradient(90deg,#eef5f0 0%,#f8fcf9 50%,#eef5f0 100%);background-size:200% 100%;animation:tf-shimmer 1.3s linear infinite}
+@keyframes tf-shimmer{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.directory-skeleton span{animation:none}}
+@media(max-width:900px){.directory-filters>.trade-finder{grid-column:1/-1}}
+@media(max-width:560px){.directory-filters>.trade-finder{grid-column:1}.trade-finder-options{position:static;box-shadow:none}}

@@ -4,11 +4,15 @@ import {KeyboardEvent,useEffect,useState} from 'react';
 export type SelectedLocation={
  label:string;latitude:number;longitude:number;postcode:string|null;precision:'address'|'postcode';country:string
 };
-type Props={onSelect:(location:SelectedLocation|null)=>void};
-export default function AddressSearch({onSelect}:Props){
- const [query,setQuery]=useState(''),[suggestions,setSuggestions]=useState<SelectedLocation[]>([]);
- const [selected,setSelected]=useState<SelectedLocation|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false);
+type Props={onSelect:(location:SelectedLocation|null)=>void;initialSelection?:SelectedLocation|null};
+export default function AddressSearch({onSelect,initialSelection=null}:Props){
+ const [query,setQuery]=useState(initialSelection?.label??''),[suggestions,setSuggestions]=useState<SelectedLocation[]>([]);
+ const [selected,setSelected]=useState<SelectedLocation|null>(initialSelection),[error,setError]=useState(''),[loading,setLoading]=useState(false);
  const [version,setVersion]=useState(0);
+ useEffect(()=>{
+  if(!initialSelection)return;
+  setSelected(initialSelection);setQuery(initialSelection.label);setSuggestions([]);setError('');
+ },[initialSelection]);
  useEffect(()=>{
   if(selected||query.trim().length<2){setSuggestions([]);return;}
   const abort=new AbortController();
