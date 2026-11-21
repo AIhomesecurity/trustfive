@@ -61,7 +61,7 @@ export default function CommunityEvents(){
   <div className="page-heading"><span className="eyebrow">Bring neighbours together</span><h1>Local events</h1>
    <p className="subtle">Find and organise community meetups, projects and neighbourhood activities.</p></div>
   {notice&&<p className="notice" role="status">{notice}</p>}
-  {loading?<p role="status">Loading local events…</p>:!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
+  {loading?<p role="status">Loading local events…</p>:loadError&&!userId?<div className="card" role="alert"><p>We could not check your account or load neighbourhoods. Please try again before signing in.</p><button className="btn secondary" type="button" onClick={()=>window.location.reload()}>Retry loading local events</button></div>:!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
    <section className="card"><h2>Organise an event</h2>
     <form className="form" onSubmit={publish}>
      <label>Neighbourhood<select required value={area} onChange={e=>setArea(e.target.value)}>
