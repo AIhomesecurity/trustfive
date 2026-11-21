@@ -1,9 +1,10 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
 import {findSocialArea,readablePostDate,type SocialArea,type SocialPostSummary} from '../../../lib/social-discovery';
 import {socialPageBounds,socialPageRows,socialSearchPattern,type SocialFeedOrder} from '../../../lib/social-feed-paging';
+import {socialPostValidationError} from '../../../lib/social-post-composer';
 
 type SocialTab='neighbourhood'|'trade'|'advice';
 const TABS:{id:SocialTab;label:string}[]=[
@@ -16,6 +17,10 @@ const TABS:{id:SocialTab;label:string}[]=[
 export default function TrustFiveSocial(){
  const [tab,setTab]=useState<SocialTab>('neighbourhood');
  const [areas,setAreas]=useState<SocialArea[]>([]);
+ const [userId,setUserId]=useState('');
+ const [postingAreaId,setPostingAreaId]=useState(''),[postBody,setPostBody]=useState('');
+ const [posting,setPosting]=useState(false),[postNotice,setPostNotice]=useState('');
+ const publishingRef=useRef(false);
  const [posts,setPosts]=useState<SocialPostSummary[]>([]);
  const [areaId,setAreaId]=useState('');
  const [query,setQuery]=useState('');
@@ -34,6 +39,7 @@ export default function TrustFiveSocial(){
     if(result.error)throw result.error;
     if(!active)return;
     setSignedIn(Boolean(result.data.user));
+    setUserId(result.data.user?.id||'');
     if(!result.data.user)return;
     const areasResult=await s.from('service_areas').select('id,area_name,city').order('city').limit(200);
     if(areasResult.error)throw areasResult.error;
@@ -76,6 +82,26 @@ export default function TrustFiveSocial(){
  function changeOrder(value:SocialFeedOrder){setPage(0);setOrder(value);}
  function submitSearch(event:FormEvent){event.preventDefault();setPage(0);setSearch(query.trim());}
  function resetFilters(){setPage(0);setAreaId('');setQuery('');setSearch('');setOrder('recent');}
+
+ async function publishNeighbourhoodPost(event:FormEvent){
+  event.preventDefault();
+  if(publishingRef.current)return;
+  const problem=socialPostValidationError({authorId:userId,areaId:postingAreaId,availableAreaIds:areas.map(item=>item.id),body:postBody});
+  if(problem){setPostNotice(problem);return;}
+  publishingRef.current=true;setPosting(true);setPostNotice('');
+  try{
+   const {error:publishError}=await supabaseBrowser().from('community_posts').insert({
+    author_id:userId,area_id:postingAreaId,body:postBody.trim(),visibility:'published'
+   });
+   if(publishError)throw publishError;
+   setPostBody('');
+   setAreaId(postingAreaId);setQuery('');setSearch('');setPage(0);setOrder('recent');
+   setRefreshKey(value=>value+1);
+   setPostNotice('Your neighbourhood post was published. If it does not appear immediately, refresh the feed. Do not repost it.');
+  }catch{setPostNotice('Your post could not be published. Check your connection and permissions before trying again.');}
+  finally{publishingRef.current=false;setPosting(false);}
+ }
+
  return <main className="container social-hub">
   <div className="page-heading">
    <span className="eyebrow">Neighbours and professionals, connected</span>
@@ -94,6 +120,24 @@ export default function TrustFiveSocial(){
    <h2 id="social-neighbourhood-title">Neighbourhood conversations</h2>
    <p className="subtle">Browse genuine published posts. Search and neighbourhood filters run against the authorised community feed; results are shown 20 at a time.</p>
    {accountLoading?<div className="card" role="status">Checking your community account…</div>:accountError?<div className="card" role="alert"><p>{accountError}</p><button className="btn secondary" type="button" onClick={()=>window.location.reload()}>Retry account check</button></div>:!signedIn?<div className="card"><p>Sign in to read your community feed.</p><Link className="btn" href={'/account?next='+encodeURIComponent('/community/social')}>Sign in to TrustFive Social</Link></div>:<>
+    <section className="card" aria-labelledby="social-share-title" style={{marginBottom:16}}>
+     <h3 id="social-share-title">Share with your neighbours</h3>
+     <p className="muted-note">Choose where to post separately from the neighbourhoods you browse. Posts are visible to other authorised signed-in members. Never include private addresses, customer information or contact details.</p>
+     <form className="form" onSubmit={publishNeighbourhoodPost}>
+      <label>Neighbourhood to post in
+       <select required value={postingAreaId} onChange={event=>{setPostingAreaId(event.target.value);setPostNotice('');}} disabled={posting||areas.length===0}>
+        <option value="">Choose a neighbourhood</option>
+        {areas.map(item=><option key={item.id} value={item.id}>{item.area_name}, {item.city}</option>)}
+       </select>
+      </label>
+      <label>Write your community post
+       <textarea required minLength={8} maxLength={3000} value={postBody} onChange={event=>{setPostBody(event.target.value);setPostNotice('');}} aria-describedby="social-composer-guidance" placeholder="Ask neighbours a question, share advice or recommend something useful…" disabled={posting}/>
+      </label>
+      <p id="social-composer-guidance" className="muted-note">{postBody.length.toLocaleString('en-GB')} / 3,000 characters. A minimum of 8 characters is required.</p>
+      <button type="submit" className="btn" disabled={posting||Boolean(socialPostValidationError({authorId:userId,areaId:postingAreaId,availableAreaIds:areas.map(item=>item.id),body:postBody}))}>{posting?'Publishing…':'Publish neighbourhood post'}</button>
+     </form>
+     {postNotice&&<p role="status" className="notice">{postNotice}</p>}
+    </section>
     <form className="card social-hub-filters" onSubmit={submitSearch}>
      <label>Search published posts<input type="search" value={query} maxLength={120} onChange={e=>setQuery(e.target.value)} placeholder="e.g. CCTV, gardening, renovation"/></label>
      <label>Neighbourhood<select value={areaId} onChange={e=>changeArea(e.target.value)}><option value="">All available areas</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}, {a.city}</option>)}</select></label>
