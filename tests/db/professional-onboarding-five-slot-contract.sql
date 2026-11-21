@@ -27,8 +27,8 @@ on conflict (user_id) do nothing;
 
 -- Give Pro Six (lowest quality score) an active paid membership to prove payment
 -- NEVER overtakes higher-quality unpaid applicants on the waiting list.
-insert into public.business_memberships(user_id, subscription_status)
-  values ('10000000-0000-0000-0000-000000000016', 'active')
+insert into public.business_memberships(user_id, stripe_customer_id, stripe_subscription_id, subscription_status, last_event_created_at)
+  values ('10000000-0000-0000-0000-000000000016', 'cus_test_task2_pro6', 'sub_test_task2_pro6', 'active', now())
 on conflict (user_id) do update set subscription_status = 'active';
 
 -- Create a dedicated synthetic trade + area for this isolated 5-slot test
