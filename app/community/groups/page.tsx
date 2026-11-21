@@ -43,8 +43,10 @@ export default function CommunityGroups(){
   try{
    const {error}=await supabaseBrowser().from('community_groups')
     .insert({creator_id:userId,area_id:area,name:name.trim(),description:description.trim()});
-   if(error)throw error;await load();setName('');setDescription('');
-   setNotice('Group created. You are the founding member.');
+   if(error)throw error;setName('');setDescription('');
+   // Creation succeeded: a listing refresh failure must not invite a duplicate group.
+   try{await load();setNotice('Group created. You are the founding member.');}
+   catch{setNotice('Group created, but the group list could not be refreshed. Reload the page to see it.');}
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to create group');}
   finally{setBusy(false);}
  }
@@ -63,7 +65,10 @@ export default function CommunityGroups(){
   try{
    const {error}=await supabaseBrowser().from('community_group_posts')
     .insert({group_id:selected,author_id:userId,body:postBody.trim()});
-   if(error)throw error;setPostBody('');await loadPosts(selected);setNotice('Post published to your group.');
+   if(error)throw error;setPostBody('');
+   // The insert succeeded even if reading the updated post list fails.
+   try{await loadPosts(selected);setNotice('Post published to your group.');}
+   catch{setNotice('Post published, but group posts could not be refreshed. Open the group again to reload them.');}
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to publish group post');}
   finally{setBusy(false);}
  }
