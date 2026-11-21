@@ -6,6 +6,7 @@ import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/prof
 import {quoteMessagesHref,bookingScheduleHref,bookingHistoryHref,authorisedQuoteSelection,authorisedBookingSelection} from '../../lib/workflow-links';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
+import {geoapifySuggestions} from '../../lib/address-suggestions';
 
 test('Postcode-only jobs require a private property line without inventing exact coordinates',()=>{
  const postcode={label:'SW1A 1AA, Westminster, United Kingdom',latitude:51.501,longitude:-0.142,postcode:'SW1A 1AA',precision:'postcode' as const,country:'GB'};
@@ -19,6 +20,41 @@ test('Postcode-only jobs require a private property line without inventing exact
  expect(()=>jobAddressLabel({...postcode,label:'   '},'14 High Street')).toThrow(/valid job-site address/);
  expect(postcode.latitude).toBe(51.501);
  expect(postcode.precision).toBe('postcode');
+});
+
+
+test('Third-party address suggestions reject invalid coordinates, unsafe shapes and duplicate properties',()=>{
+ const valid={formatted:'  12   Example Street, London ',lat:51.51,lon:-0.12,postcode:'SW1A 1AA',country_code:'gb',housenumber:'12'};
+ const results=geoapifySuggestions([
+  valid,{...valid},
+  {...valid,formatted:'NaN property',lat:NaN},
+  {...valid,formatted:'Infinity property',lon:Infinity},
+  {...valid,formatted:'Impossible latitude',lat:91},
+  {...valid,formatted:'Impossible longitude',lon:-181},
+  {...valid,formatted:'Missing country',country_code:''},
+  {...valid,formatted:'Overlong label',postcode:'X'.repeat(25)},
+  {...valid,formatted:'No location',lat:'51.5'},
+  null,42,'untrusted address',{...valid,formatted:' '.repeat(8)}
+ ]);
+ expect(results).toHaveLength(2);
+ expect(results[0]).toEqual({
+  label:'12 Example Street, London',latitude:51.51,longitude:-0.12,
+  postcode:'SW1A 1AA',country:'GB',precision:'address'
+ });
+ expect(results[1].postcode).toBeNull();
+ expect(results.every(item=>item.latitude>=-90&&item.latitude<=90&&item.longitude>=-180&&item.longitude<=180)).toBe(true);
+});
+
+test('Geocoding cannot invent house precision or flood the address selector',()=>{
+ const base={formatted:'Example Road, London',lat:51.5,lon:-0.1,country_code:'GB'};
+ const inputs=Array.from({length:40},(_,i)=>({...base,formatted:'Example Road '+i,lat:51.5+i*0.0001}));
+ const results=geoapifySuggestions(inputs);
+ expect(results).toHaveLength(6);
+ expect(results.every(item=>item.precision==='postcode')).toBe(true);
+ expect(geoapifySuggestions({results:inputs})).toEqual([]);
+ expect(geoapifySuggestions(undefined)).toEqual([]);
+ expect(geoapifySuggestions([{...base,housenumber:'   '}])[0].precision).toBe('postcode');
+ expect(geoapifySuggestions([{...base,housenumber:'12'}])[0].precision).toBe('address');
 });
 
 test('TrustFive landing page offers original service search and balanced trade navigation',async({page})=>{
