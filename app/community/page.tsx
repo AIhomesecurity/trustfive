@@ -49,11 +49,16 @@ export default function Community(){
     current?await s.from('community_post_reactions').update({reaction:kind}).eq('post_id',postId).eq('user_id',userId):
     await s.from('community_post_reactions').insert({post_id:postId,user_id:userId,reaction:kind});
    if(result.error)throw result.error;
-   const next=await s.rpc('community_reactions_for_posts',{p_post_ids:[postId]});
-   if(next.error)throw next.error;
-   const row=(next.data||[])[0] as Reaction|undefined;
-   if(row)setReactions(previous=>({...previous,[postId]:row}));
-  }catch(e){setMessage(e instanceof Error?e.message:'Unable to save reaction')}finally{setBusy(false)}
+   // The write has succeeded; a failed count refresh must not tell the
+   // member that their reaction failed and encourage a duplicate click.
+   try{
+    const next=await s.rpc('community_reactions_for_posts',{p_post_ids:[postId]});
+    if(next.error)throw next.error;
+    const row=(next.data||[])[0] as Reaction|undefined;
+    if(row)setReactions(previous=>({...previous,[postId]:row}));
+    else setMessage('Your reaction was saved, but its count could not be refreshed. Reload the feed to see it.');
+   }catch{setMessage('Your reaction was saved, but its count could not be refreshed. Reload the feed to see it.');}
+  }catch{setMessage('Unable to save your reaction. Please try again.')}finally{setBusy(false)}
  }
  async function report(postId:string){if(!userId||reportingPost)return;setReportingPost(postId);setMessage('');try{const {error}=await supabaseBrowser().from('community_reports').insert({post_id:postId,reporter_id:userId,category:'other',explanation:'Flagged by a community member for moderator review'});if(error)throw error;setMessage('Post reported for moderator review.')}catch{setMessage('Could not report this post. Please try again.')}finally{setReportingPost('')}}
  return <main className="container"><div className="page-heading"><span className="eyebrow">Your community, your neighbourhood</span><h1>TrustFive Community</h1><div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:16}}><Link className="btn secondary" href="/community/groups">Explore groups</Link><Link className="btn secondary" href="/community/events">Find local events</Link></div><p className="subtle">Local conversations and recommendations. Posts are visible to other signed-in members; do not share private details or emergency information.</p></div>{message&&<p role="status" className="notice">{message}</p>}
