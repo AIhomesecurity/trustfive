@@ -16,6 +16,7 @@ export default function CommunityGroups(){
  const [selected,setSelected]=useState(''),[postBody,setPostBody]=useState('');
  const [notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(false);
+ const [postsLoading,setPostsLoading]=useState(false),[postsError,setPostsError]=useState(false);
  async function load(){
   const s=supabaseBrowser();
   const [g,m]=await Promise.all([
@@ -60,17 +61,18 @@ export default function CommunityGroups(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to join group');}
   finally{setBusy(false);}
  }
- async function choose(id:string){setSelected(id);setPosts([]);
-  try{await loadPosts(id)}catch(e){setNotice(e instanceof Error?e.message:'Unable to load group posts');}
+ async function choose(id:string){if(busy)return;setSelected(id);setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
+  try{await loadPosts(id)}catch{setPostsError(true);setNotice('Unable to load group posts. Please retry.');}
+  finally{setPostsLoading(false);}
  }
- async function publish(e:FormEvent){e.preventDefault();if(!selected||busy)return;setBusy(true);
+ async function publish(e:FormEvent){e.preventDefault();if(!selected||busy||postsLoading||postsError||postBody.trim().length<8||!memberships.some(m=>m.group_id===selected))return;setBusy(true);
   try{
    const {error}=await supabaseBrowser().from('community_group_posts')
     .insert({group_id:selected,author_id:userId,body:postBody.trim()});
    if(error)throw error;setPostBody('');
    // The insert succeeded even if reading the updated post list fails.
    try{await loadPosts(selected);setNotice('Post published to your group.');}
-   catch{setNotice('Post published, but group posts could not be refreshed. Open the group again to reload them.');}
+   catch{setPostsError(true);setPosts([]);setNotice('Post published, but group posts could not be refreshed. Retry loading posts to see it.');}
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to publish group post');}
   finally{setBusy(false);}
  }
@@ -109,10 +111,10 @@ export default function CommunityGroups(){
    <div className="two-col">
     <div className="card"><form className="form" onSubmit={publish}>
      <label>Share an update<textarea required minLength={8} maxLength={3000} value={postBody} onChange={e=>setPostBody(e.target.value)}/></label>
-     <button type="submit" disabled={busy} className="btn">Publish to group</button>
+     <button type="submit" disabled={busy||postsLoading||postsError||postBody.trim().length<8} className="btn">Publish to group</button>
     </form></div>
-    <div className="list">{posts.length===0&&<div className="card">No group posts yet.</div>}
-     {posts.map(p=><article className="card" key={p.id}><p style={{whiteSpace:'pre-wrap'}}>{p.body}</p>
+    <div className="list" aria-busy={postsLoading}>{postsLoading?<div className="card" role="status">Loading group posts…</div>:postsError?<div className="card" role="alert"><p>Group posts could not be loaded. We cannot confirm whether this group has any posts.</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void choose(selected)}>Retry loading group posts</button></div>:posts.length===0?<div className="card">No group posts yet.</div>:null}
+     {!postsLoading&&!postsError&&posts.map(p=><article className="card" key={p.id}><p style={{whiteSpace:'pre-wrap'}}>{p.body}</p>
       <p className="muted-note">{new Date(p.created_at).toLocaleString('en-GB')}</p></article>)}
     </div>
    </div>
