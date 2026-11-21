@@ -160,3 +160,23 @@ begin
   end if;
  end loop;
 end $history_column_acl$;
+
+-- Identity sequence privileges are separate from table and column grants.
+-- API roles must not be able to advance, inspect or reset audit event IDs.
+-- Catalog-only check; no audit evidence or customer information is read.
+do $history_sequence_acl$
+declare v_sequence text;
+begin
+ v_sequence:=pg_get_serial_sequence('public.country_release_signoff_events','id');
+ if v_sequence is null then
+  raise exception 'Country release audit identity sequence missing';
+ end if;
+ if has_sequence_privilege('anon',v_sequence,'USAGE')
+    or has_sequence_privilege('anon',v_sequence,'SELECT')
+    or has_sequence_privilege('anon',v_sequence,'UPDATE')
+    or has_sequence_privilege('authenticated',v_sequence,'USAGE')
+    or has_sequence_privilege('authenticated',v_sequence,'SELECT')
+    or has_sequence_privilege('authenticated',v_sequence,'UPDATE') then
+  raise exception 'Client role gained private release audit sequence privileges';
+ end if;
+end $history_sequence_acl$;
