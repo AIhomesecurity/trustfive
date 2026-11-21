@@ -52,6 +52,21 @@ consent-based private address disclosure with audit
 country release gates (`0033`-`0035`) and Stripe test-mode pinning
 (`0009_stripe_test_memberships.sql:1-3,69-72`, `app/api/billing/checkout/route.ts:11-39`).
 
+#### Supplementary audit pass (journey worktree, `c4e53a7`)
+
+A second independent read-only pass over `agent/opencode-mega-customer-journey`
+confirmed the top risks above and added these findings. Items already covered
+in the table are omitted except where they add material detail.
+
+| Severity | Additional finding and evidence | Mitigation / status |
+| --- | --- | --- |
+| High | **Third-party address disclosure and abuse surface.** `app/api/address/search/route.ts:6-15` accepts unauthenticated POST queries of 2–160 characters and `:38-46` forwards them to Geoapify when configured; `components/address-search.tsx:12-25` only debounces client-side. The privacy notice discusses TrustFive display/storage but not third-party forwarding. | Combine with audit risk 7: add server-side IP/session rate limits, caching and budget alerts, and disclose the third-party lookup explicitly. |
+| High | **Browser CI signal is retry-dependent.** `docs/opencode-mega-journey-report.md:27-30` records one locally environment-dependent coverage failure; `playwright.config.ts:5-7` enables one CI retry; `tests/e2e/uk-coverage-release-gates.spec.ts:4-12` depends on live-rendered auth/coverage state. CI reported 127/0 for PR #37, but a retry can mask a real flake. | Make the coverage test hermetic or fixture-backed, remove the known failure, and fail on required skips. |
+| Medium/High | **No Content-Security-Policy.** `next.config.ts:3-13` sets `nosniff`, referrer, frame, permissions and COOP headers but no CSP. | Add a strict nonce/hash-based CSP, starting report-only before enforcement. |
+| Medium/High | **Five-slot invariant is only tested sequentially.** `supabase/migrations/0002_verified_network.sql:195-230` relies on advisory locks and slot lookup, but `tests/db/flows.sql:310-342` exercises the sixth rejection in one sequential PL/pgSQL block. Concurrent over-allocation is not proven impossible. | Add a parallel-session concurrency contract for simultaneous activations/deactivations; keep the unique slot constraint as a backstop. |
+| Medium/High | **Address-picker keyboard model is incomplete.** `components/address-search.tsx:29` handles only Enter; `:33-39` uses a plain input with `aria-controls`/`aria-expanded`, a listbox container and button options without arrow-key navigation or `aria-activedescendant`. PR #26 improved the *trade* combobox, not this address component. | Implement the full ARIA combobox/listbox keyboard pattern; add axe and scripted keyboard/screen-reader checks. |
+| Medium | **No measurable directory performance gate.** `app/services/page.tsx:70-94` fetches catalogues after browser render and `:96-112` fetches results in a second effect; `package.json` and `playwright.config.ts` define no Lighthouse, Core Web Vitals or timing budgets. | Server-render/cache catalogue and initial results; add CWV budgets and journey-timing instrumentation. |
+
 ### ESLint repair (Phase 2)
 
 **Problem.** `npm run lint` invoked `eslint .` but ESLint was not a declared dependency and there was no configuration, so the command failed on every machine and in CI (which did not call it). The repository also had no `package-lock.json`, while CI used `npm install`, so builds were not reproducible.
@@ -130,7 +145,13 @@ an authorisation to merge or deploy.
    protected redirects, job → quote → booking → completion → review, private
    address consent, logout/session boundaries, with real consented test users
    only.
-6. Retry Vercel preview after the rate-limit window; confirm Supabase preview
+6. Add a parallel-session five-slot activation/deactivation contract, a
+   report-only CSP, the full address-picker combobox keyboard pattern, and a
+   hermetic coverage test that does not depend on live auth state or a retry.
+7. Add directory Core Web Vitals budgets and server-render or cache the initial
+   catalogue/results so the core search journey has a measurable performance
+   signal.
+8. Retry Vercel preview after the rate-limit window; confirm Supabase preview
    policy; obtain explicit owner sign-off for country release gates before any
    consideration of live deployment.
 
