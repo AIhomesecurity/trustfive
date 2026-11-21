@@ -80,6 +80,18 @@ begin
   raise exception 'Revoked payment approval failed closed';
  end if;
 end $tf$;
+reset role;
+do $history$
+begin
+ if (select count(*) from public.country_release_signoff_events
+     where country_code='GB') <> 7 then
+  raise exception 'Country release approval/revocation history was overwritten';
+ end if;
+ if (select count(*) from public.country_release_signoffs
+     where country_code='GB') <> 6 then
+  raise exception 'Current country release signoff state lost';
+ end if;
+end $history$;
 rollback;
 
-select 'Country release attestations remain private and fail closed' as result;
+select 'Country release attestations remain private, audited and fail closed' as result;
