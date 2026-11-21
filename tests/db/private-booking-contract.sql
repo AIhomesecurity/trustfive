@@ -47,6 +47,31 @@ begin
 end
 $tf$;
 
+
+-- Negative privilege regression: neither the consent mutator nor the
+-- customer-only location reader may be exposed to anonymous callers.
+-- This checks grants without ever selecting real customer property values.
+do $tf$
+declare v_signature text; v_proc oid;
+begin
+ foreach v_signature in array array[
+  'public.set_booking_address_sharing(uuid,boolean)',
+  'public.customer_job_site_location(uuid)'
+ ] loop
+  v_proc := to_regprocedure(v_signature)::oid;
+  if v_proc is null then
+   raise exception 'Private booking function missing: %',v_signature;
+  end if;
+  if has_function_privilege('anon',v_proc,'EXECUTE') then
+   raise exception 'Anonymous execution granted on private booking function: %',v_signature;
+  end if;
+  if not has_function_privilege('authenticated',v_proc,'EXECUTE') then
+   raise exception 'Authenticated private booking function grant missing: %',v_signature;
+  end if;
+ end loop;
+end
+$tf$;
+
 -- Nobody can obtain a private job-site address without an authorised
 -- booking/customer context; do not seed test users as genuine professionals.
 begin;
