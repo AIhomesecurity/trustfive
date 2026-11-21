@@ -1,5 +1,5 @@
 -- P0 deep negative-permission contract.
--- Pins the seven intentionally private RLS/no-policy tables and verifies that
+-- Pins the eight intentionally private RLS/no-policy tables and verifies that
 -- the four anonymously callable SECURITY DEFINER directory helpers expose only
 -- actively approved, independently verified professionals.
 --
@@ -7,13 +7,13 @@
 -- and are rolled back, so this file is safe to run alongside other suites.
 begin;
 
--- 1. Pin the seven private tables -----------------------------------------
+-- 1. Pin the eight private tables -----------------------------------------
 -- The Supabase advisor correctly flags these tables: they have RLS enabled
 -- and deliberately no policies because no client role may read them directly.
 do $private_tables$
 declare
   expected text[] := array[
-    'account_write_quotas','booking_address_consent_events','job_site_locations',
+    'account_write_quotas','booking_address_consent_events','country_release_signoffs','job_site_locations',
     'platform_admins','professional_service_locations','stripe_webhook_events',
     'verified_service_territories'];
   actual text[];
@@ -50,7 +50,7 @@ set role anon;
 do $anon_table_denial$
 declare
   expected text[] := array[
-    'account_write_quotas','booking_address_consent_events','job_site_locations',
+    'account_write_quotas','booking_address_consent_events','country_release_signoffs','job_site_locations',
     'platform_admins','professional_service_locations','stripe_webhook_events',
     'verified_service_territories'];
   t text;
@@ -71,7 +71,7 @@ set role authenticated;
 do $auth_table_denial$
 declare
   expected text[] := array[
-    'account_write_quotas','booking_address_consent_events','job_site_locations',
+    'account_write_quotas','booking_address_consent_events','country_release_signoffs','job_site_locations',
     'platform_admins','professional_service_locations','stripe_webhook_events',
     'verified_service_territories'];
   t text;
