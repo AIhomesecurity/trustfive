@@ -105,3 +105,22 @@ begin
  end if;
 end
 $tf$;
+
+
+-- A signed-in database role without a real auth.uid() must not receive a
+-- customer-owned private address, even if a job UUID is supplied. This uses
+-- an impossible fixture identifier and reads no actual customer address.
+begin;
+set local role authenticated;
+do $tf$
+begin
+ if exists (
+  select 1 from public.customer_job_site_location(
+   '00000000-0000-0000-0000-000000000000'::uuid
+  )
+ ) then
+  raise exception 'Unauthenticated customer context exposed private job-site data';
+ end if;
+end
+$tf$;
+rollback;
