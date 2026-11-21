@@ -83,8 +83,8 @@ export default function CommunityEvents(){
      <label>About the event<textarea minLength={15} maxLength={2000} required value={description} onChange={e=>setDescription(e.target.value)}/></label>
      <label>Meeting place (public; avoid private addresses)<input minLength={3} maxLength={160} required value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
      <label>Starts<input type="datetime-local" required value={start} onChange={e=>{const next=e.target.value;setStart(next);if(end&&next&&end<=next){setEnd('');setEndResetNotice('The finish time was cleared because it must be after the new start time. Choose a new finish time.');}else{setEndResetNotice('');}}}/></label>
-     <label>Ends<input type="datetime-local" required min={start||undefined} value={end} onChange={e=>{setEnd(e.target.value);setEndResetNotice('');}}/></label>
-     {endResetNotice&&<p className="muted-note" role="status">{endResetNotice}</p>}
+     <label>Ends<input type="datetime-local" required min={start||undefined} aria-describedby={endResetNotice?'event-end-reset-notice':undefined} value={end} onChange={e=>{setEnd(e.target.value);setEndResetNotice('');}}/></label>
+     {endResetNotice&&<p id="event-end-reset-notice" className="muted-note" role="status">{endResetNotice}</p>}
      <button className="btn" type="submit" disabled={busy||areas.length===0} aria-busy={busy}>Publish event</button>
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
