@@ -13,9 +13,44 @@ This file is updated at every milestone. It is deliberately kept in the branch r
 
 ## Milestone 1 — repository audit + ESLint repair
 
-### Audit status
+### Full repository audit (completed)
 
-Full architecture/security/test/PR audit is in progress and will be appended here with file-and-line evidence before this slice is finalised.
+**Audit scope.** Read-only static audit of the customer-search worktree at
+`agent/opencode-customer-search@d42bbe3c` (PR #26 head), which is based on the
+older integration tip `81a518c`. It does not include PRs #28/#31/#32/#34 or the
+later fixes in PRs #35/#37/#38. Evidence is drawn from actual files read;
+claims quoted from PR bodies are marked *claim*. Findings that have since been
+resolved by later milestones are annotated below.
+
+**Verdict.** Not production-ready as an integrated batch. The database core has
+unusually strong contracts for the five-slot rule, private addresses, consent,
+waitlist fairness, Stripe test isolation and release governance. The blocking
+weakness is integration assurance: duplicate migration versions, divergent PR
+bases, incomplete privilege pinning and no authenticated staging run.
+
+#### Top ten risks (ranked)
+
+| # | Severity | Risk and file/line evidence | Mitigation / status |
+| --- | --- | --- | --- |
+| 1 | Critical | **Migration version collision.** Two `0035_*` files already exist (`supabase/migrations/0035_restrict_country_release_history_sequence.sql`, `supabase/migrations/0035_uk_nationwide_area_interest.sql`); PRs #28/#31/#32 each add a different `0036_*`. CI applies by shell glob (`.github/workflows/database-tests.yml:43-48`), not a version-aware deploy path. | **Partially verified in milestone 3:** all 52 SQL steps pass in both unique-version and as-is glob order on disposable PostgreSQL 16. Still renumber to 0036/0037/0038 before versioned deploy; Supabase CLI behaviour was not tested. |
+| 2 | Critical | **Private-table contract might break with PR #31.** `tests/db/private-table-directory-negative-contract.sql:13-44` pins a private-table set; PR #31 adds `professional_verification_submissions` without updating that contract (*claim*). | **Disproved in milestone 3:** the contract passes with PR #31's migration applied. No contract change needed. |
+| 3 | High | **No reproducible green build/lint/test at the integration commit.** No lockfile; `package.json:5-26` defines `lint` but declares no ESLint; CI used `npm install`. | **Fixed in this PR (milestone 1):** lockfile committed, ESLint configured, all 15 violations fixed, CI uses `npm ci` and an explicit lint gate. |
+| 4 | High | **Incomplete SECURITY DEFINER privilege matrix.** `tests/db/security-definer-grant-matrix.sql:11-41` pins the anonymous allowlist and `:59-75` trigger ACLs, but `:97-113` checks only four helpers for authenticated EXECUTE. Many definer RPCs are intentionally granted to `authenticated` (`supabase/migrations/0002_verified_network.sql:131-132,168-169,191-192,231-232,262-284`; `0004_quotes_bookings_messages.sql:230-231,244-245,261-262`). | Enumerate and pin the complete authenticated definer set in the grant-matrix contract; review each function's internal `auth.uid()`/`is_trustfive_admin()` guard. |
+| 5 | High | **Auth fence not fail-closed and root list inconsistent.** `middleware.ts:6-7` calls `NextResponse.next()` when Supabase env vars are missing; `middleware.ts:12-14` omits `coverage`, while `lib/auth-return-path.ts:3-6` allows it. `/coverage` is intended to be public (`tests/e2e/uk-coverage-release-gates.spec.ts:4-12`). | Treat missing config as a deployment error, not an anonymous pass; document `/coverage` as public and add an explicit test for its sign-in-gated action. |
+| 6 | Medium/High | **Privacy copy mismatch.** `components/address-search.tsx:45-50` says an address is "not stored in your directory search", but `lib/search-location-handoff.ts:3-6,29-49` writes label, coordinates, postcode, precision and country to `sessionStorage` for 30 minutes. | Change copy to "not sent to the public directory or stored server-side; kept temporarily in this browser tab only". Tab-scoped, validated, no private data in URLs (verified in PR #37 tests). |
+| 7 | Medium | **Address API has no visible auth/quota/rate limit.** `app/api/address/search/route.ts:6-56` validates input and calls external providers with 5.5s timeouts; upstream abuse/cost depends on hosting/WAF configuration not inspected. | Add an edge/WAF rate limit and per-IP quota before exposing publicly at scale; do not assume provider limits. |
+| 8 | Medium | **Client workflow guards are UX-only.** `lib/booking-completion-guard.ts:1-10`, `lib/professional-quote-guard.ts:1-12`, `lib/quote-confirmation.ts:1-22` check browser state only; correctness depends on complete RLS/RPC deployment. | Keep as honest preflights, never as authorisation. Re-run all DB contracts on the final integrated commit before relying on them. |
+| 9 | Medium | **CI smoke checks are shallow.** `.github/workflows/ci.yml:29-55` checks fixed paths return HTTP 200 with placeholder keys; authenticated behaviour is only in opt-in specs (`tests/staging/authenticated-customer-smoke.spec.ts:3-10,25-28`). | Add anonymous protected-route redirect assertions to always-on CI; keep real-session acceptance owner-only and opt-in. |
+| 10 | Medium | **Open PRs unverified/incomplete in the audited tree.** PR #34 body says browser/build were not verified; PR #31/#32 bodies cite validation at commits different from their current heads (*claims*). PR #32 heavily overlaps PR #26's jobs/quotes/bookings files. | Re-run CI and DB contracts at each PR's current head; rebase before integration and avoid batch merge. |
+
+**Additional positive evidence.** Five-slot constraint and admin-only activation
+(`supabase/migrations/0001_core.sql:12-17`), verified-only public directory
+allowlists (`0002_verified_network.sql:286-306`; `0006_directory_ratings.sql:4-33`),
+waitlist ordering independent of payment (`0002_verified_network.sql:134-169`),
+consent-based private address disclosure with audit
+(`0025_consent_booking_address.sql:4-53`, `0026_booking_address_consent_audit.sql`),
+country release gates (`0033`-`0035`) and Stripe test-mode pinning
+(`0009_stripe_test_memberships.sql:1-3,69-72`, `app/api/billing/checkout/route.ts:11-39`).
 
 ### ESLint repair (Phase 2)
 
@@ -46,6 +81,12 @@ Full architecture/security/test/PR audit is in progress and will be appended her
 
 Initial lint baseline before fixes: 15 messages (12 errors, 3 warnings) across 10 files. All were corrected; no baselined or globally disabled rules.
 
+### Later milestones in this challenge
+
+- **Milestone 2 — `agent/opencode-mega-customer-journey` (PR #37):** 26 new Playwright tests, duplicate-submit guard, global reduced-motion, nested-redirect hardening, and repair of a describe-scoped Playwright option that had aborted full-suite collection. Full suite: 126 passed / 1 known environment failure / 4 skipped.
+- **Milestone 3 — `agent/opencode-mega-migrations` (PR #38):** disposable PostgreSQL 16 harness proves all three `0036_*` PR migrations are mutually compatible (52/52 SQL steps in both orders) and recommends unique renumbering before versioned deploy.
+- **Milestone 4 — release-readiness assessment:** PASS / PARTIAL / BLOCKED / FAIL evidence, owner-only actions, and the final recommendation. Kept in the running report so the evidence survives independently of GitHub notifications.
+
 ### Next milestone
 
-Independent behavioural tests for the customer search-to-job journey and security/privacy stress tests, on a new `agent/opencode-mega-*` branch based on the latest integration tip.
+Final release-readiness assessment on the exact integrated commit, after the owner renumbers and sequentially merges the migration PRs and performs authorised staging acceptance. No production merge is proposed by this challenge.
