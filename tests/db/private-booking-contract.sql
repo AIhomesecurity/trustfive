@@ -271,3 +271,24 @@ begin
 end
 $tf$;
 rollback;
+
+-- Column-level grants can expose consent audit fields even when table-level
+-- privileges are revoked. Inspect ACLs only, without reading audit records.
+do $tf$
+declare v_column record;
+begin
+ for v_column in
+  select a.attname
+  from pg_attribute a
+  where a.attrelid='public.booking_address_consent_events'::regclass
+    and a.attnum > 0 and not a.attisdropped
+ loop
+  if has_column_privilege('anon','public.booking_address_consent_events',v_column.attname,'SELECT')
+     or has_column_privilege('authenticated','public.booking_address_consent_events',v_column.attname,'SELECT')
+     or has_column_privilege('anon','public.booking_address_consent_events',v_column.attname,'UPDATE')
+     or has_column_privilege('authenticated','public.booking_address_consent_events',v_column.attname,'UPDATE') then
+   raise exception 'Client role has column-level access to private consent audit: %',v_column.attname;
+  end if;
+ end loop;
+end
+$tf$;
