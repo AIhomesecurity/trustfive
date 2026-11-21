@@ -62,6 +62,8 @@ export default function Jobs(){
  },[site,areas,territoryRetry]);
  async function submit(e:FormEvent){e.preventDefault();if(!userId||busy)return;setBusy(true);setMessage('');
   try{
+   if(title.trim().length<5)throw Error('Enter a job title with at least 5 meaningful characters');
+   if(description.trim().length<15)throw Error('Describe the work in at least 15 meaningful characters');
    if(!site)throw Error('Select your job-site address from the suggestions first');
    const privateAddress=jobAddressLabel(site,manualProperty);
    if(territoryChecking)throw Error('Wait for the territory check to finish');
