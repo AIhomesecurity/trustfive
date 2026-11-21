@@ -77,9 +77,9 @@ export default function CommunityEvents(){
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
    </section>
-   <section><h2>Upcoming events</h2>{loadError&&<button className="btn secondary" type="button" disabled={busy} onClick={retryEvents}>Try loading events again</button>}<div className="list">
+   <section><h2>Upcoming events</h2>{loadError&&<div role="alert"><p>Upcoming events could not be refreshed. The list is hidden until it can be checked again.</p><button className="btn secondary" type="button" disabled={busy} onClick={retryEvents}>Try loading events again</button></div>}<div className="list">
     {!loadError&&events.length===0&&<div className="card">No upcoming events. Why not organise one?</div>}
-    {events.map(e=>{const r=responses.find(a=>a.event_id===e.id)?.status;return <article className="card" key={e.id}>
+    {!loadError&&events.map(e=>{const r=responses.find(a=>a.event_id===e.id)?.status;return <article className="card" key={e.id}>
      <span className="pill">{areas.find(a=>a.id===e.area_id)?.area_name||'Local event'}</span>
      <h3 style={{marginTop:12}}>{e.title}</h3>
      <p style={{marginBottom:9}}>{e.description}</p>
