@@ -63,6 +63,7 @@ export default function CommunityEvents(){
   {notice&&<p className="notice" role="status">{notice}</p>}
   {loading?<p role="status">Loading local events…</p>:loadError&&!userId?<div className="card" role="alert"><p>We could not check your account or load neighbourhoods. Please try again before signing in.</p><button className="btn secondary" type="button" onClick={()=>window.location.reload()}>Retry loading local events</button></div>:!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
    <section className="card"><h2>Organise an event</h2>
+    {areas.length===0&&<p role="status" className="muted-note">No neighbourhoods are available to select yet. Event publishing is unavailable until a neighbourhood is listed.</p>}
     <form className="form" onSubmit={publish}>
      <label>Neighbourhood<select required value={area} onChange={e=>setArea(e.target.value)}>
       <option value="">Choose neighbourhood</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}, {a.city}</option>)}
@@ -72,7 +73,7 @@ export default function CommunityEvents(){
      <label>Meeting place (public; avoid private addresses)<input minLength={3} maxLength={160} required value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
      <label>Starts<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
      <label>Ends<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
-     <button className="btn" type="submit" disabled={busy}>Publish event</button>
+     <button className="btn" type="submit" disabled={busy||areas.length===0}>Publish event</button>
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
    </section>
