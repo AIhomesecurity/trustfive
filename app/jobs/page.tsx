@@ -253,7 +253,9 @@ export default function Jobs(){
         <span className="pill">{j.status}</span>
         {summary.total>0&&<span className="muted-note">
          {summary.total} quote{summary.total===1?'':'s'}
-         {summary.lowestPence!==null&&summary.highestPence!==null?` · ${money(summary.lowestPence)}${summary.highestPence>summary.lowestPence?`–${money(summary.highestPence)}`:''}`:''}
+         {summary.lowestPence!==null&&summary.highestPence!==null
+          ?` · ${money(summary.lowestPence)}${summary.highestPence>summary.lowestPence?`–${money(summary.highestPence)}`:''}`
+          :' · no active quotes'}
         </span>}
        </div>
        <h3 style={{marginTop:10}}>{j.title}</h3>
@@ -266,6 +268,7 @@ export default function Jobs(){
         <span className="pill">{q.status} quote</span>
         <h3>{q.business_name}</h3>
         <p><strong>{money(q.amount_pence)}</strong></p>
+        {q.status==='withdrawn'&&<p className="muted-note" style={{marginTop:4}}>This quote was withdrawn and is no longer available to accept.</p>}
         {q.availability_note&&<p className="muted-note" style={{marginTop:4}}><strong>Availability:</strong> {q.availability_note}</p>}
         <p style={{marginTop:6}}>{q.message}</p>
         <p style={{marginTop:12}}><Link href={quoteMessagesHref(q.quote_id)}>Message this professional →</Link></p>

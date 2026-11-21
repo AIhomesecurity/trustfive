@@ -43,6 +43,12 @@ export type ComparableQuote = {
 
 export type QuoteSortMode = 'lowest_price' | 'newest';
 
+function quoteAvailabilityRank(status: string): number {
+  if (status === 'pending' || status === 'accepted') return 0;
+  if (status === 'withdrawn') return 2;
+  return 1;
+}
+
 export function sortCustomerQuotes<T extends ComparableQuote>(
   quotes: T[],
   mode: QuoteSortMode
@@ -50,6 +56,8 @@ export function sortCustomerQuotes<T extends ComparableQuote>(
   const copy = [...quotes];
   if (mode === 'lowest_price') {
     copy.sort((a, b) => {
+      const rankDiff = quoteAvailabilityRank(a.status) - quoteAvailabilityRank(b.status);
+      if (rankDiff !== 0) return rankDiff;
       if (a.amount_pence !== b.amount_pence) return a.amount_pence - b.amount_pence;
       return (b.created_at || '').localeCompare(a.created_at || '');
     });
@@ -69,10 +77,12 @@ export function summarizeJobQuotes(quotes: ComparableQuote[]): {
     return {total: 0, pending: 0, lowestPence: null, highestPence: null};
   }
   const active = quotes.filter(q => q.status !== 'withdrawn');
-  const pool = active.length ? active : quotes;
-  let lowest = pool[0].amount_pence;
-  let highest = pool[0].amount_pence;
-  for (const item of pool) {
+  if (!active.length) {
+    return {total: quotes.length, pending: 0, lowestPence: null, highestPence: null};
+  }
+  let lowest = active[0].amount_pence;
+  let highest = active[0].amount_pence;
+  for (const item of active) {
     if (item.amount_pence < lowest) lowest = item.amount_pence;
     if (item.amount_pence > highest) highest = item.amount_pence;
   }
