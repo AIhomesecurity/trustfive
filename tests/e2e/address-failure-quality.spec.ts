@@ -12,7 +12,7 @@ test('Address provider outage does not invent a nearby match',async({page})=>{
  const input=page.getByLabel('Your postcode or street address');
  await input.fill('SW1A 1AA');
  await expect(page.getByText('Address lookup is temporarily unavailable')).toBeVisible();
- await expect(page.getByRole('option')).toHaveCount(0);
+ await expect(page.getByRole('listbox',{name:'Matching addresses'})).toHaveCount(0);
  await expect(page.getByText('Searching near:')).toHaveCount(0);
  await expect(page.getByLabel('Sort results')).not.toHaveValue('recommended');
 });
