@@ -10,6 +10,9 @@ export async function POST(request:NextRequest){
  const query=value.trim().replace(/\s+/g,' ');
  if(query.length<2)return fail('Enter at least two characters');
  const kind=ukPostcodeLookupKind(query);
+ // Two-character UK outward codes such as G1 are legitimate; arbitrary
+ // two-letter fragments are not valid locations and must fail closed.
+ if(query.length<3&&!kind)return fail('Enter a UK postcode or at least three address characters');
  try{
   // National postcode / district lookup is independent of the four example
   // service areas and needs no paid geocoding key. Supports England, Scotland,
