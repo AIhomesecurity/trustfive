@@ -162,7 +162,9 @@ begin
     or has_table_privilege('anon','public.booking_address_consent_events','UPDATE')
     or has_table_privilege('authenticated','public.booking_address_consent_events','UPDATE')
     or has_table_privilege('anon','public.booking_address_consent_events','DELETE')
-    or has_table_privilege('authenticated','public.booking_address_consent_events','DELETE') then
+    or has_table_privilege('authenticated','public.booking_address_consent_events','DELETE')
+    or has_table_privilege('anon','public.booking_address_consent_events','TRUNCATE')
+    or has_table_privilege('authenticated','public.booking_address_consent_events','TRUNCATE') then
   raise exception 'Client role has direct access to private booking consent audit';
  end if;
 end
