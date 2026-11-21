@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
 type Area={id:string;area_name:string;city:string};
@@ -17,6 +17,7 @@ export default function CommunityGroups(){
  const [notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(false);
  const [postsLoading,setPostsLoading]=useState(false),[postsError,setPostsError]=useState(false);
+ const selectedRequest=useRef(0);
  async function load(){
   const s=supabaseBrowser();
   const [g,m]=await Promise.all([
@@ -27,10 +28,11 @@ export default function CommunityGroups(){
   setGroups(g.data||[]);setMemberships(m.data||[]);setLoadError(false);
  }
  async function loadPosts(id:string){
+  const request=++selectedRequest.current;
   if(!id){setPosts([]);return;}
   const {data,error}=await supabaseBrowser().from('community_group_posts')
     .select('id,group_id,body,created_at').eq('group_id',id).order('created_at',{ascending:false}).limit(50);
-  if(error)throw error;setPosts(data||[]);
+  if(error)throw error;if(request===selectedRequest.current)setPosts(data||[]);
  }
  useEffect(()=>{(async()=>{try{
   const s=supabaseBrowser();
@@ -57,13 +59,16 @@ export default function CommunityGroups(){
   try{
    const {error}=await supabaseBrowser().from('community_group_memberships')
     .insert({group_id:groupId,user_id:userId,role:'member'});
-   if(error)throw error;await load();setNotice('You have joined this community group.');
+   if(error)throw error;
+   try{await load();setNotice('You have joined this community group.');}
+   catch{setNotice('You joined the group, but the group list could not be refreshed. Retry loading groups to see your membership.');}
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to join group');}
   finally{setBusy(false);}
  }
  async function choose(id:string){if(busy)return;setSelected(id);setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
-  try{await loadPosts(id)}catch{setPostsError(true);setNotice('Unable to load group posts. Please retry.');}
-  finally{setPostsLoading(false);}
+  const request=selectedRequest.current+1;
+  try{await loadPosts(id)}catch{if(request===selectedRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
+  finally{if(request===selectedRequest.current)setPostsLoading(false);}
  }
  async function publish(e:FormEvent){e.preventDefault();if(!selected||busy||postsLoading||postsError||postBody.trim().length<8||!memberships.some(m=>m.group_id===selected))return;setBusy(true);
   try{
