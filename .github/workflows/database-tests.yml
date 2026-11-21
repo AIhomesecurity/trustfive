@@ -79,3 +79,6 @@ jobs:
 
       - name: Verify launch readiness administrator authorization
         run: psql -v ON_ERROR_STOP=1 -f tests/db/launch-readiness-contract.sql
+
+      - name: Exercise independently reviewed territory RPC with rollback-only fixtures
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/human-territory-review-contract.sql
