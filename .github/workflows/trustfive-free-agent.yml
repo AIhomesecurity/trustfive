@@ -167,4 +167,4 @@ jobs:
           gh pr create --repo "$GITHUB_REPOSITORY" --draft \
             --base feature/verified-marketplace-core --head "$branch" \
             --title "Agent: proposed TrustFive improvement" \
-            --body "Automated bounded free-model coding proposal. Requires human review. Next.js build passed in the agent runner; full CI and security checks must pass before merging. No production changes are authorized."
+            --body "Refs #19 and #12. OpenCode free-model launch-readiness engineering assignment: https://github.com/AIhomesecurity/trustfive/issues/19 . Automated bounded coding proposal. The runner validated TypeScript and Next.js build; full CI, security, staging and human review must pass before development integration. This PR does not authorise actual territory, professional, legal/payment approval or production changes. Next task is recorded in issue #19."
