@@ -142,3 +142,28 @@ begin
 end
 $tf$;
 rollback;
+
+-- Consent audit rows reveal booking/customer relationships and sharing decisions.
+-- They must remain server-only even if an authenticated client guesses an ID.
+-- Check catalog permissions without selecting any private or audit records.
+do $tf$
+begin
+ if not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relname='booking_address_consent_events'
+    and c.relkind='r' and c.relrowsecurity
+ ) then
+  raise exception 'Booking consent audit table missing or RLS disabled';
+ end if;
+ if has_table_privilege('anon','public.booking_address_consent_events','SELECT')
+    or has_table_privilege('authenticated','public.booking_address_consent_events','SELECT')
+    or has_table_privilege('anon','public.booking_address_consent_events','INSERT')
+    or has_table_privilege('authenticated','public.booking_address_consent_events','INSERT')
+    or has_table_privilege('anon','public.booking_address_consent_events','UPDATE')
+    or has_table_privilege('authenticated','public.booking_address_consent_events','UPDATE')
+    or has_table_privilege('anon','public.booking_address_consent_events','DELETE')
+    or has_table_privilege('authenticated','public.booking_address_consent_events','DELETE') then
+  raise exception 'Client role has direct access to private booking consent audit';
+ end if;
+end
+$tf$;
