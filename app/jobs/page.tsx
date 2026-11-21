@@ -24,6 +24,8 @@ export default function Jobs(){
  const [confirmQuoteId,setConfirmQuoteId]=useState<string|null>(null);
  const [site,setSite]=useState<SelectedLocation|null>(null),[checkedSite,setCheckedSite]=useState<SelectedLocation|null>(null),[addressVersion,setAddressVersion]=useState(0);
  const [manualProperty,setManualProperty]=useState('');
+ const [territoryRetry,setTerritoryRetry]=useState(0),[territoryFailed,setTerritoryFailed]=useState(false);
+ const [territoryVerified,setTerritoryVerified]=useState(false),[territoryChecking,setTerritoryChecking]=useState(false),[territoryNotice,setTerritoryNotice]=useState(''),[manualFallbackAllowed,setManualFallbackAllowed]=useState(false);
  // Keep the publish affordance consistent with the same substantive text and
  // exact-pence budget rules enforced by submit(), not just HTML minLength.
  const validJobText=meaningfulJobTextLength(title)>=5&&meaningfulJobTextLength(description)>=15;
@@ -40,8 +42,6 @@ export default function Jobs(){
   !area?'Choose a service territory.':
   !validBudget?'Enter a valid budget in pounds and pence, or leave it blank.':'';
 
- const [territoryRetry,setTerritoryRetry]=useState(0),[territoryFailed,setTerritoryFailed]=useState(false);
- const [territoryVerified,setTerritoryVerified]=useState(false),[territoryChecking,setTerritoryChecking]=useState(false),[territoryNotice,setTerritoryNotice]=useState(''),[manualFallbackAllowed,setManualFallbackAllowed]=useState(false);
  async function refresh(){const s=supabaseBrowser();const [j,q]=await Promise.all([s.from('jobs').select('id,title,description,status,created_at,budget_pence').order('created_at',{ascending:false}).limit(100),s.rpc('customer_quotes')]);if(j.error)throw j.error;if(q.error)throw q.error;setJobs(j.data||[]);setQuotes(q.data||[])}
  useEffect(()=>{(async()=>{try{const s=supabaseBrowser();const [u,t,a]=await Promise.all([s.auth.getUser(),s.from('trades').select('id,name,slug').order('name'),s.from('service_areas').select('id,area_name,city').order('city')]);if(!u.data.user){setMessage('Sign in to post and manage jobs.');return}setUserId(u.data.user.id);if(t.error)throw t.error;if(a.error)throw a.error;setTrades(t.data||[]);setAreas(a.data||[]);
  const params=new URLSearchParams(window.location.search);
