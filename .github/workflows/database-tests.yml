@@ -1,0 +1,87 @@
+name: TrustFive database integration
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - development/foundation
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trustfive_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: trustfive_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if needed
+        run: |
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Bootstrap Supabase auth compatibility
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql
+      - name: Apply TrustFive migrations
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying $migration"
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Test RLS, five-slot constraint and quote completion
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/flows.sql
+
+      - name: Test private nearby matching and human-verification controls
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/proximity.sql
+
+      - name: Check trigger function execution permissions
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/security-definer-trigger-acl.sql
+
+
+      - name: Audit public directory SECURITY DEFINER and output allowlist
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/public-directory-security-contract.sql
+
+      - name: Assert complete SECURITY DEFINER role grant matrix
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/security-definer-grant-matrix.sql
+
+      - name: Verify geographic territory enforcement contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/verified_territory_contract.sql
+
+      - name: Assert private booking consent audit and verified-radius lead contracts
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/private-booking-contract.sql
+
+      - name: Verify private table and public directory negative RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/private-table-directory-negative-contract.sql
+
+      - name: Verify complaint and appeal participant authorization
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/complaint-appeal-rls-contract.sql
+
+      - name: Verify community moderation and notifications isolation
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/community-moderation-rls-contract.sql
+
+      - name: Verify launch readiness administrator authorization
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/launch-readiness-contract.sql
+
+      - name: Exercise independently reviewed territory RPC with rollback-only fixtures
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/human-territory-review-contract.sql
+
+      - name: Verify country release evidence, role isolation and payment revocation gate
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/country-release-signoff-contract.sql

@@ -1,0 +1,137 @@
+name: Gemini bounded TrustFive review
+
+# Deliberately manual-only. A key may be attached to a billable API tier.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_external_ai:
+        description: "I authorise sending the selected source files to the Gemini API (usage may be billable)"
+        required: true
+        type: boolean
+        default: false
+      model:
+        description: "Gemini API model ID available to your API key"
+        required: true
+        type: string
+        default: gemini-2.5-flash
+
+permissions:
+  contents: read
+
+jobs:
+  verify-gemini-secret:
+    name: Check Gemini secret (no API calls)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check whether GEMINI_API_KEY is configured
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY is not set or is unavailable to this workflow."
+            exit 1
+          fi
+          echo "GEMINI_API_KEY is present. Key validity, API quotas and billing have NOT been verified."
+      - name: Diagnose Gemini model catalogue without generation
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+          url = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100"
+          req = urllib.request.Request(url, headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]})
+          try:
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  models = json.load(response).get("models", [])
+          except urllib.error.HTTPError as e:
+              print(f"::warning::Gemini read-only model catalogue returned HTTP {e.code}. No tokens generated.")
+          except (urllib.error.URLError, ValueError, TimeoutError):
+              print("::warning::Gemini model catalogue unavailable; no generation attempted.")
+          else:
+              permitted = sorted(m["name"] for m in models
+                  if "generateContent" in m.get("supportedGenerationMethods", []))
+              print(f"Gemini catalogue reachable; {len(permitted)} generation-capable models listed.")
+              for name in permitted[:30]:
+                  print("Available model:", name)
+              if "models/gemini-2.5-flash" not in permitted:
+                  print("::warning::Default gemini-2.5-flash was not found in this response; choose a listed model before any opt-in inference.")
+          PY
+  gemini-review:
+    needs: verify-gemini-secret
+    if: ${{ inputs.confirm_external_ai == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm API key exists
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Missing GEMINI_API_KEY. Add it in repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+      - name: Review bounded project context with Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ inputs.model }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, urllib.request, urllib.error, re
+
+          model = os.environ["GEMINI_MODEL"]
+          if not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", model):
+              raise SystemExit("Invalid model ID")
+          # Keep a tight privacy-and-token boundary: no env files, secret-bearing config,
+          # private database exports, user uploads, or GitHub token sent to the model.
+          paths = ["README.md", "docs/overnight-agent-rota.md", "app/jobs/page.tsx"]
+          excerpts = []
+          for name in paths:
+              p = pathlib.Path(name)
+              if p.is_file():
+                  excerpts.append(f"FILE {name}:\n" + p.read_text(encoding="utf-8")[:14000])
+          prompt = (
+              "You are a code reviewer for TrustFive, an original local trades and community app. "
+              "Reply with a short prioritized review and concrete, narrowly scoped suggested fixes. "
+              "Do NOT claim changes were applied or verified. Do not include personal information. "
+              "Keep five independently vetted active professionals per trade per reviewed territory; "
+              "no paid placement; private property locations and safe booking consent. "
+              "Review only the excerpted files; label unverified assumptions.\n\n"
+              + "\n\n".join(excerpts)
+          )
+          request_body = json.dumps({
+              "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+              "generationConfig": {"maxOutputTokens": 1800, "temperature": 0.2},
+          }).encode("utf-8")
+          url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+          req = urllib.request.Request(url, data=request_body,
+              headers={"Content-Type": "application/json",
+                       "x-goog-api-key": os.environ["GEMINI_API_KEY"]},
+              method="POST")
+          try:
+              with urllib.request.urlopen(req, timeout=70) as res:
+                  result = json.load(res)
+          except urllib.error.HTTPError as e:
+              # Never print API response body, because it might contain request details.
+              raise SystemExit(f"Gemini API rejected the request (HTTP {e.code}). Check key, quota, model and billing.")
+          candidates = result.get("candidates") or []
+          parts = (candidates[0].get("content") or {}).get("parts", []) if candidates else []
+          review = "\n".join(x.get("text", "") for x in parts if isinstance(x, dict)).strip()
+          if not review:
+              raise SystemExit("Gemini returned no review text")
+          pathlib.Path("gemini-review.md").write_text(
+              "# Gemini review (unverified AI suggestions, not merged)\n\n"
+              + review[:18000] + "\n", encoding="utf-8")
+          print("Gemini review saved as an artifact. It did not change code or create a PR.")
+          PY
+      - name: Upload review for human/agent assessment
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemini-review
+          path: gemini-review.md
+          retention-days: 7

@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
-export const metadata: Metadata = { title: 'TrustFive | Trusted local professionals', description: 'Find trusted local professionals and connect with your community.' };
-export default function RootLayout({children}:{children:ReactNode}) {return <html lang="en"><body style={{margin:0,fontFamily:'Arial,sans-serif',background:'#f7fbf8',color:'#17372b'}}>{children}</body></html>}
+import type {Metadata} from 'next';import type {ReactNode} from 'react';import './globals.css';import SiteHeader from '../components/site-header';
+export const metadata:Metadata={title:'TrustFive | Five trusted professionals, one community',description:'Discover locally approved professionals, post jobs and connect with your neighbourhood.'};
+export default function RootLayout({children}:{children:ReactNode}){return <html lang="en"><body><SiteHeader/>{children}<footer className="site-footer"><div className="container footer-row"><span>© TrustFive · UK-first, worldwide-ready</span><span>Five approved professionals per trade and local area · Independent quality selection</span></div></footer></body></html>}
