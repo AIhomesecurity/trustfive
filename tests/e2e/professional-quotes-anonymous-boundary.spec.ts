@@ -3,8 +3,11 @@ import {expect,test} from '@playwright/test';
 // Anonymous access checks only. These do not create users, quotes, or bookings.
 // Authenticated professional lead permissions require independently approved
 // allocations and a separate opt-in staging acceptance run.
+// Worker-scoped options (trace/screenshot/video) must sit at file top-level,
+// outside test.describe(), while preserving empty anonymous storageState.
+test.use({storageState:{cookies:[],origins:[]},trace:'off',screenshot:'off',video:'off'});
+
 test.describe('professional quote workspace anonymous boundary',()=>{
- test.use({storageState:{cookies:[],origins:[]},trace:'off',screenshot:'off',video:'off'});
 
  test('anonymous visitor is redirected before seeing professional leads',async({page})=>{
   await page.goto('/quotes');
