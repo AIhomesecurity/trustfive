@@ -148,7 +148,7 @@ begin
 
   -- Fill all 5 slots: Pro 1..5 must be selected (paid lower-scoring Pro 6 stays on waitlist)
   for v_i in 1..5 loop
-    select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
+    perform set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
     v_offer := public.offer_next_professional(
       '20000000-0000-0000-0000-000000000001',
       '30000000-0000-0000-0000-000000000001'
@@ -163,11 +163,11 @@ begin
     end if;
 
     -- Applicant accepts offer
-    select set_config('request.jwt.claim.sub', v_user::text, true);
+    perform set_config('request.jwt.claim.sub', v_user::text, true);
     perform public.respond_to_vacancy_offer(v_offer, true);
 
     -- Admin activates into slot 1..5
-    select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
+    perform set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
     v_slot := public.activate_professional(v_app);
     if v_slot <> v_i then
       raise exception 'Expected slot %, got %', v_i, v_slot;
@@ -186,7 +186,7 @@ begin
   end;
 
   -- Verify Pro Six sees active_slots_filled = 5 and active_slot IS NULL via overview RPC
-  select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000016', true);
+  perform set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000016', true);
   if not exists(
     select 1 from public.my_professional_onboarding_status()
     where application_id = '40000000-0000-0000-0000-000000000016'
@@ -198,7 +198,7 @@ begin
   end if;
 
   -- Admin suspends Pro One: must vacate slot 1, mark suspended, and allow Pro Six to be offered
-  select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
+  perform set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
   perform public.suspend_professional_application(
     '40000000-0000-0000-0000-000000000011',
     'Insurance certificate expired and requires re-verification before reactivation.'
