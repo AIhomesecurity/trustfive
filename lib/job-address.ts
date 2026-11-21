@@ -3,7 +3,9 @@ import type {SelectedLocation} from '../components/address-search';
 // A postcode centroid is not a property address. Require the customer to supply
 // private premises details while retaining the honest 'postcode' coordinate precision.
 export function jobAddressLabel(site:SelectedLocation,propertyDetails:string):string{
- const selectedLabel=site.label.trim();
+ // Treat address-provider labels as untrusted text: normalize line breaks and
+ // repeated whitespace before storing a private job-site address.
+ const selectedLabel=site.label.trim().replace(/\s+/g,' ');
  // Never publish a job with a missing or oversized private address, even if
  // the address-search provider returned a malformed selected suggestion.
  if(!selectedLabel||selectedLabel.length>250)throw new Error('Select a valid job-site address from the suggestions');
