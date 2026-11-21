@@ -61,3 +61,6 @@ jobs:
 
       - name: Verify geographic territory enforcement contract
         run: psql -v ON_ERROR_STOP=1 -f tests/db/verified_territory_contract.sql
+
+      - name: Assert private booking consent audit and verified-radius lead contracts
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/private-booking-contract.sql
