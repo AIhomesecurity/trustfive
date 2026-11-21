@@ -7,3 +7,5 @@ node_modules
 playwright-report
 playwright/.cache
 test-results
+next-env.d.ts
+eslint-raw.json

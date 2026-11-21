@@ -18,10 +18,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install dependencies from lockfile
+        run: npm ci --no-audit --no-fund
       - name: Test official boundary inspection (never auto-approve geography)
         run: node --test tests/geo/inspect-boundary-geojson.test.mjs
+      - name: Lint source and tests
+        run: npm run lint
       - name: Check types
         run: npx tsc --noEmit
       - name: Build application

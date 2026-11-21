@@ -51,7 +51,7 @@ export default function Billing(){
      active?<div className="notice">Membership status: <strong>{membership?.subscription_status}</strong>. Billing portal and cancellations are not yet available in-app.</div>:
      <div style={{marginTop:20}}>
       <button className="btn" disabled={busy} onClick={checkout}>{busy?'Checking configuration…':'Open Stripe test checkout'}</button>
-      <p className="muted-note">Checkout remains unavailable until the project's Stripe test keys, GBP price and webhook endpoint are configured.</p>
+      <p className="muted-note">Checkout remains unavailable until the project&apos;s Stripe test keys, GBP price and webhook endpoint are configured.</p>
      </div>}
    </section>
    <section className="card"><h2>Membership and professional approval are separate</h2>

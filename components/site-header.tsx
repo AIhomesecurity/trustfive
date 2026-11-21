@@ -2,6 +2,7 @@
 
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {usePathname} from 'next/navigation';
 
 const mainLinks=[
@@ -27,7 +28,7 @@ export default function SiteHeader(){
  const linkProps=(href:string)=>({'aria-current':pathname===href?'page':undefined as 'page'|undefined});
  return <header className="topbar">
   <div className="container topbar-inner">
-   <Link href="/" aria-label="TrustFive home" onClick={()=>setMobileOpen(false)}><img className="logo" src="/trustfive-logo.svg" alt="TrustFive"/></Link>
+   <Link href="/" aria-label="TrustFive home" onClick={()=>setMobileOpen(false)}><Image className="logo" src="/trustfive-logo.svg" alt="TrustFive" width={214} height={48} priority unoptimized/></Link>
    <nav className="nav primary-nav" aria-label="Main navigation">
     {mainLinks.map(link=><Link key={link.href} href={link.href} {...linkProps(link.href)}>{link.label}</Link>)}
     <details className="nav-more">

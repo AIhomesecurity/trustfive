@@ -59,7 +59,7 @@ export default function TerritoryReviews(){
   <div className="page-heading">
    <span className="eyebrow">Restricted verification operations</span>
    <h1>Review local territory boundaries</h1>
-   <p className="subtle">TrustFive's five approved trade places apply to a separately reviewed geographic territory. A city name, postcode radius or guessed boundary is not sufficient evidence.</p>
+   <p className="subtle">TrustFive&apos;s five approved trade places apply to a separately reviewed geographic territory. A city name, postcode radius or guessed boundary is not sufficient evidence.</p>
    <Link href="/admin">Back to TrustFive administration</Link>
   </div>
   {message&&<p className="notice" role="status">{message}</p>}

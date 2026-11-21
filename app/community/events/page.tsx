@@ -35,7 +35,7 @@ export default function CommunityEvents(){
   if(error)throw error;
   if(!user){setNotice('Sign in to view and join local events.');return;}
   if(a.error)throw a.error;setUserId(user.id);setAreas(a.data||[]);await refresh();
- }catch(e){setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setLoading(false);}})()},[]);
+ }catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setLoading(false);}})()},[]);
  async function retryEvents(){if(busy)return;setBusy(true);setNotice('');try{await refresh();}catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setBusy(false);}}
  async function publish(e:FormEvent){e.preventDefault();if(busy||!userId)return;setBusy(true);setNotice('');
   try{
@@ -88,7 +88,7 @@ export default function CommunityEvents(){
      {endResetNotice&&<p id="event-end-reset-notice" className="muted-note" role="status">{endResetNotice}</p>}
      <button className="btn" type="submit" disabled={busy||areas.length===0} aria-busy={busy}>Publish event</button>
     </form>
-    <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
+    <p className="muted-note">Dates are shown in your device&apos;s local time. Events are member-visible and require moderation before wider public launch.</p>
    </section>
    <section aria-labelledby="upcoming-events-heading"><h2 id="upcoming-events-heading">Upcoming events</h2>{!loadError&&<p className="muted-note" role="status">{events.length} upcoming {events.length===1?'event':'events'} listed.{events.length>0?' RSVP controls are available for each event below.':''}</p>}{loadError&&<div role="alert"><p>Upcoming events could not be refreshed. The list is hidden until it can be checked again.</p><button className="btn secondary" type="button" disabled={busy} onClick={retryEvents}>Try loading events again</button></div>}<div className="list">
     {!loadError&&events.length===0&&<div className="card">No upcoming events. Why not organise one?</div>}
@@ -101,7 +101,7 @@ export default function CommunityEvents(){
      <p><strong>Where:</strong> {e.venue_label}</p>
      {r&&<p id={`event-rsvp-${e.id}`} className="muted-note" role="status">Your RSVP: {r}</p>}
      <div role="group" aria-labelledby={`event-title-${e.id}`} aria-describedby={r?`event-rsvp-${e.id}`:undefined} aria-busy={pendingRsvpEventId===e.id} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
-      <button className="btn" disabled={busy||r==='going'} aria-pressed={r==='going'} aria-label={`Going to ${e.title}`} onClick={()=>respond(e.id,'going')}>I'm going</button>
+      <button className="btn" disabled={busy||r==='going'} aria-pressed={r==='going'} aria-label={`Going to ${e.title}`} onClick={()=>respond(e.id,'going')}>I&apos;m going</button>
       <button className="btn secondary" disabled={busy||r==='interested'} aria-pressed={r==='interested'} aria-label={`Interested in ${e.title}`} onClick={()=>respond(e.id,'interested')}>Interested</button>
       {r&&<button className="btn secondary" disabled={busy} aria-label={`Cancel RSVP for ${e.title}`} onClick={()=>respond(e.id,'none')}>Cancel RSVP</button>}
       {pendingRsvpEventId===e.id&&<span role="status">Saving your RSVP…</span>}
