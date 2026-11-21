@@ -1,4 +1,6 @@
 import {expect,test} from '@playwright/test';
+import {readdirSync,readFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {
   formatAppointmentWindow,
   isValidIanaTimezone,
@@ -171,5 +173,27 @@ test('Protected marketplace routes enforce auth redirect with preserved return p
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );
     expect(overflow).toBeLessThanOrEqual(1);
+  }
+});
+
+test('Playwright E2E specs never place worker-scoped test.use options inside test.describe blocks', () => {
+  const e2eDir = join(process.cwd(), 'tests', 'e2e');
+  const specFiles = readdirSync(e2eDir).filter(name => name.endsWith('.spec.ts'));
+  expect(specFiles.length).toBeGreaterThan(10);
+
+  const workerScoped = /\b(?:trace|screenshot|video|headless|launchOptions|channel)\s*:/;
+  for (const file of specFiles) {
+    const raw = readFileSync(join(e2eDir, file), 'utf8');
+    const src = raw.replace(/^\s*\/\/.*$/gm, '');
+    const describeIdx = src.indexOf('test.describe(');
+    if (describeIdx === -1) continue;
+    const afterDescribe = src.slice(describeIdx);
+    const nestedUseMatches = afterDescribe.match(/test\.use\s*\(\s*\{[\s\S]*?\}\s*\)/g) || [];
+    for (const block of nestedUseMatches) {
+      expect(
+        workerScoped.test(block),
+        `${file} must place worker-scoped test.use() options at file top-level, outside test.describe()`
+      ).toBe(false);
+    }
   }
 });
