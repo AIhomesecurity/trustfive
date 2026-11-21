@@ -58,7 +58,7 @@ export default function BusinessPageEditor(){
   <div className="page-heading"><span className="eyebrow">Professional business centre</span><h1>My business page</h1>
    <p className="subtle">Build a professional profile. Publishing requires separate administrator approval and an active verified TrustFive place.</p></div>
   {notice&&<p role="status" className="notice">{notice}</p>}
-  {!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
+  {!userId?<Link href="/account?next=%2Fprofessional%2Fbusiness" className="btn">Sign in</Link>:<div className="two-col">
    <section className="card"><h2>Edit business page</h2>
     <label>My professional application<select value={selected} onChange={e=>choose(e.target.value)}>
      <option value="">Select an application</option>
