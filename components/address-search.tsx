@@ -43,6 +43,6 @@ export default function AddressSearch({onSelect}:Props){
    {selected.precision==='postcode'&&<p>Distance uses an approximate postcode or district centre, not your exact property.</p>}
   </div>}
   {error&&<p className="muted-note" role="status">{error}</p>}
-  <p id="address-privacy" className="muted-note">Search across England, Scotland, Wales and Northern Ireland using any UK postcode district or full postcode. Your address is not displayed on public business listings or stored in your directory search. A full postcode or property address is needed to publish a job.</p>
+  <p id="address-privacy" className="muted-note">Search across England, Scotland, Wales and Northern Ireland using any UK postcode district or full postcode. <strong>Your postcode or street-address search may be forwarded to an external lookup provider</strong> (postcodes.io or, if configured, Geoapify) to find matching locations. <a href="/privacy/address-search">How address lookup uses your information</a>. Your address is not displayed on public business listings or stored in your directory search. A full postcode or property address is needed to publish a job.</p>
  </div>;
 }
