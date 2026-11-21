@@ -15,6 +15,7 @@ export default function CommunityGroups(){
  const [area,setArea]=useState(''),[name,setName]=useState(''),[description,setDescription]=useState('');
  const [selected,setSelected]=useState(''),[postBody,setPostBody]=useState('');
  const [notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+ const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(false);
  async function load(){
   const s=supabaseBrowser();
   const [g,m]=await Promise.all([
@@ -22,7 +23,7 @@ export default function CommunityGroups(){
    s.from('community_group_memberships').select('group_id,role')
   ]);
   if(g.error)throw g.error;if(m.error)throw m.error;
-  setGroups(g.data||[]);setMemberships(m.data||[]);
+  setGroups(g.data||[]);setMemberships(m.data||[]);setLoadError(false);
  }
  async function loadPosts(id:string){
   if(!id){setPosts([]);return;}
@@ -37,7 +38,8 @@ export default function CommunityGroups(){
   ]);
   if(!user){setNotice('Sign in to join community groups.');return;}
   if(a.error)throw a.error;setUserId(user.id);setAreas(a.data||[]);await load();
- }catch(e){setNotice(e instanceof Error?e.message:'Unable to load groups')}})()},[]);
+ }catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setLoading(false);}})()},[]);
+ async function retryGroups(){if(busy)return;setBusy(true);setNotice('');try{await load();}catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setBusy(false);}}
  async function create(e:FormEvent){e.preventDefault();if(busy||!userId)return;
   setBusy(true);setNotice('');
   try{
@@ -89,8 +91,10 @@ export default function CommunityGroups(){
     </form><p className="muted-note">Groups are publicly discoverable to signed-in members in this pilot. Address verification and private groups are not yet supported.</p>
    </div></section>
    <section><h2>Explore groups</h2><div className="list">
-    {groups.length===0&&<div className="card">No groups yet. Start the first one!</div>}
-    {groups.map(g=>{const member=memberships.some(m=>m.group_id===g.id);return <article className="card" key={g.id}>
+    {loading&&<div className="card" role="status">Loading community groups…</div>}
+    {!loading&&loadError&&<div className="card" role="alert"><p>Community groups could not be loaded. We cannot confirm whether any groups are available.</p><button type="button" className="btn secondary" disabled={busy} onClick={retryGroups}>Try loading groups again</button></div>}
+    {!loading&&!loadError&&groups.length===0&&<div className="card">No groups yet. Start the first one!</div>}
+    {!loadError&&groups.map(g=>{const member=memberships.some(m=>m.group_id===g.id);return <article className="card" key={g.id}>
      <span className="pill">{areas.find(a=>a.id===g.area_id)?.area_name||'Neighbourhood'}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
