@@ -292,3 +292,24 @@ begin
  end loop;
 end
 $tf$;
+
+-- Column-level INSERT privileges can bypass a revoked table-level INSERT
+-- grant. The consent audit must remain writable only through its audited
+-- server-side function, including for columns added by later migrations.
+-- Catalog-only regression: never read private consent events.
+do $tf$
+declare v_column record;
+begin
+ for v_column in
+  select a.attname
+  from pg_attribute a
+  where a.attrelid='public.booking_address_consent_events'::regclass
+    and a.attnum > 0 and not a.attisdropped
+ loop
+  if has_column_privilege('anon','public.booking_address_consent_events',v_column.attname,'INSERT')
+     or has_column_privilege('authenticated','public.booking_address_consent_events',v_column.attname,'INSERT') then
+   raise exception 'Client role has column-level INSERT on private consent audit: %',v_column.attname;
+  end if;
+ end loop;
+end
+$tf$;
