@@ -272,6 +272,28 @@ end
 $tf$;
 rollback;
 
+-- A missing signed-in identity must also be unable to GRANT sharing.
+-- Revocation-only checks do not catch asymmetric authorization mistakes
+-- where consent=true takes a different path. Impossible UUID; no data reads.
+begin;
+set local role authenticated;
+do $tf$
+declare v_denied boolean := false;
+begin
+ begin
+  perform public.set_booking_address_sharing(
+   '00000000-0000-0000-0000-000000000000'::uuid, true
+  );
+ exception when sqlstate '42501' then
+  v_denied := true;
+ end;
+ if not v_denied then
+  raise exception 'Consent grant accepted a missing authenticated identity';
+ end if;
+end
+$tf$;
+rollback;
+
 -- Column-level grants can expose consent audit fields even when table-level
 -- privileges are revoked. Inspect ACLs only, without reading audit records.
 do $tf$
