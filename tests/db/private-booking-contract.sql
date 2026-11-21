@@ -235,3 +235,15 @@ begin
  end if;
 end
 $tf$;
+
+-- Negative ACL regression: audit event rows must not be referenced by
+-- client-created foreign keys. REFERENCES is independent of RLS and can
+-- expose relationship existence through constraint behavior. Metadata only.
+do $tf$
+begin
+ if has_table_privilege('anon','public.booking_address_consent_events','REFERENCES')
+    or has_table_privilege('authenticated','public.booking_address_consent_events','REFERENCES') then
+  raise exception 'Client role can reference private booking consent audit';
+ end if;
+end
+$tf$;
