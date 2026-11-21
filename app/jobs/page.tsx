@@ -65,7 +65,11 @@ export default function Jobs(){
   })();
   return()=>{active=false;};
  },[site,areas,territoryRetry]);
- async function submit(e:FormEvent){e.preventDefault();if(!userId||busy)return;setBusy(true);setMessage('');
+ async function submit(e:FormEvent){e.preventDefault();if(!userId||busy)return;
+  // Revalidate on submit as well as disabling the button. Keyboard, scripted
+  // submits and state changes must not bypass the current address/trade checks.
+  if(publishBlocker){setMessage(publishBlocker);return;}
+  setBusy(true);setMessage('');
   try{
    if(meaningfulJobTextLength(title)<5)throw Error('Enter a job title with at least 5 meaningful characters');
    if(meaningfulJobTextLength(description)<15)throw Error('Describe the work in at least 15 meaningful characters');
