@@ -81,7 +81,8 @@ export default function CommunityEvents(){
      </select></label>
      <label>Event title<input minLength={5} maxLength={120} required value={title} onChange={e=>setTitle(e.target.value)} placeholder="Saturday neighbourhood clean-up"/></label>
      <label>About the event<textarea minLength={15} maxLength={2000} required value={description} onChange={e=>setDescription(e.target.value)}/></label>
-     <label>Meeting place (public; avoid private addresses)<input minLength={3} maxLength={160} required value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
+     <label>Public meeting place<input minLength={3} maxLength={160} required aria-describedby="event-venue-privacy-help" value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
+     <p id="event-venue-privacy-help" className="muted-note">This meeting place is visible to community members. Use a public venue, not your home address or another private address.</p>
      <label>Starts<input type="datetime-local" required value={start} onChange={e=>{const next=e.target.value;setStart(next);if(end&&next&&end<=next){setEnd('');setEndResetNotice('The finish time was cleared because it must be after the new start time. Choose a new finish time.');}else{setEndResetNotice('');}}}/></label>
      <label>Ends<input type="datetime-local" required min={start||undefined} aria-describedby={endResetNotice?'event-end-reset-notice':undefined} value={end} onChange={e=>{setEnd(e.target.value);setEndResetNotice('');}}/></label>
      {endResetNotice&&<p id="event-end-reset-notice" className="muted-note" role="status">{endResetNotice}</p>}
