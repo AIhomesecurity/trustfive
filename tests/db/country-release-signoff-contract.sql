@@ -252,3 +252,18 @@ begin
   end loop;
  end loop;
 end $signoff_acl$;
+
+
+-- Release signoffs must remain behind RLS even if a future migration
+-- accidentally grants a table privilege. This checks metadata only and does
+-- not read, create or approve any real country-release evidence.
+do $signoff_rls$
+begin
+ if not exists (
+  select 1 from pg_class
+  where oid='public.country_release_signoffs'::regclass
+    and relrowsecurity
+ ) then
+  raise exception 'Private country-release signoffs lost row-level security';
+ end if;
+end $signoff_rls$;
