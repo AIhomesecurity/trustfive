@@ -223,3 +223,32 @@ begin
   raise exception 'Country release audit trigger disabled or missing row-level INSERT/UPDATE coverage';
  end if;
 end $history_trigger_events$;
+
+
+-- A client must not mutate, truncate or reference the current human signoff
+-- matrix directly. Row-level security does not protect TRUNCATE or REFERENCES,
+-- and column grants can outlive a table-level revoke. Catalog-only checks.
+do $signoff_acl$
+declare v_role text; v_column record;
+begin
+ foreach v_role in array array['anon','authenticated'] loop
+  if has_table_privilege(v_role,'public.country_release_signoffs','UPDATE')
+     or has_table_privilege(v_role,'public.country_release_signoffs','DELETE')
+     or has_table_privilege(v_role,'public.country_release_signoffs','TRUNCATE')
+     or has_table_privilege(v_role,'public.country_release_signoffs','REFERENCES') then
+   raise exception 'Client role % can directly modify or reference release signoffs',v_role;
+  end if;
+  for v_column in
+   select attname from pg_attribute
+   where attrelid='public.country_release_signoffs'::regclass
+     and attnum>0 and not attisdropped
+  loop
+   if has_column_privilege(v_role,'public.country_release_signoffs',v_column.attname,'SELECT')
+      or has_column_privilege(v_role,'public.country_release_signoffs',v_column.attname,'INSERT')
+      or has_column_privilege(v_role,'public.country_release_signoffs',v_column.attname,'UPDATE')
+      or has_column_privilege(v_role,'public.country_release_signoffs',v_column.attname,'REFERENCES') then
+    raise exception 'Client role % has column access to release signoff %',v_role,v_column.attname;
+   end if;
+  end loop;
+ end loop;
+end $signoff_acl$;
