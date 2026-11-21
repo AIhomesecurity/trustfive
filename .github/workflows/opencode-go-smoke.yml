@@ -1,0 +1,36 @@
+name: OpenCode Go smoke test
+on:
+  push:
+    branches: [test/opencode-go-smoke-20261121]
+    paths: [.github/workflows/opencode-go-smoke.yml]
+permissions: {}
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send one prompt to OpenCode Go
+        env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: |
+          if [[ -z "$OPENCODE_GO_API_KEY" ]]; then
+            echo "::error::OPENCODE_GO_API_KEY is unavailable"
+            exit 1
+          fi
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+          status=$(curl --silent --show-error --max-time 60 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $OPENCODE_GO_API_KEY" \
+            --header 'Content-Type: application/json' \
+            --data '{"model":"glm-5.3-flash","messages":[{"role":"user","content":"Reply with OK only."}],"max_tokens":128}' \
+            https://opencode.ai/zen/go/v1/chat/completions)
+          if [[ "$status" != 200 ]]; then
+            echo "::error::OpenCode Go returned HTTP $status"
+            exit 1
+          fi
+          if ! jq -e '(.choices[0].message.content // "") | test("^\\s*OK[.!]?\\s*$"; "i")' "$response_file" >/dev/null; then
+            echo "::error::OpenCode Go returned an unexpected response"
+            exit 1
+          fi
+          echo 'OpenCode Go replied OK.'
