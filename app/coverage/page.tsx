@@ -82,7 +82,7 @@ export default function UKCoverage(){
   </div>
   <section className="card">
    <h2>Register interest in your area</h2>
-   <p>Can't see local vetted professionals? Tell us which UK postcode district needs coverage. We store the postcode district only, not your full property address.</p>
+   <p>Can&apos;t see local vetted professionals? Tell us which UK postcode district needs coverage. We store the postcode district only, not your full property address.</p>
    <form className="form" onSubmit={submit}>
     <AddressSearch key={locationVersion} onSelect={setSite}/>
     {site&&<p className="muted-note" role="status">Area to register: <strong>{outcode||'Choose a full postcode or postcode district'}</strong>. This is a request, not a verified operating boundary.</p>}

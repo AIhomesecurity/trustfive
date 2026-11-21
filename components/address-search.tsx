@@ -30,7 +30,7 @@ export default function AddressSearch({onSelect}:Props){
  return <div className="address-finder">
   <label htmlFor="directory-address">Your postcode or street address</label>
   <div role="search" className="address-finder-form">
-   <input id="directory-address" value={query} onChange={e=>change(e.target.value)} onKeyDown={onInputKeyDown} autoComplete="street-address" placeholder="e.g. BT1, CF10, G1, SW1A 1AA or your street" maxLength={160} aria-describedby="address-privacy" aria-controls="address-options" aria-expanded={suggestions.length>0}/>
+   <input id="directory-address" value={query} onChange={e=>change(e.target.value)} onKeyDown={onInputKeyDown} autoComplete="street-address" placeholder="e.g. BT1, CF10, G1, SW1A 1AA or your street" maxLength={160} aria-describedby="address-privacy" aria-controls="address-options" aria-expanded={suggestions.length>0} role="combobox" aria-autocomplete="list"/>
    <button className="btn secondary" type="button" onClick={find} disabled={loading||query.trim().length<2}>{loading?'Finding…':'Find address'}</button>
   </div>
   {suggestions.length>0&&<div id="address-options" className="address-suggestions" role="listbox" aria-label="Matching addresses">

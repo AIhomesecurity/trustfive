@@ -75,7 +75,7 @@ export default function BookingSchedule(){
      <label>IANA time zone<input required minLength={3} maxLength={80} value={zone} onChange={e=>setZone(e.target.value)} placeholder="Europe/London"/></label>
      <button className="btn" disabled={busy} type="submit">Propose appointment</button>
     </form>
-    <p className="muted-note">Date/time inputs use your device's time zone; we store the exact UTC timestamps and time-zone identifier. This is a scheduling request, not an automatic payment or booking cancellation.</p>
+    <p className="muted-note">Date/time inputs use your device&apos;s time zone; we store the exact UTC timestamps and time-zone identifier. This is a scheduling request, not an automatic payment or booking cancellation.</p>
    </section>
    <section><h2>Appointment calendar</h2><div className="list">
     {bookings.length===0&&<div className="card">No bookings yet. <Link href="/jobs">Post a job</Link> to get started.</div>}
@@ -87,7 +87,7 @@ export default function BookingSchedule(){
       <p className="muted-note">Time zone: {a.timezone_name}</p>
       {a.status==='proposed'&&a.proposed_by!==userId&&
        <button className="btn" disabled={busy} onClick={()=>action(b.id,'confirm_booking_appointment')}>Accept proposed time</button>}
-      {a.status==='proposed'&&a.proposed_by===userId&&<p className="muted-note">Awaiting the other participant's confirmation</p>}
+      {a.status==='proposed'&&a.proposed_by===userId&&<p className="muted-note">Awaiting the other participant&apos;s confirmation</p>}
       {(a.status==='confirmed'||a.status==='proposed')&&
        <p style={{marginTop:10}}><button className="btn secondary" disabled={busy} onClick={()=>action(b.id,'cancel_booking_appointment')}>Cancel appointment time</button></p>}
      </>}

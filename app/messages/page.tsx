@@ -114,7 +114,7 @@ export default function Messages(){
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Private quote conversations</span>
    <h1>TrustFive Messages</h1>
-   <p className="subtle">Message the customer or approved professional connected to your quote. A link to a conversation never grants access to another person's messages.</p>
+   <p className="subtle">Message the customer or approved professional connected to your quote. A link to a conversation never grants access to another person&apos;s messages.</p>
   </div>
   {notice&&<p role="status" className="notice">{notice}</p>}
   {checking?<p role="status" className="notice">Checking your account and loading conversations…</p>:
@@ -155,7 +155,7 @@ export default function Messages(){
         <Link href="/bookings" className="btn secondary">My bookings</Link>
        </div>
       </form>
-      <p className="muted-note">Do not share full private job-site addresses in chat. Use the booking's separate address-sharing permission.</p>
+      <p className="muted-note">Do not share full private job-site addresses in chat. Use the booking&apos;s separate address-sharing permission.</p>
      </>}
     </section>
    </div>}
