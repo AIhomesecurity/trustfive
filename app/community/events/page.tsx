@@ -31,7 +31,11 @@ export default function CommunityEvents(){
     .eq('visibility','published').gte('ends_at',new Date().toISOString()).order('starts_at').limit(100),
    s.from('community_event_rsvps').select('event_id,status')
   ]);
-  if(e.error)throw e.error;if(r.error)throw r.error;
+  if(e.error||r.error){
+   // A superseded request must not replace newer results with an old error.
+   if(request!==refreshGeneration.current)return;
+   throw e.error||r.error;
+  }
   if(request!==refreshGeneration.current)return;
   setEvents(e.data||[]);setResponses(r.data||[]);setNowMs(Date.now());setLoadError(false);
  }
