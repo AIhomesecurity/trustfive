@@ -96,8 +96,8 @@ export default function CommunityEvents(){
      <p><strong>Where:</strong> {e.venue_label}</p>
      {r&&<p className="muted-note">Your RSVP: {r}</p>}
      <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}>
-      <button className="btn" disabled={busy} aria-pressed={r==='going'} aria-label={`Going to ${e.title}`} onClick={()=>respond(e.id,'going')}>I'm going</button>
-      <button className="btn secondary" disabled={busy} aria-pressed={r==='interested'} aria-label={`Interested in ${e.title}`} onClick={()=>respond(e.id,'interested')}>Interested</button>
+      <button className="btn" disabled={busy||r==='going'} aria-pressed={r==='going'} aria-label={`Going to ${e.title}`} onClick={()=>respond(e.id,'going')}>I'm going</button>
+      <button className="btn secondary" disabled={busy||r==='interested'} aria-pressed={r==='interested'} aria-label={`Interested in ${e.title}`} onClick={()=>respond(e.id,'interested')}>Interested</button>
       {r&&<button className="btn secondary" disabled={busy} aria-label={`Cancel RSVP for ${e.title}`} onClick={()=>respond(e.id,'none')}>Cancel RSVP</button>}
      </div>
     </article>})}
