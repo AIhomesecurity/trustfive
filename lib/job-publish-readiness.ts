@@ -17,10 +17,10 @@ export function jobPublishBlocker(input:PublishReadiness):string{
   return 'Add a title (5 meaningful characters) and description (15 meaningful characters).';
  if(!input.trade)return 'Choose a trade.';
  if(!input.site)return 'Select a property address from the suggestions.';
- if(input.site.precision==='postcode'){
-  try{jobAddressLabel(input.site,input.manualProperty);}
-  catch{return 'Enter a valid house number/name and street for this postcode.';}
- }
+ try{jobAddressLabel(input.site,input.manualProperty);}
+ catch{return input.site.precision==='postcode'
+  ? 'Enter a valid house number/name and street for this postcode.'
+  : 'Select a valid property address from the suggestions.';}
  if(input.territoryChecking||input.checkedSite!==input.site)
   return 'Wait for this address to be checked against service territories.';
  if(!input.territoryVerified&&!input.manualFallbackAllowed)
