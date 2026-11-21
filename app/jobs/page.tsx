@@ -76,8 +76,15 @@ export default function Jobs(){
     p_lat:site.latitude,p_lon:site.longitude,p_precision:site.precision
    });
    if(error)throw error;
-   await refresh();setTitle('');setDescription('');setBudget('');setSite(null);setManualProperty('');setTerritoryVerified(false);setAddressVersion(v=>v+1);
-   setMessage('Job published. Your selected address is stored privately and is not shown in public job descriptions. Only eligible approved professionals covering your service territory can view the brief.');
+   // The database has already committed the job. A subsequent list-refresh
+   // failure must not imply publishing failed or encourage a duplicate post.
+   setTitle('');setDescription('');setBudget('');setSite(null);setManualProperty('');setTerritoryVerified(false);setAddressVersion(v=>v+1);
+   try{
+    await refresh();
+    setMessage('Job published. Your selected address is stored privately and is not shown in public job descriptions. Only eligible approved professionals covering your service territory can view the brief.');
+   }catch{
+    setMessage('Job published successfully, but your job list could not be refreshed. Reload this page to see it before posting again.');
+   }
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to save')}
   finally{setBusy(false)}
  }
@@ -91,8 +98,13 @@ export default function Jobs(){
    const {error}=await supabaseBrowser().rpc('accept_job_quote',{p_quote:quoteId});
    if(error)throw error;
    setConfirmQuoteId(null);
-   await refresh();
-   setMessage('Quote accepted and booking recorded. No payment has been taken. Agree appointment and address-sharing details through your booking and messages.');
+   // Booking is committed independently of the customer list refresh.
+   try{
+    await refresh();
+    setMessage('Quote accepted and booking recorded. No payment has been taken. Agree appointment and address-sharing details through your booking and messages.');
+   }catch{
+    setMessage('Booking recorded successfully, but the list could not be refreshed. Reload your bookings before attempting another confirmation. No payment has been taken.');
+   }
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to accept quote')}
   finally{setBusy(false)}
  }
