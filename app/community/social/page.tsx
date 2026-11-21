@@ -1,8 +1,9 @@
 'use client';
-import {useEffect,useMemo,useState} from 'react';
+import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
-import {findSocialArea,readablePostDate,selectSocialPosts,type SocialArea,type SocialPostSummary,type FeedOrder} from '../../../lib/social-discovery';
+import {findSocialArea,readablePostDate,type SocialArea,type SocialPostSummary} from '../../../lib/social-discovery';
+import {socialPageBounds,socialPageRows,socialSearchPattern,type SocialFeedOrder} from '../../../lib/social-feed-paging';
 
 type SocialTab='neighbourhood'|'trade'|'advice';
 const TABS:{id:SocialTab;label:string}[]=[
@@ -18,37 +19,63 @@ export default function TrustFiveSocial(){
  const [posts,setPosts]=useState<SocialPostSummary[]>([]);
  const [areaId,setAreaId]=useState('');
  const [query,setQuery]=useState('');
- const [order,setOrder]=useState<FeedOrder>('recent');
- const [loading,setLoading]=useState(true),[error,setError]=useState(''),[signedIn,setSignedIn]=useState(false);
+ const [search,setSearch]=useState('');
+ const [order,setOrder]=useState<SocialFeedOrder>('recent');
+ const [page,setPage]=useState(0),[hasMore,setHasMore]=useState(false);
+ const [loading,setLoading]=useState(true),[error,setError]=useState(''),[signedIn,setSignedIn]=useState(false),[accountLoading,setAccountLoading]=useState(true),[accountError,setAccountError]=useState('');
  const [refreshKey,setRefreshKey]=useState(0);
- const visible=useMemo(()=>selectSocialPosts(posts,{areaId,query,order}),[posts,areaId,query,order]);
+
  useEffect(()=>{
   let active=true;
-  const load=async()=>{
+  (async()=>{
+   try{
+    const s=supabaseBrowser();
+    const result=await s.auth.getUser();
+    if(result.error)throw result.error;
+    if(!active)return;
+    setSignedIn(Boolean(result.data.user));
+    if(!result.data.user)return;
+    const areasResult=await s.from('service_areas').select('id,area_name,city').order('city').limit(200);
+    if(areasResult.error)throw areasResult.error;
+    if(active)setAreas(areasResult.data||[]);
+   }catch{if(active)setAccountError('Unable to verify your account or neighbourhoods. Try again.');}
+   finally{if(active)setAccountLoading(false);}
+  })();
+  return()=>{active=false;};
+ },[]);
+
+ useEffect(()=>{
+  if(accountLoading||accountError||!signedIn){setLoading(false);return;}
+  let active=true;
+  (async()=>{
    setLoading(true);setError('');
    try{
     const s=supabaseBrowser();
-    const auth=await s.auth.getUser();
-    if(auth.error)throw auth.error;
+    const bounds=socialPageBounds(page);
+    let request=s.from('community_posts')
+     .select('id,area_id,body,visibility,created_at')
+     .eq('visibility','published')
+     .order('created_at',{ascending:order==='oldest'})
+     .order('id',{ascending:true})
+     .range(bounds.from,bounds.to);
+    if(areaId)request=request.eq('area_id',areaId);
+    if(search.trim())request=request.ilike('body',socialSearchPattern(search));
+    const {data,error:readError}=await request;
+    if(readError)throw readError;
     if(!active)return;
-    if(!auth.data.user){setSignedIn(false);setLoading(false);return;}
-    setSignedIn(true);
-    const [areasResult,postsResult]=await Promise.all([
-     s.from('service_areas').select('id,area_name,city').order('city').limit(200),
-     s.from('community_posts').select('id,area_id,body,visibility,created_at').eq('visibility','published').order('created_at',{ascending:false}).limit(100)
-    ]);
-    if(areasResult.error)throw areasResult.error;
-    if(postsResult.error)throw postsResult.error;
-    if(!active)return;
-    setAreas(areasResult.data||[]);
-    setPosts(postsResult.data||[]);
-   }catch{
-    if(active){setPosts([]);setError('Community posts could not be loaded. Please retry.');}
-   }finally{if(active)setLoading(false);}
-  };
-  void load();
+    const result=socialPageRows((data||[]) as SocialPostSummary[]);
+    setPosts(result.items);
+    setHasMore(result.hasMore);
+   }catch{if(active){setPosts([]);setHasMore(false);setError('Could not load matching posts. Please retry.');}}
+   finally{if(active)setLoading(false);}
+  })();
   return()=>{active=false;};
- },[refreshKey]);
+ },[signedIn,accountLoading,accountError,areaId,order,search,page,refreshKey]);
+
+ function changeArea(value:string){setPage(0);setAreaId(value);}
+ function changeOrder(value:SocialFeedOrder){setPage(0);setOrder(value);}
+ function submitSearch(event:FormEvent){event.preventDefault();setPage(0);setSearch(query.trim());}
+ function resetFilters(){setPage(0);setAreaId('');setQuery('');setSearch('');setOrder('recent');}
  return <main className="container social-hub">
   <div className="page-heading">
    <span className="eyebrow">Neighbours and professionals, connected</span>
@@ -65,24 +92,31 @@ export default function TrustFiveSocial(){
   </nav>
   {tab==='neighbourhood'&&<section aria-labelledby="social-neighbourhood-title">
    <h2 id="social-neighbourhood-title">Neighbourhood conversations</h2>
-   <p className="subtle">Posts shared to the signed-in community. Search currently covers the most recent 100 published posts; older discussions are not included.</p>
-   {loading?<div className="card" role="status">Loading neighbourhood posts…</div>:error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>setRefreshKey(value=>value+1)}>Retry loading posts</button></div>:!signedIn?<div className="card"><p>Sign in to read your community feed.</p><Link className="btn" href={'/account?next='+encodeURIComponent('/community/social')}>Sign in to TrustFive Social</Link></div>:<>
-    <div className="card social-hub-filters">
-     <label>Search current posts<input type="search" value={query} maxLength={120} onChange={e=>setQuery(e.target.value)} placeholder="Search words in community posts"/></label>
-     <label>Neighbourhood<select value={areaId} onChange={e=>setAreaId(e.target.value)}><option value="">All available areas</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}, {a.city}</option>)}</select></label>
-     <label>Order<select value={order} onChange={e=>setOrder(e.target.value as FeedOrder)}><option value="recent">Newest first</option><option value="oldest">Oldest first</option></select></label>
-     <button className="btn secondary" type="button" onClick={()=>{setAreaId('');setQuery('');setOrder('recent');}}>Clear filters</button>
-    </div>
-    <p role="status" aria-live="polite" className="muted-note">{visible.length} matching {visible.length===1?'post':'posts'} in the loaded feed.</p>
-    <div className="list">
-     {visible.length===0&&<div className="card" role="status">{posts.length===0?'No neighbourhood posts are currently listed.':'No posts match the current filters.'} <Link href="/community">Visit the community feed</Link>.</div>}
-     {visible.map(post=><article className="card" key={post.id}>
-      <span className="pill">{findSocialArea(areas,post.area_id)?.area_name||'Community area'}</span>
-      <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',marginTop:12}}>{post.body}</p>
-      <p className="muted-note" style={{marginTop:12}}><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
-      <Link className="btn secondary" href="/community">View community conversations</Link>
-     </article>)}
-    </div>
+   <p className="subtle">Browse genuine published posts. Search and neighbourhood filters run against the authorised community feed; results are shown 20 at a time.</p>
+   {accountLoading?<div className="card" role="status">Checking your community account…</div>:accountError?<div className="card" role="alert"><p>{accountError}</p><button className="btn secondary" type="button" onClick={()=>window.location.reload()}>Retry account check</button></div>:!signedIn?<div className="card"><p>Sign in to read your community feed.</p><Link className="btn" href={'/account?next='+encodeURIComponent('/community/social')}>Sign in to TrustFive Social</Link></div>:<>
+    <form className="card social-hub-filters" onSubmit={submitSearch}>
+     <label>Search published posts<input type="search" value={query} maxLength={120} onChange={e=>setQuery(e.target.value)} placeholder="e.g. CCTV, gardening, renovation"/></label>
+     <label>Neighbourhood<select value={areaId} onChange={e=>changeArea(e.target.value)}><option value="">All available areas</option>{areas.map(a=><option key={a.id} value={a.id}>{a.area_name}, {a.city}</option>)}</select></label>
+     <label>Order<select value={order} onChange={e=>changeOrder(e.target.value as SocialFeedOrder)}><option value="recent">Newest first</option><option value="oldest">Oldest first</option></select></label>
+     <button className="btn" type="submit" disabled={loading}>Search posts</button>
+     <button className="btn secondary" type="button" onClick={resetFilters}>Clear filters</button>
+    </form>
+    {loading?<div className="card" role="status" aria-live="polite">Loading matching community posts…</div>:error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>setRefreshKey(v=>v+1)}>Retry loading posts</button></div>:<>
+     <p role="status" aria-live="polite" className="muted-note">Page {page+1}: showing {posts.length} published {posts.length===1?'post':'posts'}{hasMore?'; more posts are available.':'.'}</p>
+     <div className="list">
+      {posts.length===0&&<div className="card" role="status">{page>0?'No posts on this page. Go back to the previous page.': 'No published posts match your filters.'} <Link href="/community">Visit the community feed</Link>.</div>}
+      {posts.map(post=><article className="card" key={post.id}>
+       <span className="pill">{findSocialArea(areas,post.area_id)?.area_name||'Community area'}</span>
+       <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',marginTop:12}}>{post.body}</p>
+       <p className="muted-note" style={{marginTop:12}}><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
+       <Link className="btn secondary" href="/community">View community conversations</Link>
+      </article>)}
+     </div>
+     <nav aria-label="Neighbourhood feed pages" className="social-hub-shortcuts">
+      <button type="button" className="btn secondary" disabled={page===0} onClick={()=>setPage(v=>Math.max(0,v-1))}>Previous page</button>
+      <button type="button" className="btn secondary" disabled={!hasMore||page>=500} onClick={()=>setPage(v=>v+1)}>Next page</button>
+     </nav>
+    </>}
    </>}
   </section>}
   {tab==='trade'&&<section className="card" aria-labelledby="social-trade-title">
