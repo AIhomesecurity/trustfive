@@ -37,13 +37,13 @@ export default function DirectoryEmptyState({context,onReset,jobHref}:{
  context:DirectoryEmptyContext;onReset:()=>void;jobHref:string;
 }){
  const copy=directoryEmptyCopy(context);
- return <div className="directory-empty" role="status">
+  return <div className="directory-empty" role="status" aria-labelledby="directory-empty-title">
   <span aria-hidden="true" className="directory-empty-icon">🔎</span>
-  <h3>{copy.title}</h3>
+  <h3 id="directory-empty-title">{copy.title}</h3>
   <p>{copy.description}</p>
   <div className="directory-empty-actions">
-   <button type="button" className="btn secondary" onClick={onReset}>{copy.action}</button>
    <Link className="btn" href={jobHref}>Post your job</Link>
+   <button type="button" className="btn secondary" onClick={onReset}>{copy.action}</button>
    <Link className="btn secondary" href="/coverage">Register interest in your UK area</Link>
   </div>
   <p className="muted-note">Are you a professional? <Link href="/professional/apply">Apply to join the verified network →</Link></p>

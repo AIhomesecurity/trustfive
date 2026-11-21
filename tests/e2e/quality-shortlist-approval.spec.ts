@@ -7,6 +7,7 @@ test('saved professional IDs are never presented as current approval without liv
  },staleId);
  await page.goto('/services');
  await expect(page.getByRole('heading',{name:'Compare approved professionals'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Service filters are temporarily unavailable'})).toBeVisible();
  await expect(page.getByText('Your saved selections are not in these current verified search results.')).toBeVisible();
  await expect(page.getByText('Currently approved in these results')).toHaveCount(0);
  await expect(page.getByRole('link',{name:'View full profile'})).toHaveCount(0);

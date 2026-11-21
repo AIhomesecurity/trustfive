@@ -3,6 +3,7 @@ import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {authorisedBookingSelection,bookingHistoryHref} from '../../lib/workflow-links';
+import {validateAppointmentInput,type AppointmentField} from '../../lib/appointment-input-validation';
 type Booking={id:string;customer_id:string;professional_id:string;status:string};
 type Appointment={booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string};
 export default function BookingSchedule(){
@@ -10,7 +11,8 @@ export default function BookingSchedule(){
  const [appointments,setAppointments]=useState<Appointment[]>([]);
  const [selected,setSelected]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [zone,setZone]=useState('Europe/London'),[notice,setNotice]=useState('Loading your bookings…'),[busy,setBusy]=useState(false);
- const [unavailableBooking,setUnavailableBooking]=useState(false);
+  const [unavailableBooking,setUnavailableBooking]=useState(false);
+  const [fieldErrors,setFieldErrors]=useState<Partial<Record<AppointmentField,string>>>({});
  async function refresh(){
   const s=supabaseBrowser();const [b,a]=await Promise.all([
    s.from('job_bookings').select('id,customer_id,professional_id,status').order('created_at',{ascending:false}),
@@ -36,18 +38,19 @@ export default function BookingSchedule(){
   if(!user){setNotice('Sign in to arrange an appointment.');return;}
   setUserId(user.id);await refresh();setNotice('');
  }catch(e){setNotice(e instanceof Error?e.message:'Unable to load appointment calendar')}})()},[]);
- async function propose(e:FormEvent){e.preventDefault();if(busy||!selected)return;setBusy(true);setNotice('');
-  try{
-   const begins=new Date(start),finishes=new Date(end);
-   if(!Number.isFinite(begins.getTime())||!Number.isFinite(finishes.getTime())||finishes<=begins)throw Error('Enter a valid start and end time');
-   const {error}=await supabaseBrowser().rpc('propose_booking_appointment',{
-    p_booking:selected,p_start:begins.toISOString(),p_end:finishes.toISOString(),p_timezone:zone
-   });
-   if(error)throw error;
-   await refresh();setNotice('Appointment time proposed. The other participant must confirm it.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to propose appointment');}
-  finally{setBusy(false);}
- }
+  async function propose(e:FormEvent){e.preventDefault();if(busy||!selected)return;setNotice('');
+   const validated=validateAppointmentInput({start,end,timezone:zone});
+   if(!validated.ok){setFieldErrors({[validated.field]:validated.message} as Partial<Record<AppointmentField,string>>);return;}
+   setFieldErrors({});setBusy(true);
+   try{
+    const {error}=await supabaseBrowser().rpc('propose_booking_appointment',{
+     p_booking:selected,p_start:validated.startsAt,p_end:validated.endsAt,p_timezone:validated.timezone
+    });
+    if(error)throw error;
+    await refresh();setNotice('Appointment time proposed. The other participant must confirm it.');
+   }catch(e){setNotice(e instanceof Error?e.message:'Unable to propose appointment');}
+   finally{setBusy(false);}
+  }
  async function action(bookingId:string,kind:'confirm_booking_appointment'|'cancel_booking_appointment'){
   if(busy)return;setBusy(true);setNotice('');
   try{
@@ -70,9 +73,12 @@ export default function BookingSchedule(){
      <label>Booking<select required value={selected} onChange={e=>setSelected(e.target.value)}>
       <option value="">Choose active booking</option>{active.map(b=><option key={b.id} value={b.id}>Booking #{b.id.slice(0,8)} · {b.customer_id===userId?'Customer':'Professional'}</option>)}
      </select></label>
-     <label>Start date and time<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
-     <label>End date and time<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
-     <label>IANA time zone<input required minLength={3} maxLength={80} value={zone} onChange={e=>setZone(e.target.value)} placeholder="Europe/London"/></label>
+      <label>Start date and time<input type="datetime-local" required value={start} aria-invalid={Boolean(fieldErrors.start)} aria-describedby={fieldErrors.start?'appointment-start-error':undefined} onChange={e=>{setStart(e.target.value);setFieldErrors(current=>({...current,start:undefined}));}}/>
+       {fieldErrors.start&&<span id="appointment-start-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.start}</span>}</label>
+      <label>End date and time<input type="datetime-local" required value={end} aria-invalid={Boolean(fieldErrors.end)} aria-describedby={fieldErrors.end?'appointment-end-error':undefined} onChange={e=>{setEnd(e.target.value);setFieldErrors(current=>({...current,end:undefined}));}}/>
+       {fieldErrors.end&&<span id="appointment-end-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.end}</span>}</label>
+      <label>IANA time zone<input required minLength={3} maxLength={80} value={zone} aria-invalid={Boolean(fieldErrors.timezone)} aria-describedby={fieldErrors.timezone?'appointment-timezone-error':undefined} onChange={e=>{setZone(e.target.value);setFieldErrors(current=>({...current,timezone:undefined}));}} placeholder="Europe/London"/>
+       {fieldErrors.timezone&&<span id="appointment-timezone-error" role="alert" className="notice error" style={{display:'block',margin:'6px 0',padding:'8px 10px'}}>{fieldErrors.timezone}</span>}</label>
      <button className="btn" disabled={busy} type="submit">Propose appointment</button>
     </form>
     <p className="muted-note">Date/time inputs use your device's time zone; we store the exact UTC timestamps and time-zone identifier. This is a scheduling request, not an automatic payment or booking cancellation.</p>
