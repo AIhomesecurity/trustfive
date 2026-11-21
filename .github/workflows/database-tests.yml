@@ -97,3 +97,6 @@ jobs:
 
       - name: Verify professional onboarding, verification RLS, suspension and five-slot waiting list
         run: psql -v ON_ERROR_STOP=1 -f tests/db/professional-onboarding-five-slot-contract.sql
+
+      - name: Verify targeted marketplace FK indexes and EXPLAIN plans (Issue #13)
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/query-plan-indexes-contract.sql
