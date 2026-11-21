@@ -68,8 +68,13 @@ export default function Jobs(){
    const privateAddress=jobAddressLabel(site,manualProperty);
    if(territoryChecking)throw Error('Wait for the territory check to finish');
    if(!territoryVerified&&!manualFallbackAllowed)throw Error('This address is not currently eligible for posting, or territory verification is unavailable');
-   const amount=budget?Math.round(Number(budget)*100):null;
-   if(amount!==null&&(!Number.isSafeInteger(amount)||amount<0))throw Error('Enter a valid budget');
+   // Validate the text value as pounds and pence before converting to pennies.
+   // HTML number-input limits can be bypassed; reject exponents, negative
+   // values, excess decimals and budgets above the displayed £10m limit.
+   const normalizedBudget=budget.trim();
+   if(normalizedBudget&&!/^(?:\d+)(?:\.\d{1,2})?$/.test(normalizedBudget))throw Error('Enter a valid budget in pounds and pence');
+   const amount=normalizedBudget?Math.round(Number(normalizedBudget)*100):null;
+   if(amount!==null&&(!Number.isSafeInteger(amount)||amount<0||amount>1_000_000_000))throw Error('Enter a budget between £0 and £10,000,000');
    const {error}=await supabaseBrowser().rpc('create_job_with_private_location',{
     p_title:title.trim(),p_description:description.trim(),p_trade:trade,p_area:area,p_budget_pence:amount,
     p_address:privateAddress,p_postcode:site.postcode,p_country:site.country,
