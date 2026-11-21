@@ -6,6 +6,7 @@ import {usePathname} from 'next/navigation';
 
 const mainLinks=[
  {href:'/services',label:'Find a professional'},
+ {href:'/coverage',label:'UK coverage'},
  {href:'/jobs',label:'Post a job'},
  {href:'/community',label:'Community'},
  {href:'/professional/apply',label:'For professionals'}
