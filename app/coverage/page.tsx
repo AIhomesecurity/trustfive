@@ -2,7 +2,7 @@
 import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
-import {ukPostcodeLookupKind} from '../../lib/uk-postcode-lookup';
+import {ukOutcodeFromInput} from '../../lib/uk-postcode-lookup';
 import {supabaseBrowser} from '../../lib/supabase';
 
 type Trade={id:string;name:string};
@@ -13,9 +13,7 @@ type Role='customer'|'professional';
  * requests create active territories, vetted business slots or public listings. */
 function outcodeFromSelection(site:SelectedLocation|null):string{
  if(!site)return '';
- const source=site.postcode||site.label;
- const code=source.trim().split(/[\s,]/)[0].toUpperCase();
- return ukPostcodeLookupKind(code)==='outcode'?code:'';
+ return ukOutcodeFromInput(site.postcode)||ukOutcodeFromInput(site.label)||'';
 }
 
 export default function UKCoverage(){
