@@ -169,3 +169,16 @@ begin
  end if;
 end
 $tf$;
+
+-- A consent writer must authorise the actual customer on each invocation.
+-- Definition-only regression: no customer records or addresses are queried.
+do $tf$
+declare v_writer text;
+begin
+ v_writer := lower(pg_get_functiondef('public.set_booking_address_sharing(uuid,boolean)'::regprocedure));
+ if position('auth.uid()' in v_writer)=0
+    or position('customer_id' in v_writer)=0 then
+  raise exception 'Booking consent writer lost authenticated customer ownership gate';
+ end if;
+end
+$tf$;
