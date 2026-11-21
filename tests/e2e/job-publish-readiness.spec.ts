@@ -33,3 +33,13 @@ test('temporary fallback is explicit and cannot bypass address verification',()=
  expect(jobPublishBlocker({...ready(),territoryVerified:false,manualFallbackAllowed:true,checkedSite:null})).toContain('Wait for this address');
  expect(jobPublishBlocker({...ready(),busy:true})).toContain('Saving');
 });
+
+test('rejects malformed address-provider labels before the publish action',()=>{
+ expect(jobPublishBlocker({...ready(),site:{...site,label:'   '},checkedSite:{...site,label:'   '}})).toContain('valid property address');
+ const tooLong={...site,label:'A'.repeat(251)};
+ expect(jobPublishBlocker({...ready(),site:tooLong,checkedSite:tooLong})).toContain('valid property address');
+ const postcodeSite={...site,precision:'postcode' as const,label:'SW1A 1AA'};
+ expect(jobPublishBlocker({...ready(),site:postcodeSite,checkedSite:postcodeSite,manualProperty:'14 High Street'})).toBe('');
+ const oversized={...postcodeSite,label:'X'.repeat(245)};
+ expect(jobPublishBlocker({...ready(),site:oversized,checkedSite:oversized,manualProperty:'14 High Street'})).toContain('valid house number');
+});
