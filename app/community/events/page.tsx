@@ -14,6 +14,7 @@ export default function CommunityEvents(){
  const [venue,setVenue]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const [loading,setLoading]=useState(true);
+ const [loadError,setLoadError]=useState(false);
  async function refresh(){
   const s=supabaseBrowser();
   const [e,r]=await Promise.all([
@@ -22,7 +23,7 @@ export default function CommunityEvents(){
    s.from('community_event_rsvps').select('event_id,status')
   ]);
   if(e.error)throw e.error;if(r.error)throw r.error;
-  setEvents(e.data||[]);setResponses(r.data||[]);
+  setEvents(e.data||[]);setResponses(r.data||[]);setLoadError(false);
  }
  useEffect(()=>{(async()=>{try{
   const s=supabaseBrowser();
@@ -32,7 +33,8 @@ export default function CommunityEvents(){
   if(error)throw error;
   if(!user){setNotice('Sign in to view and join local events.');return;}
   if(a.error)throw a.error;setUserId(user.id);setAreas(a.data||[]);await refresh();
- }catch(e){setNotice(e instanceof Error?e.message:'Unable to load events');}finally{setLoading(false);}})()},[]);
+ }catch(e){setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setLoading(false);}})()},[]);
+ async function retryEvents(){if(busy)return;setBusy(true);setNotice('');try{await refresh();}catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setBusy(false);}}
  async function publish(e:FormEvent){e.preventDefault();if(busy||!userId)return;setBusy(true);setNotice('');
   try{
    const begins=new Date(start),finishes=new Date(end);
@@ -74,8 +76,8 @@ export default function CommunityEvents(){
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
    </section>
-   <section><h2>Upcoming events</h2><div className="list">
-    {events.length===0&&<div className="card">No upcoming events. Why not organise one?</div>}
+   <section><h2>Upcoming events</h2>{loadError&&<button className="btn secondary" type="button" disabled={busy} onClick={retryEvents}>Try loading events again</button>}<div className="list">
+    {!loadError&&events.length===0&&<div className="card">No upcoming events. Why not organise one?</div>}
     {events.map(e=>{const r=responses.find(a=>a.event_id===e.id)?.status;return <article className="card" key={e.id}>
      <span className="pill">{areas.find(a=>a.id===e.area_id)?.area_name||'Local event'}</span>
      <h3 style={{marginTop:12}}>{e.title}</h3>
