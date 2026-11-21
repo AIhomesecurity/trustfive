@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
@@ -18,6 +18,15 @@ import {
   type ContactPreference,
   type QuoteSortMode,
 } from '../../lib/quote-comparison';
+import {
+  canCancelCustomerJob,
+  canReopenCustomerJob,
+  normalizeJobActivity,
+  readableJobStatus,
+  validateCancelReason,
+  type JobActivityEvent,
+  type NormalizedJobActivityEvent,
+} from '../../lib/job-lifecycle';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string};
@@ -33,12 +42,22 @@ export default function Jobs(){
  const [quoteSort,setQuoteSort]=useState<QuoteSortMode>('lowest_price');
  const [userId,setUserId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[initialLoading,setInitialLoading]=useState(true);
  const [confirmQuoteId,setConfirmQuoteId]=useState<string|null>(null);
+ const [confirmCancelJobId,setConfirmCancelJobId]=useState<string|null>(null);
+ const [cancelReason,setCancelReason]=useState('');
+ const [confirmReopenJobId,setConfirmReopenJobId]=useState<string|null>(null);
+ const [activityJobId,setActivityJobId]=useState<string|null>(null);
+ const [activityEvents,setActivityEvents]=useState<NormalizedJobActivityEvent[]>([]);
+ const [activityLoading,setActivityLoading]=useState(false);
+ const [activityError,setActivityError]=useState('');
  const [site,setSite]=useState<SelectedLocation|null>(null),[checkedSite,setCheckedSite]=useState<SelectedLocation|null>(null),[addressVersion,setAddressVersion]=useState(0);
  const [manualProperty,setManualProperty]=useState('');
  const [territoryRetry,setTerritoryRetry]=useState(0),[territoryFailed,setTerritoryFailed]=useState(false);
  const [territoryVerified,setTerritoryVerified]=useState(false),[territoryChecking,setTerritoryChecking]=useState(false),[territoryNotice,setTerritoryNotice]=useState(''),[manualFallbackAllowed,setManualFallbackAllowed]=useState(false);
- const publishBlocker=jobPublishBlocker({title,description,trade,site,manualProperty,area,budget,busy,territoryChecking,checkedSite,territoryVerified,manualFallbackAllowed});
 
+ const actionInFlight=useRef(false);
+ const activityRequest=useRef(0);
+
+ const publishBlocker=jobPublishBlocker({title,description,trade,site,manualProperty,area,budget,busy,territoryChecking,checkedSite,territoryVerified,manualFallbackAllowed});
  const step1Done=meaningfulJobTextLength(title)>=5&&meaningfulJobTextLength(description)>=15&&Boolean(trade);
  const step2Done=Boolean(site&&checkedSite===site&&!territoryChecking&&(territoryVerified||manualFallbackAllowed)&&area&&(site.precision!=='postcode'||manualProperty.trim().length>=5));
  const step3Done=!publishBlocker;
@@ -53,6 +72,39 @@ export default function Jobs(){
   if(q.error)throw q.error;
   setJobs((j.data||[]) as Job[]);
   setQuotes((q.data||[]) as Quote[]);
+ }
+
+ async function loadJobActivity(jobId:string){
+  const reqId=++activityRequest.current;
+  setActivityJobId(jobId);
+  setActivityLoading(true);
+  setActivityError('');
+  try{
+   const {data,error}=await supabaseBrowser().rpc('customer_job_activity',{p_job:jobId});
+   if(error)throw error;
+   if(reqId===activityRequest.current){
+    setActivityEvents(normalizeJobActivity((data||[]) as JobActivityEvent[]));
+   }
+  }catch(e){
+   if(reqId===activityRequest.current){
+    setActivityEvents([]);
+    setActivityError(e instanceof Error?e.message:'Unable to load job activity');
+   }
+  }finally{
+   if(reqId===activityRequest.current)setActivityLoading(false);
+  }
+ }
+
+ function toggleJobActivity(jobId:string){
+  if(activityJobId===jobId){
+   activityRequest.current+=1;
+   setActivityJobId(null);
+   setActivityEvents([]);
+   setActivityError('');
+   setActivityLoading(false);
+   return;
+  }
+  void loadJobActivity(jobId);
  }
 
  useEffect(()=>{(async()=>{try{
@@ -111,11 +163,9 @@ export default function Jobs(){
 
  async function submit(e:FormEvent){
   e.preventDefault();
-  if(!userId||busy)return;
-  // Revalidate on submit as well as disabling the button. Keyboard, scripted
-  // submits and state changes must not bypass the current address/trade checks.
+  if(!userId||busy||actionInFlight.current)return;
   if(publishBlocker){setMessage(publishBlocker);return;}
-  setBusy(true);setMessage('');
+  actionInFlight.current=true;setBusy(true);setMessage('');
   try{
    if(meaningfulJobTextLength(title)<5)throw Error('Enter a job title with at least 5 meaningful characters');
    if(meaningfulJobTextLength(description)<15)throw Error('Describe the work in at least 15 meaningful characters');
@@ -137,12 +187,9 @@ export default function Jobs(){
      p_preference:contactPreference
     });
     if(prefRes.error){
-     // Job is already committed; report partial preference warning honestly.
      setMessage('Job published, but contact preference stayed on TrustFive messages. You can review your job below.');
     }
    }
-   // The database has already committed the job. A subsequent list-refresh
-   // failure must not imply publishing failed or encourage a duplicate post.
    setTitle('');setDescription('');setBudget('');setContactPreference('in_app_messages');
    setSite(null);setCheckedSite(null);setManualProperty('');setTerritoryVerified(false);setAddressVersion(v=>v+1);
    try{
@@ -152,20 +199,17 @@ export default function Jobs(){
     setMessage('Job published successfully, but your job list could not be refreshed. Reload this page to see it before posting again.');
    }
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to save')}
-  finally{setBusy(false)}
+  finally{actionInFlight.current=false;setBusy(false)}
  }
 
  async function accept(quoteId:string){
-  if(busy||confirmQuoteId!==quoteId)return;
-  // Recheck the current in-memory state before invoking the separately
-  // authorisation-checked database booking function.
+  if(busy||actionInFlight.current||confirmQuoteId!==quoteId)return;
   if(!canConfirmJobQuote(quoteId,quotes,jobs)){setConfirmQuoteId(null);setMessage('This quote can no longer be accepted. Refresh your jobs and try again.');return;}
-  setBusy(true);setMessage('');
+  actionInFlight.current=true;setBusy(true);setMessage('');
   try{
    const {error}=await supabaseBrowser().rpc('accept_job_quote',{p_quote:quoteId});
    if(error)throw error;
    setConfirmQuoteId(null);
-   // Booking is committed independently of the customer list refresh.
    try{
     await refresh();
     setMessage('Quote accepted and booking recorded. No payment has been taken. Agree appointment and address-sharing details through your booking and messages.');
@@ -173,14 +217,67 @@ export default function Jobs(){
     setMessage('Booking recorded successfully, but the list could not be refreshed. Reload your bookings before attempting another confirmation. No payment has been taken.');
    }
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to accept quote')}
-  finally{setBusy(false)}
+  finally{actionInFlight.current=false;setBusy(false)}
+ }
+
+ async function cancelJob(job:Job){
+  if(busy||actionInFlight.current||confirmCancelJobId!==job.id)return;
+  if(!canCancelCustomerJob(job)){
+   setConfirmCancelJobId(null);
+   setMessage('Only unbooked draft or open jobs can be cancelled.');
+   return;
+  }
+  const reasonError=validateCancelReason(cancelReason);
+  if(reasonError){setMessage(reasonError);return;}
+  actionInFlight.current=true;setBusy(true);setMessage('');
+  try{
+   const {error}=await supabaseBrowser().rpc('cancel_customer_job',{
+    p_job:job.id,
+    p_reason:cancelReason.trim()||null
+   });
+   if(error)throw error;
+   setConfirmCancelJobId(null);
+   setCancelReason('');
+   // Committed in DB; isolate list refresh so a refresh failure never looks like a failed cancellation.
+   try{
+    await refresh();
+    if(activityJobId===job.id)await loadJobActivity(job.id);
+    setMessage('Job cancelled. Pending quotes on this job are no longer open for acceptance.');
+   }catch{
+    setMessage('Job cancelled successfully, but your job list could not be refreshed. Reload this page to confirm the updated status.');
+   }
+  }catch(e){setMessage(e instanceof Error?e.message:'Unable to cancel job');}
+  finally{actionInFlight.current=false;setBusy(false);}
+ }
+
+ async function reopenJob(job:Job){
+  if(busy||actionInFlight.current||confirmReopenJobId!==job.id)return;
+  if(!canReopenCustomerJob(job)){
+   setConfirmReopenJobId(null);
+   setMessage('Only cancelled unbooked jobs can be reopened.');
+   return;
+  }
+  actionInFlight.current=true;setBusy(true);setMessage('');
+  try{
+   const {error}=await supabaseBrowser().rpc('reopen_customer_job',{p_job:job.id});
+   if(error)throw error;
+   setConfirmReopenJobId(null);
+   try{
+    await refresh();
+    if(activityJobId===job.id)await loadJobActivity(job.id);
+    setMessage('Job reopened. Eligible local approved professionals can now see the brief again.');
+   }catch{
+    setMessage('Job reopened successfully, but your job list could not be refreshed. Reload this page to confirm the updated status.');
+   }
+  }catch(e){setMessage(e instanceof Error?e.message:'Unable to reopen job');}
+  finally{actionInFlight.current=false;setBusy(false);}
  }
 
  return <main className="container">
   <div className="page-heading">
    <span className="eyebrow">Customer marketplace</span>
    <h1>My jobs and quotes</h1>
-   <p className="subtle">Post a job step-by-step and compare quotations from independently approved local professionals. Quotes and bookings are saved in your account.</p>
+   <p className="subtle">Post a job step-by-step, manage open or cancelled requests, inspect genuine activity history, and compare quotations from independently approved local professionals.</p>
   </div>
   {message&&<p className="notice" role="status">{message}</p>}
   {initialLoading?<p className="notice" role="status" aria-live="polite">Checking your account and loading jobs…</p>:
@@ -248,9 +345,12 @@ export default function Jobs(){
      {jobs.length===0?<div className="card">You haven't posted any jobs yet.</div>:jobs.map(j=>{
       const jobQuotes=sortCustomerQuotes(quotes.filter(q=>q.job_id===j.id),quoteSort);
       const summary=summarizeJobQuotes(jobQuotes);
+      const showCancel=canCancelCustomerJob(j);
+      const showReopen=canReopenCustomerJob(j);
+      const activityOpen=activityJobId===j.id;
       return <article className="card" key={j.id}>
        <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
-        <span className="pill">{j.status}</span>
+        <span className="pill">{readableJobStatus(j.status)}</span>
         {summary.total>0&&<span className="muted-note">
          {summary.total} quote{summary.total===1?'':'s'}
          {summary.lowestPence!==null&&summary.highestPence!==null
@@ -264,6 +364,57 @@ export default function Jobs(){
        <p className="muted-note" style={{marginTop:8}}>
         {new Date(j.created_at).toLocaleDateString('en-GB')} · Contact: {readableContactPreference(j.contact_preference)}
        </p>
+
+       <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12}}>
+        <button type="button" className="btn secondary" aria-expanded={activityOpen} onClick={()=>toggleJobActivity(j.id)}>
+         {activityOpen?'Hide job activity':'View job activity'}
+        </button>
+        {showCancel&&confirmCancelJobId!==j.id&&
+         <button type="button" className="btn secondary" disabled={busy} onClick={()=>{setConfirmCancelJobId(j.id);setConfirmReopenJobId(null);setCancelReason('');setMessage('');}}>
+          Cancel job
+         </button>}
+        {showReopen&&confirmReopenJobId!==j.id&&
+         <button type="button" className="btn secondary" disabled={busy} onClick={()=>{setConfirmReopenJobId(j.id);setConfirmCancelJobId(null);setMessage('');}}>
+          Reopen job
+         </button>}
+       </div>
+
+       {showCancel&&confirmCancelJobId===j.id&&
+        <div className="notice" style={{marginTop:12}} role="group" aria-label={'Confirm cancelling job '+j.title}>
+         <h4>Cancel “{j.title}”?</h4>
+         <p className="muted-note">Cancelling closes this unbooked request and stops pending quotes from being accepted. You can reopen it later if no booking exists.</p>
+         <label style={{marginTop:10}}>Optional note (max 240 chars)
+          <input maxLength={240} value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="e.g. Postponing work until next month"/>
+         </label>
+         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:10}}>
+          <button type="button" className="btn" disabled={busy} onClick={()=>void cancelJob(j)}>{busy?'Cancelling…':'Confirm cancel job'}</button>
+          <button type="button" className="btn secondary" disabled={busy} onClick={()=>{setConfirmCancelJobId(null);setCancelReason('');}}>Keep job open</button>
+         </div>
+        </div>}
+
+       {showReopen&&confirmReopenJobId===j.id&&
+        <div className="notice" style={{marginTop:12}} role="group" aria-label={'Confirm reopening job '+j.title}>
+         <h4>Reopen “{j.title}”?</h4>
+         <p className="muted-note">Reopening makes this unbooked job visible again to eligible local approved professionals in your verified territory.</p>
+         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:10}}>
+          <button type="button" className="btn" disabled={busy} onClick={()=>void reopenJob(j)}>{busy?'Reopening…':'Confirm reopen job'}</button>
+          <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmReopenJobId(null)}>Keep cancelled</button>
+         </div>
+        </div>}
+
+       {activityOpen&&
+        <div className="notice" style={{marginTop:12}} aria-live="polite" aria-busy={activityLoading}>
+         <h4>Job activity history</h4>
+         {activityLoading?<p className="muted-note">Loading genuine job activity…</p>:
+          activityError?<><p>{activityError}</p><button type="button" className="btn secondary" onClick={()=>void loadJobActivity(j.id)}>Retry activity load</button></>:
+          activityEvents.length===0?<p className="muted-note">No lifecycle events recorded yet.</p>:
+          <ol style={{paddingLeft:18,margin:'8px 0 0'}}>
+           {activityEvents.map(ev=><li key={ev.event_id} style={{marginBottom:4}}>
+            <strong>{ev.label}</strong> <span className="muted-note">· {new Date(ev.created_at).toLocaleString('en-GB')}</span>
+           </li>)}
+          </ol>}
+        </div>}
+
        {jobQuotes.map(q=><div key={q.quote_id} className="notice">
         <span className="pill">{q.status} quote</span>
         <h3>{q.business_name}</h3>
