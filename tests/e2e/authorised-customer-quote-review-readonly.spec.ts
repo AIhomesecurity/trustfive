@@ -23,7 +23,10 @@ test.describe('authorised customer quote review staging acceptance', () => {
 
       // Opening a quote confirmation must not itself accept a quote or create a booking.
       const review = page.getByRole('button', { name: 'Review and accept quote' }).first();
-      if (await review.count()) {
+      if (!(await review.count())) {
+        test.skip(true, 'No genuine customer-owned pending quote exists in staging; confirmation journey unverified');
+      }
+      {
         await review.click();
         await expect(page.getByRole('group', { name: /Confirm quote from/ })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Confirm and create booking' })).toBeVisible();
