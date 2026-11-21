@@ -26,4 +26,6 @@ test('Manual boundary review rejects malformed, invalid, degenerate and crossing
 test('Unauthenticated visitors cannot open territory administration',async({page})=>{
  await page.goto('/admin/territories');
  await expect(page).toHaveURL(/\/account\?next=/);
+ await page.goto('/admin/readiness');
+ await expect(page).toHaveURL(/\/account\?next=/);
 });
