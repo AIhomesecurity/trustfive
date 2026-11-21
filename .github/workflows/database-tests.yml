@@ -76,3 +76,6 @@ jobs:
 
       - name: Verify community moderation and notifications isolation
         run: psql -v ON_ERROR_STOP=1 -f tests/db/community-moderation-rls-contract.sql
+
+      - name: Verify launch readiness administrator authorization
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/launch-readiness-contract.sql
