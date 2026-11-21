@@ -37,6 +37,9 @@ export default function CommunityEvents(){
  async function retryEvents(){if(busy)return;setBusy(true);setNotice('');try{await refresh();}catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setBusy(false);}}
  async function publish(e:FormEvent){e.preventDefault();if(busy||!userId)return;setBusy(true);setNotice('');
   try{
+   if(!areas.some(a=>a.id===area)||title.trim().length<5||description.trim().length<15||venue.trim().length<3){
+    setNotice('Choose a neighbourhood and enter a meaningful title, description and public meeting place.');return;
+   }
    const begins=new Date(start),finishes=new Date(end);
    if(!Number.isFinite(begins.getTime())||!Number.isFinite(finishes.getTime())
     ||begins<=new Date()||finishes<=begins)throw Error('Choose a future event with a valid end time.');
@@ -73,7 +76,7 @@ export default function CommunityEvents(){
      <label>Meeting place (public; avoid private addresses)<input minLength={3} maxLength={160} required value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
      <label>Starts<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
      <label>Ends<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
-     <button className="btn" type="submit" disabled={busy||areas.length===0}>Publish event</button>
+     <button className="btn" type="submit" disabled={busy||areas.length===0} aria-busy={busy}>Publish event</button>
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
    </section>
