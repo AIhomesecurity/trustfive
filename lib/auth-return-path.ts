@@ -2,7 +2,7 @@
  * A requested return path is a navigation hint, never proof of access. */
 const protectedRoots=new Set([
  'profile','jobs','professional','community','admin','support','dashboard',
- 'quotes','bookings','messages','notifications','billing','schedule'
+ 'quotes','bookings','messages','notifications','billing','schedule','coverage'
 ]);
 
 export function safeAuthReturnPath(requested:string|null,allowPasswordReset=false):string{
