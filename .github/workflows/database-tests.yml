@@ -59,6 +59,9 @@ jobs:
       - name: Audit public directory SECURITY DEFINER and output allowlist
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/public-directory-security-contract.sql
 
+      - name: Assert complete SECURITY DEFINER role grant matrix
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/security-definer-grant-matrix.sql
+
       - name: Verify geographic territory enforcement contract
         run: psql -v ON_ERROR_STOP=1 -f tests/db/verified_territory_contract.sql
 
