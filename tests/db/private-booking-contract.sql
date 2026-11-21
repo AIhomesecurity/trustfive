@@ -124,3 +124,21 @@ begin
 end
 $tf$;
 rollback;
+
+-- A role grant alone is not a signed-in identity. The booked-professional
+-- reader must return no address with auth.uid() absent, even for a supplied
+-- booking identifier. This uses no customer/property records or seeded users.
+begin;
+set local role authenticated;
+do $tf$
+begin
+ if exists (
+  select 1 from public.booking_job_site_address(
+   '00000000-0000-0000-0000-000000000000'::uuid
+  )
+ ) then
+  raise exception 'Missing auth identity exposed booked job-site address';
+ end if;
+end
+$tf$;
+rollback;
