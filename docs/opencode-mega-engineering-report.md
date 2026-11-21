@@ -88,6 +88,53 @@ Initial lint baseline before fixes: 15 messages (12 errors, 3 warnings) across 1
 - **Milestone 3 — `agent/opencode-mega-migrations` (PR #38):** disposable PostgreSQL 16 harness proves all three `0036_*` PR migrations are mutually compatible (52/52 SQL steps in both orders) and recommends unique renumbering before versioned deploy.
 - **Milestone 4 — release-readiness assessment:** PASS / PARTIAL / BLOCKED / FAIL evidence, owner-only actions, and the final recommendation. Kept in the running report so the evidence survives independently of GitHub notifications.
 
+## Milestone 4 — release-readiness assessment
+
+**Overall status: NO-GO for production merge or deployment.** The individual
+slices have strong local evidence, but the integrated product is not ready:
+migration versions collide, one browser-test collection defect must be present
+in the merged result, real staging acceptance has not been performed, and
+Vercel preview deployment is rate-limited. This is a review/recommendation, not
+an authorisation to merge or deploy.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Tooling and reproducible install | **PASS** | PR #35 @ `0685121`: `npm ci` PASS, `npm run lint` PASS 0/0, `npx tsc --noEmit` PASS, `npm run build` PASS; lockfile committed and CI uses `npm ci` + explicit lint gate. |
+| Browser suite at the base integration commit | **FAIL → FIXED in PR #37** | `995f9d0` aborts Playwright collection (describe-scoped worker options in `professional-quotes-anonymous-boundary.spec.ts`). PR #37 @ `c4e53a7` repairs it; GitHub Actions `build` job reports **127 passed / 0 failed**. The same one-file fix is now also in PRs #35 and #38. |
+| Customer journey, mobile, a11y, privacy and reliability tests | **PASS** | PR #37: 26 new deterministic Playwright checks plus the existing suite; 126 passed / 1 locally environment-dependent failure / 4 skipped locally, 127/0 in CI. |
+| Migration SQL compatibility | **PASS (local disposable DB)** | PR #38 @ `467439f`: 52/52 `psql -v ON_ERROR_STOP=1` steps pass in both unique-version and original glob order on PostgreSQL 16, including all 14 DB contracts. |
+| Migration version uniqueness / versioned deploy | **BLOCKED** | Three PRs add `0036_*`; two `0035_*` already exist. Shell-glob CI tolerates it, but Supabase CLI-style versioned deployment was not tested and typically rejects duplicates. Requires owner-approved renumbering. |
+| Database invariants (five-slot, waitlist, RLS, consent, release gates) | **PASS locally / PARTIAL operationally** | DB contracts pass in GitHub Actions `database` jobs for PRs #35/#37/#38 and locally in PR #38. Live approvals, real territories and human evidence review remain owner-only. |
+| SECURITY DEFINER privilege matrix | **PARTIAL** | Anonymous allowlist and trigger ACL pinned; complete authenticated EXECUTE matrix not pinned (audit risk 4). |
+| Auth fence and `next=` handling | **PARTIAL** | `safeAuthReturnPath` hardened in PR #37 and tested; middleware still not fail-closed when env vars are missing, and `coverage` root is inconsistent (audit risk 5). |
+| Privacy of addresses and PII in URLs | **PARTIAL** | Private job-site RLS, consent disclosure and no-address-in-URL tests pass; sessionStorage handoff copy is inaccurate (audit risk 6). |
+| Performance | **PARTIAL** | PR #28 adds 14 targeted indexes and an EXPLAIN contract; staging Performance Advisor and production-scale load tests not performed. |
+| Authenticated staging acceptance (real consented customer/professional) | **BLOCKED** | Opt-in specs skip without `TRUSTFIVE_STAGING_ACCEPTANCE=1` and a private storage-state file. No live Supabase project, real identity or approval was used in this challenge. |
+| Vercel preview deployment | **BLOCKED (environment)** | `Vercel: failure` on PRs #35/#37/#38 with `Deployment rate limited — retry in 24 hours.` Not a source-code failure; retry after the window or with owner approval. |
+| Supabase preview branches | **BLOCKED (configuration)** | GitHub check `Supabase Preview: skipped` — branch previews disabled / branch not associated. Owner action in Supabase integrations. |
+| Live payments, production data, production merge | **BLOCKED by design** | Stripe is test-mode pinned; no live payment, production migration, approval or deployment was performed or proposed. |
+
+### Go/no-go criteria before any production merge
+
+1. Renumber PR #28/#31/#32 migrations to unique sequential versions and re-run
+   database CI at each new head, then merge sequentially with DB CI after each
+   merge.
+2. Ensure the merged tree retains the Playwright file-scope fix from PR #37 and
+   that the `build` CI job reports a passing browser suite on the exact
+   integrated SHA.
+3. Pin the complete authenticated SECURITY DEFINER execute matrix and make the
+   missing-config auth path fail closed.
+4. Correct the address-handoff privacy copy and add an always-on anonymous
+   protected-route redirect assertion to CI.
+5. Complete owner-controlled authenticated staging acceptance: sign-in,
+   protected redirects, job → quote → booking → completion → review, private
+   address consent, logout/session boundaries, with real consented test users
+   only.
+6. Retry Vercel preview after the rate-limit window; confirm Supabase preview
+   policy; obtain explicit owner sign-off for country release gates before any
+   consideration of live deployment.
+
 ### Next milestone
 
-Final release-readiness assessment on the exact integrated commit, after the owner renumbers and sequentially merges the migration PRs and performs authorised staging acceptance. No production merge is proposed by this challenge.
+Final re-verification on the exact integrated commit once the owner completes the
+criteria above. No production merge is proposed by this challenge.
