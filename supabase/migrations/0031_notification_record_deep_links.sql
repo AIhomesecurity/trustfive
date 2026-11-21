@@ -10,8 +10,8 @@ alter table public.account_notifications
 alter table public.account_notifications
  add constraint account_notifications_target_path_check check (
   target_path in ('/jobs','/bookings','/messages','/professional/apply')
-  or target_path ~ '^/messages\\?quote=[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$'
-  or target_path ~ '^/bookings\\?booking=[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$'
+  or target_path ~ '^/messages[?]quote=[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$'
+  or target_path ~ '^/bookings[?]booking=[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$'
  );
 
 create or replace function public.emit_message_notification()
