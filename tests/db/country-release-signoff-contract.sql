@@ -37,6 +37,27 @@ begin
 end $tf$;
 rollback;
 
+-- A client-controlled JWT payload claiming administrator status must never
+-- replace the server-side admin membership check. No approval is persisted.
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000010',true);
+select set_config('request.jwt.claims',
+ '{"sub":"00000000-0000-0000-0000-000000000010","role":"authenticated","app_metadata":{"role":"admin","is_admin":true},"user_metadata":{"role":"admin","is_admin":true}}',true);
+do $forged_admin$
+begin
+ begin
+  perform public.trustfive_admin_country_release_gate('GB');
+  raise exception 'Forged JWT administrator claim inspected release gate';
+ exception when insufficient_privilege then null; end;
+ begin
+  perform public.record_country_release_signoff('GB','payments',true,
+   'CI FORGED CLAIM ONLY: not real release evidence','CI forged reviewer');
+  raise exception 'Forged JWT administrator claim recorded release signoff';
+ exception when insufficient_privilege then null; end;
+end $forged_admin$;
+rollback;
+
 begin;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',true);
