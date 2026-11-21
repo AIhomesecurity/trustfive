@@ -220,3 +220,18 @@ begin
  end if;
 end
 $tf$;
+
+-- Negative table-ACL regression: client roles must not be able to truncate
+-- private customer coordinates or create foreign-key references to them.
+-- PostgreSQL TRUNCATE bypasses row-level security; REFERENCES could allow
+-- schema-level relationships to private address records. Catalog only.
+do $tf$
+begin
+ if has_table_privilege('anon','public.job_site_locations','TRUNCATE')
+    or has_table_privilege('authenticated','public.job_site_locations','TRUNCATE')
+    or has_table_privilege('anon','public.job_site_locations','REFERENCES')
+    or has_table_privilege('authenticated','public.job_site_locations','REFERENCES') then
+  raise exception 'Client role has unsafe TRUNCATE or REFERENCES grant on private job-site locations';
+ end if;
+end
+$tf$;
