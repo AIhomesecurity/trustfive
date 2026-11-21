@@ -4,6 +4,15 @@ import { expect, test } from '@playwright/test';
 // No fixture providers or approval changes are needed for this test.
 test('Unknown service query is displayed as text, not executable markup', async ({ page }) => {
   const injected = '<img src=x onerror=alert(1)>';
+  // The CI preview uses a placeholder Supabase key and has no dependable
+  // live catalogue. Stub only public taxonomy reads so this test verifies
+  // actual markup escaping, not whether external network access happened.
+  await page.route('**/rest/v1/trades?*', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: '[]'
+  }));
+  await page.route('**/rest/v1/service_areas?*', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: '[]'
+  }));
   let dialogs = 0;
   page.on('dialog', dialog => { dialogs++; void dialog.dismiss(); });
   await page.goto('/services?q=' + encodeURIComponent(injected));
