@@ -44,6 +44,7 @@ export default function DirectoryEmptyState({context,onReset,jobHref}:{
   <div className="directory-empty-actions">
    <button type="button" className="btn secondary" onClick={onReset}>{copy.action}</button>
    <Link className="btn" href={jobHref}>Post your job</Link>
+   <Link className="btn secondary" href="/coverage">Register interest in your UK area</Link>
   </div>
   <p className="muted-note">Are you a professional? <Link href="/professional/apply">Apply to join the verified network →</Link></p>
  </div>;
