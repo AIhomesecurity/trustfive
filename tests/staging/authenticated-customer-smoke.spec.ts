@@ -19,7 +19,7 @@ test('Authorised customer can sign in and reach personal bookings and messages',
  await expect(page.getByRole('heading',{name:'TrustFive Messages'})).toBeVisible();
  // This is proof of an authenticated route, not permission to another
  // customer's messages, and not completion of quote/booking acceptance.
- await expect(page.getByText('Only quote participants have access',{exact:false})).toBeVisible();
+ await expect(page.getByText('A link to a conversation never grants access to another person',{exact:false})).toBeVisible();
 });
 
 test('Authorised professional can access applicant dashboard without being auto-approved',async({page})=>{
