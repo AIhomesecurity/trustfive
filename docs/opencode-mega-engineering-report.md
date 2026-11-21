@@ -69,6 +69,7 @@ country release gates (`0033`-`0035`) and Stripe test-mode pinning
 - Added `package-lock.json` and switched CI from `npm install` to `npm ci --no-audit --no-fund`.
 - Added an explicit `Lint source and tests` step to `.github/workflows/ci.yml` before type-checking and build.
 - Ignored generated `next-env.d.ts` and lint scratch output.
+- Cherry-picked the single-file Playwright collection fix from PR #37 (`tests/e2e/professional-quotes-anonymous-boundary.spec.ts`): worker-scoped `trace`/`screenshot`/`video` options must be at file scope. The base integration tip aborted the entire browser suite at collection, so its CI had been running zero tests. PR #37's CI at `c4e53a7` then reported 127 passed / 0 failed.
 
 **Verification on this commit.**
 
