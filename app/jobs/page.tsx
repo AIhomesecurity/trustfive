@@ -5,6 +5,7 @@ import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
 import {jobAddressLabel} from '../../lib/job-address';
 import {parseJobBudgetPence} from '../../lib/job-budget';
+import {meaningfulJobTextLength} from '../../lib/job-text';
 import TradeQuickPick from '../../components/trade-quick-pick';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
@@ -63,8 +64,8 @@ export default function Jobs(){
  },[site,areas,territoryRetry]);
  async function submit(e:FormEvent){e.preventDefault();if(!userId||busy)return;setBusy(true);setMessage('');
   try{
-   if(title.replace(/\s/g,'').length<5)throw Error('Enter a job title with at least 5 meaningful characters');
-   if(description.replace(/\s/g,'').length<15)throw Error('Describe the work in at least 15 meaningful characters');
+   if(meaningfulJobTextLength(title)<5)throw Error('Enter a job title with at least 5 meaningful characters');
+   if(meaningfulJobTextLength(description)<15)throw Error('Describe the work in at least 15 meaningful characters');
    if(!site)throw Error('Select your job-site address from the suggestions first');
    const privateAddress=jobAddressLabel(site,manualProperty);
    if(territoryChecking)throw Error('Wait for the territory check to finish');
