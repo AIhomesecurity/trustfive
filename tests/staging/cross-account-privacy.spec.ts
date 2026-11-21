@@ -64,9 +64,8 @@ test('Authorised staging user cannot open another account’s real booking or it
   hasText:/That booking is not accessible to this account/
  })).toBeVisible();
  await expect(page.locator('#booking-'+otherBooking)).toHaveCount(0);
- // Sensitive addresses are never asserted by copying actual property strings
- // into a test, screenshot or CI log. A denied booking must not be in the DOM.
- await expect(page.locator('input[type="checkbox"]').filter({
-  has:page.locator('#booking-'+otherBooking)
- })).toHaveCount(0);
+ // A denied booking must not render, regardless of whether a private
+ // customer address would otherwise have been shared with its participants.
+ // Never inspect or copy the other participant's actual address text.
+ await expect(page.locator('[id="booking-'+otherBooking+'"]')).toHaveCount(0);
 });
