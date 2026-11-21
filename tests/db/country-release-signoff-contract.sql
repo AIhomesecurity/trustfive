@@ -95,3 +95,38 @@ end $history$;
 rollback;
 
 select 'Country release attestations remain private, audited and fail closed' as result;
+
+-- History trigger and its immutable evidence table are server-owned. A forged
+-- client session must not execute the trigger directly or modify audit history.
+-- Catalog-only negative regression: no human approval records are read.
+do $history_acl$
+declare v_trigger oid; v_proc oid;
+begin
+ select t.oid,t.tgfoid into v_trigger,v_proc
+ from pg_trigger t
+ where t.tgrelid='public.country_release_signoffs'::regclass
+   and t.tgname='audit_country_release_signoff_change'
+   and not t.tgisinternal;
+ if v_trigger is null
+    or v_proc is distinct from to_regprocedure('public.log_country_release_signoff_change()')::oid then
+  raise exception 'Country release history trigger missing or redirected';
+ end if;
+ if not (select p.prosecdef from pg_proc p where p.oid=v_proc)
+    or not exists (
+      select 1 from pg_proc p, unnest(coalesce(p.proconfig,array[]::text[])) c
+      where p.oid=v_proc and c in ('search_path=','search_path=""')
+    ) then
+  raise exception 'Country release history trigger lost fixed SECURITY DEFINER path';
+ end if;
+ if has_function_privilege('anon',v_proc,'EXECUTE')
+    or has_function_privilege('authenticated',v_proc,'EXECUTE') then
+  raise exception 'Client role can execute release history trigger directly';
+ end if;
+ if exists (
+   select 1 from (values ('anon'),('authenticated')) roles(role_name),
+     (values ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES')) perms(priv)
+   where has_table_privilege(roles.role_name,'public.country_release_signoff_events',perms.priv)
+ ) then
+  raise exception 'Client role gained release history table permissions';
+ end if;
+end $history_acl$;
