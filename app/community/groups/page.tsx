@@ -78,20 +78,20 @@ export default function CommunityGroups(){
   <div className="page-heading"><span className="eyebrow">Find your people</span><h1>Neighbourhood groups</h1>
   <p className="subtle">Create or join local interest groups and share updates with members.</p></div>
   {notice&&<p className="notice" role="status">{notice}</p>}
-  {!userId?<Link className="btn" href="/account">Sign in</Link>:
+  {loading?<p role="status">Loading community groups…</p>:loadError&&!userId?<div className="card" role="alert"><p>We could not check your account or load neighbourhoods. Please try again.</p><button type="button" className="btn secondary" onClick={()=>window.location.reload()}>Retry loading groups</button></div>:!userId?<Link className="btn" href="/account">Sign in</Link>:
   <div className="two-col">
    <section><div className="card"><h2>Start a group</h2>
+    {areas.length===0&&<p role="status" className="muted-note">No neighbourhoods are available to select yet. Creating a group is unavailable until an area is listed.</p>}
     <form className="form" onSubmit={create}>
      <label>Neighbourhood<select required value={area} onChange={e=>setArea(e.target.value)}>
       <option value="">Choose area</option>{areas.map(a=><option value={a.id} key={a.id}>{a.area_name}, {a.city}</option>)}
      </select></label>
      <label>Group name<input required minLength={4} maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder="Community gardeners"/></label>
      <label>What is this group about?<textarea required minLength={15} maxLength={1200} value={description} onChange={e=>setDescription(e.target.value)}/></label>
-     <button className="btn" disabled={busy} type="submit">Create community group</button>
+     <button className="btn" disabled={busy||areas.length===0} type="submit">Create community group</button>
     </form><p className="muted-note">Groups are publicly discoverable to signed-in members in this pilot. Address verification and private groups are not yet supported.</p>
    </div></section>
    <section><h2>Explore groups</h2><div className="list">
-    {loading&&<div className="card" role="status">Loading community groups…</div>}
     {!loading&&loadError&&<div className="card" role="alert"><p>Community groups could not be loaded. We cannot confirm whether any groups are available.</p><button type="button" className="btn secondary" disabled={busy} onClick={retryGroups}>Try loading groups again</button></div>}
     {!loading&&!loadError&&groups.length===0&&<div className="card">No groups yet. Start the first one!</div>}
     {!loadError&&groups.map(g=>{const member=memberships.some(m=>m.group_id===g.id);return <article className="card" key={g.id}>
