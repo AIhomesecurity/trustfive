@@ -17,6 +17,11 @@ begin
  returning id into v_trade;
  perform set_config('trustfive.collab_area',v_area::text,true);
  perform set_config('trustfive.collab_trade',v_trade::text,true);
+ if has_table_privilege('authenticated','public.social_trade_interests','UPDATE')
+   or has_table_privilege('authenticated','public.social_trade_requests','DELETE')
+   or has_table_privilege('authenticated','public.social_trade_interests','TRUNCATE') then
+   raise exception 'Excessive authenticated privileges on protected collaboration tables';
+ end if;
  if has_column_privilege('authenticated','public.social_trade_requests','creator_id','UPDATE')
   or has_column_privilege('authenticated','public.social_trade_requests','trade_id','UPDATE')
   or has_column_privilege('authenticated','public.social_trade_requests','area_id','UPDATE')
