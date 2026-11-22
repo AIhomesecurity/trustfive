@@ -1,6 +1,7 @@
 'use client';
-import {FormEvent,useEffect,useRef,useState} from 'react';
+import {FormEvent,Suspense,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
+import {useSearchParams} from 'next/navigation';
 import {supabaseBrowser} from '../../../lib/supabase';
 import {findSocialArea,readablePostDate,type SocialArea,type SocialPostSummary} from '../../../lib/social-discovery';
 import {socialPageBounds,socialPageRows,socialSearchPattern,type SocialFeedOrder} from '../../../lib/social-feed-paging';
@@ -13,18 +14,16 @@ import SocialSavedPosts from '../../../components/social-saved-posts';
 import SocialEventsDiscovery from '../../../components/social-events-discovery';
 import {socialNeedsAuthRecheck} from '../../../lib/social-auth-identity';
 
-type SocialTab='neighbourhood'|'trade'|'advice'|'events'|'saved';
-const TABS:{id:SocialTab;label:string}[]=[
- {id:'neighbourhood',label:'Neighbourhood'},
- {id:'trade',label:'Trade Network'},
- {id:'advice',label:'Questions & Advice'},
- {id:'events',label:'Events'},
- {id:'saved',label:'Saved'}
-];
+import {SOCIAL_SECTIONS,socialSectionFromQuery,socialSectionHref} from '../../../lib/social-sections';
 
-/** Early social hub: honest, signed-in data only; no fabricated social graph. */
 export default function TrustFiveSocial(){
- const [tab,setTab]=useState<SocialTab>('neighbourhood');
+ return <Suspense fallback={<main className="container"><h1>TrustFive Social</h1><p role="status">Loading Social…</p></main>}>
+  <SocialHub/>
+ </Suspense>;
+}
+
+function SocialHub(){
+ const tab=socialSectionFromQuery(useSearchParams().getAll('tab'));
  const [areas,setAreas]=useState<SocialArea[]>([]);
  const [userId,setUserId]=useState('');
  const currentUserIdRef=useRef('');
@@ -143,7 +142,9 @@ export default function TrustFiveSocial(){
    </div>
   </div>
   <nav aria-label="Social network sections" className="social-hub-tabs">
-   {TABS.map(item=><button key={item.id} type="button" className={item.id===tab?'social-hub-tab active':'social-hub-tab'} aria-current={item.id===tab?'page':undefined} onClick={()=>setTab(item.id)}>{item.label}</button>)}
+   {SOCIAL_SECTIONS.map(item=><Link key={item.id} href={socialSectionHref(item.id)} scroll={false}
+    className={item.id===tab?'social-hub-tab active':'social-hub-tab'}
+    aria-current={item.id===tab?'page':undefined}>{item.label}</Link>)}
   </nav>
   {tab==='neighbourhood'&&<section aria-labelledby="social-neighbourhood-title">
    <h2 id="social-neighbourhood-title">Neighbourhood conversations</h2>
