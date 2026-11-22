@@ -18,6 +18,8 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const [changingId,setChangingId]=useState(''),[revision,setRevision]=useState(0);
  const actionInFlight=useRef(false);
  const viewKey=socialEventViewKey(userId,areaId,revision);
+ const currentViewRef=useRef(viewKey);
+ currentViewRef.current=viewKey;
  const isLoadingView=!socialEventViewReady(loadedViewKey,viewKey,loading);
 
  useEffect(()=>{
@@ -61,11 +63,15 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  },[userId,areaId,revision]);
 
  async function respond(eventId:string,status:'going'|'interested'|'none'){
-  if(!userId||actionInFlight.current)return;
+  if(!userId||actionInFlight.current||isLoadingView)return;
+  const requestViewKey=viewKey;
   actionInFlight.current=true;setChangingId(eventId);setNotice('');
   try{
    const result=await supabaseBrowser().rpc('set_event_response',{p_event:eventId,p_status:status});
    if(result.error)throw result.error;
+   // An account or area switch may complete while the RPC is in flight.
+   // Never copy the previous viewer's response into a newly loaded view.
+   if(currentViewRef.current!==requestViewKey)return;
    setResponses(old=>status==='none'
     ?old.filter(item=>item.event_id!==eventId)
     :[...old.filter(item=>item.event_id!==eventId),{event_id:eventId,status}]);
