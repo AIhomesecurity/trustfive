@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
 
 /** Browse genuine upcoming events from existing authenticated community tables.
  * The dedicated /community/events page remains the only event publishing UI.
@@ -17,13 +17,13 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const [loadedViewKey,setLoadedViewKey]=useState('');
  const [changingId,setChangingId]=useState(''),[revision,setRevision]=useState(0);
  const actionInFlight=useRef(false);
- const viewKey=JSON.stringify([userId,areaId,revision]);
- const isLoadingView=loading||loadedViewKey!==viewKey;
+ const viewKey=socialEventViewKey(userId,areaId,revision);
+ const isLoadingView=!socialEventViewReady(loadedViewKey,viewKey,loading);
 
  useEffect(()=>{
   if(!userId){setEvents([]);setResponses([]);setNotice('');setLoading(false);return;}
   let active=true;
-  const requestKey=JSON.stringify([userId,areaId,revision]);
+  const requestKey=socialEventViewKey(userId,areaId,revision);
   (async()=>{
    setLoading(true);setError('');setNotice('');
    try{
