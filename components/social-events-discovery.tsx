@@ -116,6 +116,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
      onClick={()=>setRevision(v=>v+1)}>Refresh events</button>
     <Link href="/community/events" className="btn secondary">Organise an event</Link>
    </form>
+   {search&&<p className="muted-note" role="status">Searching event titles for “{search}”. Results include up to 60 matching upcoming events. Clear the search to browse others.</p>}
    {notice&&<p className="notice" role="status">{notice}</p>}
    {isLoadingView?<div className="card" role="status">Loading upcoming events…</div>
    :error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>setRevision(v=>v+1)}>Retry events</button></div>
