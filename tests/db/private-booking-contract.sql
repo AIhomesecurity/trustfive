@@ -558,3 +558,20 @@ begin
   end if;
  end loop;
 end $private_site_delete_acl$;
+
+
+-- TRUNCATE bypasses row-level DELETE policies entirely, and REFERENCES can
+-- let an API client attach foreign-key constraints to a private location table.
+-- Neither privilege belongs to public API roles. Catalog-only regression.
+do $private_site_ddl_acl$
+declare v_role text; v_privilege text;
+begin
+ foreach v_role in array array['anon','authenticated'] loop
+  foreach v_privilege in array array['TRUNCATE','REFERENCES'] loop
+   if has_table_privilege(v_role,'public.job_site_locations',v_privilege) then
+    raise exception 'Client role % has % on private job-site locations',
+      v_role,v_privilege;
+   end if;
+  end loop;
+ end loop;
+end $private_site_ddl_acl$;
