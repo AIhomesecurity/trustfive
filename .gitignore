@@ -8,3 +8,6 @@ playwright-report
 playwright/.cache
 test-results
 next-env.d.ts
+/dist/
+.vinext/
+.cloudflare/
