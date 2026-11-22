@@ -127,7 +127,7 @@ export default function CommunityGroups(){
     {!loading&&!loadError&&groups.length===0&&<div className="card">No groups yet. Start the first one!</div>}
     {!loading&&!loadError&&groups.length>0&&filteredGroups.length===0&&<div className="card" role="status">No listed groups match your search. <button type="button" className="btn secondary" onClick={()=>{setGroupSearch('');groupSearchRef.current?.focus();}}>Clear group search</button></div>}
     {!loadError&&filteredGroups.map(g=>{const member=memberships.some(m=>m.group_id===g.id);return <article className="card" key={g.id}>
-     <span className="pill">{areas.find(a=>a.id===g.area_id)?.area_name||'Neighbourhood'}</span>
+     <span className="pill">{(()=>{const location=areas.find(a=>a.id===g.area_id);return location?[location.area_name,location.city].filter(Boolean).join(', '):'Area unavailable';})()}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
       {member?<button type="button" className="btn secondary" aria-expanded={selected===g.id} aria-controls="selected-group-posts" aria-label={communityGroupActionLabel('open',g.name)} disabled={communityGroupActionDisabled(busy,loading)} onClick={e=>choose(g.id,e.currentTarget)}>Open group</button>:
