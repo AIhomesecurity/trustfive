@@ -420,3 +420,29 @@ begin
   end loop;
  end loop;
 end $release_rpc_owner_membership$;
+
+
+-- Role membership is equivalent to ownership for release evidence integrity:
+-- an API client able to SET ROLE to a relation owner can disable audit
+-- triggers, rewrite human signoffs or alter the private history ACL.
+-- Check only catalog metadata; never read or approve real signoff evidence.
+do $release_relation_owner_membership$
+declare v_relation record; v_role text;
+begin
+ for v_relation in
+  select c.relname, c.relowner
+  from pg_class c
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public'
+    and c.relname in ('country_release_signoffs','country_release_signoff_events')
+    and c.relkind in ('r','p')
+ loop
+  foreach v_role in array array['anon','authenticated'] loop
+   if pg_has_role(v_role,v_relation.relowner,'MEMBER')
+      or pg_has_role(v_role,v_relation.relowner,'USAGE') then
+    raise exception 'API role % can assume owner of private release relation %',
+     v_role,v_relation.relname;
+   end if;
+  end loop;
+ end loop;
+end $release_relation_owner_membership$;
