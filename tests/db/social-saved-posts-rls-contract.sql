@@ -9,6 +9,8 @@ begin
   ('00000000-0000-0000-00f5-000000000003','{"full_name":"Synthetic Outsider"}');
  insert into public.service_areas(country_code,city,area_name)
  values ('GB','Saved Tests Town','Saved Tests Area') returning id into v_area;
+ -- Community post write quota checks auth.uid even when fixtures use owner privileges.
+ perform set_config('request.jwt.claim.sub','00000000-0000-0000-00f5-000000000001',true);
  insert into public.community_posts(id,author_id,area_id,body,visibility) values
   ('00000000-0000-0000-00f6-000000000001',
    '00000000-0000-0000-00f5-000000000001',v_area,
