@@ -6,16 +6,23 @@ const groups=[
  {id:'b',name:'Neighbourhood Watch',description:'CCTV and alarm discussions',area_id:'south'},
  {id:'c',name:'Weekend Walkers',description:'Meet for local walks',area_id:'north'}
 ];
-const areas=[{id:'north',area_name:'North Quarter'},{id:'south',area_name:'South Quarter'}];
+const areas=[{id:'north',area_name:'North Quarter',city:'Manchester'},{id:'south',area_name:'South Quarter',city:'Birmingham'}];
 
 test('searches the loaded authorised group list by name, description and neighbourhood',()=>{
  expect(filterLoadedCommunityGroups(groups,areas,'garden').map(g=>g.id)).toEqual(['a']);
  expect(filterLoadedCommunityGroups(groups,areas,'CCTV').map(g=>g.id)).toEqual(['b']);
  expect(filterLoadedCommunityGroups(groups,areas,'north quarter').map(g=>g.id)).toEqual(['a','c']);
+ expect(filterLoadedCommunityGroups(groups,areas,'Manchester').map(g=>g.id)).toEqual(['a','c']);
+ expect(filterLoadedCommunityGroups(groups,areas,'birmingham').map(g=>g.id)).toEqual(['b']);
  expect(filterLoadedCommunityGroups(groups,areas,'  ALARM  ').map(g=>g.id)).toEqual(['b']);
 });
 test('preserves source order and never invents or mutates groups',()=>{
  expect(filterLoadedCommunityGroups(groups,areas,'')).toEqual(groups);
  expect(filterLoadedCommunityGroups(groups,areas,'missing')).toEqual([]);
  expect(groups).toHaveLength(3);
+});
+
+test('search tolerates area records without a city and does not match unrelated cities',()=>{
+ expect(filterLoadedCommunityGroups(groups,[{id:'north',area_name:'North Quarter'}],'manchester')).toEqual([]);
+ expect(filterLoadedCommunityGroups(groups,[{id:'north',area_name:'North Quarter'}],'north').map(g=>g.id)).toEqual(['a','c']);
 });
