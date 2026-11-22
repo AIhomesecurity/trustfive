@@ -70,6 +70,15 @@ export default function CommunityGroups(){
   try{await loadPosts(id)}catch{if(request===selectedRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
   finally{if(request===selectedRequest.current)setPostsLoading(false);}
  }
+ async function retryPosts(){
+  if(!selected||busy||postsLoading)return;
+  const id=selected;
+  const request=selectedRequest.current+1;
+  setPostsError(false);setPostsLoading(true);setNotice('');
+  try{await loadPosts(id)}
+  catch{if(request===selectedRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
+  finally{if(request===selectedRequest.current)setPostsLoading(false);}
+ }
  async function publish(e:FormEvent){e.preventDefault();if(!selected||busy||postsLoading||postsError||postBody.trim().length<8||!memberships.some(m=>m.group_id===selected))return;setBusy(true);
   try{
    const {error}=await supabaseBrowser().from('community_group_posts')
@@ -120,7 +129,7 @@ export default function CommunityGroups(){
      <label>Share an update<textarea required minLength={8} maxLength={3000} value={postBody} onChange={e=>setPostBody(e.target.value)}/></label>
      <button type="submit" disabled={busy||postsLoading||postsError||postBody.trim().length<8} className="btn">Publish to group</button>
     </form></div>
-    <div className="list" aria-busy={postsLoading}>{postsLoading?<div className="card" role="status">Loading group posts…</div>:postsError?<div className="card" role="alert"><p>Group posts could not be loaded. We cannot confirm whether this group has any posts.</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void choose(selected)}>Retry loading group posts</button></div>:posts.length===0?<div className="card">No group posts yet.</div>:null}
+    <div className="list" aria-busy={postsLoading}>{postsLoading?<div className="card" role="status">Loading group posts…</div>:postsError?<div className="card" role="alert"><p>Group posts could not be loaded. We cannot confirm whether this group has any posts.</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryPosts()}>Retry loading group posts</button></div>:posts.length===0?<div className="card">No group posts yet.</div>:null}
      {!postsLoading&&!postsError&&posts.map(p=><article className="card" key={p.id}><p style={{whiteSpace:'pre-wrap'}}>{p.body}</p>
       <p className="muted-note">{new Date(p.created_at).toLocaleString('en-GB')}</p></article>)}
     </div>
