@@ -3,13 +3,14 @@ import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,type SocialEventAttendanceFilter,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
 
 /** Browse genuine upcoming events from existing authenticated community tables.
  * The dedicated /community/events page remains the only event publishing UI.
  */
 export default function SocialEventsDiscovery({userId,areas}:{userId:string;areas:SocialArea[]}){
  const [areaId,setAreaId]=useState('');
+ const [attendanceFilter,setAttendanceFilter]=useState<SocialEventAttendanceFilter>('all');
  const [events,setEvents]=useState<SocialEventSummary[]>([]);
  const [responses,setResponses]=useState<SocialEventRsvp[]>([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -21,6 +22,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const currentViewRef=useRef(viewKey);
  currentViewRef.current=viewKey;
  const isLoadingView=!socialEventViewReady(loadedViewKey,viewKey,loading);
+ const visibleEvents=socialFilterEventsByOwnRsvp(events,responses,attendanceFilter);
 
  useEffect(()=>{
   if(!userId){setEvents([]);setResponses([]);setNotice('');setLoading(false);return;}
@@ -91,6 +93,14 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
      <option value="">All available areas</option>
      {areas.map(item=><option key={item.id} value={item.id}>{item.area_name}, {item.city}</option>)}
     </select></label>
+    <label>My response
+     <select value={attendanceFilter} onChange={e=>setAttendanceFilter(e.target.value as SocialEventAttendanceFilter)}>
+      <option value="all">All upcoming events</option>
+      <option value="saved">My plans (Going or Interested)</option>
+      <option value="going">Going</option>
+      <option value="interested">Interested</option>
+     </select>
+    </label>
     <button type="button" className="btn secondary" disabled={Boolean(changingId)}
      onClick={()=>setRevision(v=>v+1)}>Refresh events</button>
     <Link href="/community/events" className="btn secondary">Organise an event</Link>
@@ -99,10 +109,10 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
    {isLoadingView?<div className="card" role="status">Loading upcoming events…</div>
    :error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>setRevision(v=>v+1)}>Retry events</button></div>
    :<>
-    <p className="muted-note" role="status">{events.length} upcoming {events.length===1?'event':'events'} in this selection (up to 60 shown).</p>
+    <p className="muted-note" role="status">{visibleEvents.length} matching upcoming {visibleEvents.length===1?'event':'events'} from {events.length} loaded (up to 60 total). Response filters only show your own RSVP data.</p>
     <div className="list">
-     {!events.length&&<p className="card">No upcoming events match this neighbourhood yet. You can organise one on the events page.</p>}
-     {events.map(event=>{
+     {!visibleEvents.length&&<p className="card">{events.length===0?'No upcoming events match this neighbourhood yet. You can organise one on the events page.':'No upcoming events match your own RSVP filter. Choose All upcoming events to see the full list.'}</p>}
+     {visibleEvents.map(event=>{
       const status=socialEventRsvpStatus(responses.find(item=>item.event_id===event.id)?.status);
       return <article className="card" key={event.id}>
        <span className="pill">{areas.find(area=>area.id===event.area_id)?.area_name||'Community area'}</span>
