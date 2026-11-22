@@ -132,6 +132,26 @@ begin
 end
 $member$;
 reset role;
+-- A signed-in member of a different group cannot submit a report here.
+set role authenticated;
+do $cross_group_report$
+declare outsider uuid := '00000000-0000-0000-00e7-000000000003';
+begin
+ perform set_config('request.jwt.claim.sub',outsider::text,true);
+ if not exists(select 1 from public.community_group_memberships
+  where user_id=outsider and group_id='00000000-0000-0000-00e8-000000000002') then
+  raise exception 'Expected an unrelated membership for the report fixture';
+ end if;
+ begin
+  insert into public.community_group_post_reports(post_id,reporter_id,category)
+   values('00000000-0000-0000-00e9-000000000001',outsider,'spam');
+  raise exception 'Membership in an unrelated group allowed a report';
+ exception when insufficient_privilege then null;
+ end;
+end
+$cross_group_report$;
+reset role;
+
 -- Verify report submission and admin-only moderation with synthetic accounts.
 insert into public.platform_admins(user_id) values ('00000000-0000-0000-00e7-000000000003');
 
