@@ -1,3 +1,4 @@
+import {safeNotificationTarget} from './notification-target';
 /** Pure customer & participant booking lifecycle helpers for /bookings.
  *
  * Carries forward commit-vs-refresh isolation and privacy-preserving address
@@ -462,4 +463,28 @@ export function resolveCustomerSiteConsentView(params: {
     return 'checking';
   }
   return 'none';
+}
+
+
+export async function resolveLinkedBooking<T extends BookingRecordLike>(
+  requested: readonly string[],
+  recent: T[],
+  userId: string,
+  lookup: (id: string) => Promise<T | null>
+): Promise<{records: T[]; selectedId: string}> {
+  const unavailable = {records: recent, selectedId: ''};
+  if (requested.length !== 1 || !userId) return unavailable;
+  const target = safeNotificationTarget('/bookings?booking=' + encodeURIComponent(requested[0]));
+  if (!target) return unavailable;
+  const id = target.split('=')[1];
+  const owns = (booking: T) => booking.id === id &&
+    (booking.customer_id === userId || booking.professional_id === userId);
+  if (recent.some(owns)) return {records: recent, selectedId: id};
+  try {
+    const booking = await lookup(id);
+    if (booking && owns(booking)) return {records: [booking, ...recent], selectedId: id};
+  } catch {
+    // An unavailable linked record should not prevent browsing recent bookings.
+  }
+  return unavailable;
 }

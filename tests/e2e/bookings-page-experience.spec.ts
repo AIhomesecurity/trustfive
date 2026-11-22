@@ -13,6 +13,7 @@ import {
   markBookingSiteNeedsRecheck,
   resolveCustomerSiteConsentView,
   resolveSelectedBookingId,
+  resolveLinkedBooking,
   summarizeBookingStatuses,
   validateBookingReviewInput,
   type BookingAppointmentLike,
@@ -432,4 +433,24 @@ test('unauthenticated /bookings and deep-linked booking routes enforce server au
   }
 
   expect(pageErrors).toEqual([]);
+});
+
+test('older booking links resolve through one participant-scoped lookup', async () => {
+  const older = FIXTURE_BOOKINGS[1];
+  const recent = FIXTURE_BOOKINGS.slice(0, 1);
+  const lookup = async (id: string) => {
+    expect(id).toBe(older.id);
+    return older;
+  };
+  expect(await resolveLinkedBooking([older.id.toUpperCase()], recent, CUSTOMER_ID, lookup))
+    .toEqual({records: [older, ...recent], selectedId: older.id});
+  expect(await resolveLinkedBooking([older.id], recent, 'unrelated-account', lookup))
+    .toEqual({records: recent, selectedId: ''});
+  expect(await resolveLinkedBooking([older.id], recent, CUSTOMER_ID, async () => {throw Error('offline');}))
+    .toEqual({records: recent, selectedId: ''});
+  for (const hint of [['bad-id'], [older.id, older.id], [recent[0].id]]) {
+    const unexpectedLookup = async () => {throw Error('unexpected lookup');};
+    expect(await resolveLinkedBooking(hint, recent, CUSTOMER_ID, unexpectedLookup))
+      .toEqual({records: recent, selectedId: hint[0] === recent[0].id ? recent[0].id : ''});
+  }
 });
