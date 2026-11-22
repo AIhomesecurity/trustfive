@@ -32,7 +32,7 @@ begin
   raise exception 'Group creator did not receive owner membership';
  end if;
  insert into public.community_group_posts(id,group_id,author_id,body,visibility)
- values(post_id,group_id,founder,
+ values(post_id,v_group_id,founder,
   'Founding group discussion visible only to genuine members.','published');
  if not exists(select 1 from public.community_group_posts where id=post_id) then
   raise exception 'Group founder cannot read own published post';
@@ -104,7 +104,7 @@ begin
   raise exception 'New member cannot read published group discussion';
  end if;
  insert into public.community_group_posts(id,group_id,author_id,body)
- values(post_id,group_id,member_id,'This is a synthetic response by a real group member.');
+ values(post_id,v_group_id,member_id,'This is a synthetic response by a real group member.');
  if not exists(select 1 from public.community_group_posts where id=post_id) then
   raise exception 'Group member cannot read their published response';
  end if;
