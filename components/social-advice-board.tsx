@@ -1,5 +1,6 @@
 'use client';
 import {FormEvent,useEffect,useRef,useState} from 'react';
+import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {readablePostDate,type SocialArea,type SocialPostSummary} from '../lib/social-discovery';
 import {socialPageBounds,socialPageRows} from '../lib/social-feed-paging';
@@ -103,6 +104,7 @@ export default function SocialAdviceBoard({userId,areas}:{userId:string;areas:So
        <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',marginTop:10}}>{item.body}</p>
        <p className="muted-note"><time dateTime={item.created_at}>{readablePostDate(item.created_at)}</time></p>
        <SocialDiscussion postId={item.id} userId={userId}/>
+       <Link className="btn secondary" href={`/community/posts/${item.id}`}>Open question discussion</Link>
       </article>)}
      </div>
      <nav aria-label="Question pages" className="social-hub-shortcuts">
