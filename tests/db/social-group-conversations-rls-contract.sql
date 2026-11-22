@@ -173,6 +173,10 @@ begin
   raise exception 'Non-admin could invoke moderation';
  exception when insufficient_privilege then null;
  end;
+ perform set_config('request.jwt.claim.sub','00000000-0000-0000-00e7-000000000001',true);
+ insert into public.community_group_post_reports(post_id,reporter_id,category,explanation)
+  values('00000000-0000-0000-00e9-000000000002',
+   '00000000-0000-0000-00e7-000000000001','other','Synthetic report to dismiss.');
 end
 $report$;
 
@@ -198,6 +202,20 @@ begin
   raise exception 'A moderation decision could be replayed';
  exception when no_data_found then null;
  end;
+ select id into strict v_report from public.pending_group_post_reports()
+  where explanation='Synthetic report to dismiss.';
+ perform public.moderate_group_post_report(v_report,'dismiss');
+ if exists(select 1 from public.pending_group_post_reports() where id=v_report)
+  or not exists(select 1 from public.network_audit_events
+   where action='community_group_post_report_resolved' and actor_id=v_admin
+    and detail->>'report_id'=v_report::text and detail->>'decision'='dismiss') then
+  raise exception 'Dismissal did not resolve the report and record a decision';
+ end if;
+ perform set_config('request.jwt.claim.sub','00000000-0000-0000-00e7-000000000001',true);
+ if not exists(select 1 from public.community_group_posts
+  where id='00000000-0000-0000-00e9-000000000002' and visibility='published') then
+  raise exception 'Dismissal unexpectedly hid the reported post';
+ end if;
  perform set_config('request.jwt.claim.sub','00000000-0000-0000-00e7-000000000002',true);
  if exists(select 1 from public.community_group_posts where id='00000000-0000-0000-00e9-000000000001') then
   raise exception 'Moderated post remained visible to another group member';
