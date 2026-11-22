@@ -308,3 +308,18 @@ begin
   raise exception 'Client-facing RLS policy added to private country release evidence';
  end if;
 end $release_policy_boundary$;
+
+
+-- The SECURITY DEFINER audit writer must remain owned by a server-side role.
+-- An API-role owner could replace the trigger body and forge or suppress audit
+-- evidence despite the existing EXECUTE revokes. Metadata-only negative test.
+do $history_owner_boundary$
+declare v_owner name;
+begin
+ select pg_get_userbyid(p.proowner) into v_owner
+ from pg_proc p
+ where p.oid='public.log_country_release_signoff_change()'::regprocedure;
+ if v_owner is null or v_owner in ('anon','authenticated') then
+  raise exception 'Private release audit writer is owned by an API client role';
+ end if;
+end $history_owner_boundary$;
