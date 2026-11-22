@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
 import {quoteMessagesHref,bookingScheduleHref,authorisedBookingSelection} from '../../lib/workflow-links';
-import {canConfirmCompletedBooking} from '../../lib/booking-completion-guard';
+import {canConfirmCompletedBookingFromRecords} from '../../lib/booking-completion-guard';
 type Booking={id:string;quote_id:string;job_id:string;customer_id:string;professional_id:string;status:string;created_at:string};
 type Review={booking_id:string};
 type JobSite={address_label:string;postcode:string|null;sharing_enabled:boolean};
@@ -56,8 +56,8 @@ export default function Bookings(){
  useEffect(()=>{(async()=>{try{const {data:{user},error}=await supabaseBrowser().auth.getUser();if(error)throw error;if(!user){setNotice('Sign in to manage your bookings.');return}setUserId(user.id);await refresh(user.id)}catch(e){setNotice(e instanceof Error?e.message:'Unable to load bookings')}finally{setCheckingAccount(false)}})()},[]);
  async function act(action:'mark_job_ready_for_confirmation'|'confirm_job_completed',id:string){
   if(busy||loadingBookings)return;
-  if(action==='confirm_job_completed'&&!canConfirmCompletedBooking(
-   completionConfirmationId,bookings.find(b=>b.id===id),userId
+  if(action==='confirm_job_completed'&&!canConfirmCompletedBookingFromRecords(
+   completionConfirmationId,bookings,userId
   )){
    setCompletionConfirmationId(null);
    setNotice('This booking is not ready for your completion confirmation. Refresh your bookings and try again.');
