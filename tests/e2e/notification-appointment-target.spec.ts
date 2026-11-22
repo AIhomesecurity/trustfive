@@ -17,6 +17,14 @@ test.describe('private notification appointment destinations',()=>{
    expect(safeNotificationTarget(value),value).toBeNull();
   }
  });
+ test('rejects case-confused routes and query parameter names',()=>{
+  for(const value of ['/Schedule?booking='+booking,'/SCHEDULE?booking='+booking,'/schedule?Booking='+booking,'/Messages?quote='+booking,'/bookings?BOOKING='+booking]){
+   expect(safeNotificationTarget(value),value).toBeNull();
+  }
+ });
+ test('canonicalises uppercase UUID hex without changing the route',()=>{
+  expect(safeNotificationTarget('/schedule?booking='+booking.toUpperCase())).toBe('/schedule?booking='+booking);
+ });
  test('rejects external origins, control characters and unsupported routes',()=>{
   for(const value of ['//evil.example/schedule?booking='+booking,'https://evil.example','/schedule?booking='+booking+'\\x00','/admin','/schedule']){
    expect(safeNotificationTarget(value),value).toBeNull();
