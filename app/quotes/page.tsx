@@ -1,8 +1,9 @@
 'use client';
-import {FormEvent,useEffect,useMemo,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {quoteMessagesHref,bookingHistoryHref,bookingScheduleHref} from '../../lib/workflow-links';
+import {createProfessionalMutationGate} from '../../lib/professional-mutation-gate';
 import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
 
 type Lead={job_id:string;title:string;description:string;budget_pence:number|null;trade_name:string;area_name:string;allocation_id:string;created_at:string};
@@ -11,6 +12,7 @@ type Booking={id:string;quote_id:string;status:string};
 
 const money=(pence:number)=>'£'+(pence/100).toFixed(2);
 export default function Quotes(){
+ const mutationGate=useRef(createProfessionalMutationGate());
  const [userId,setUserId]=useState('');
  const [leads,setLeads]=useState<Lead[]>([]);
  const [quotes,setQuotes]=useState<Quote[]>([]);
@@ -65,10 +67,11 @@ export default function Quotes(){
 
  async function submit(e:FormEvent){
   e.preventDefault();
-  if(!chosen||busy)return;
+  if(!chosen||busy||mutationGate.current.isBusy())return;
   if(!canPrepareProfessionalQuote(chosen,leads,quotes)){
    setChosen(null);setNotice('This opportunity is no longer available for a new quote. Refresh your leads.');return;
   }
+  await mutationGate.current.run(async()=>{
   setBusy(true);setNotice('');
   try{
    const pence=Math.round(Number(amount)*100);
@@ -83,9 +86,11 @@ export default function Quotes(){
    await refresh();setNotice('Quote submitted to the customer. No payment has been collected.');
   }catch(e){setNotice(e instanceof Error?e.message:'Quote failed');}
   finally{setBusy(false);}
+  });
  }
  async function ready(id:string){
-  if(busy)return;
+  if(busy||mutationGate.current.isBusy())return;
+  await mutationGate.current.run(async()=>{
   setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().rpc('mark_job_ready_for_confirmation',{p_booking:id});
@@ -94,6 +99,7 @@ export default function Quotes(){
    setNotice('The customer can now confirm completion in their booking. Automatic email/push notifications are not enabled yet.');
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to update booking');}
   finally{setBusy(false);}
+  });
  }
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Approved professional workspace</span>
