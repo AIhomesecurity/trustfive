@@ -496,3 +496,65 @@ begin
   raise exception 'Customer location reader must use an explicitly empty search_path';
  end if;
 end $customer_location_reader_search_path$;
+
+
+-- Consent writes are privileged because they update private job-site sharing
+-- and append an immutable audit event. Keep a fixed empty search_path so a
+-- future migration cannot resolve unqualified objects from caller schemas.
+-- Catalog-only: never access any customer booking, address or audit rows.
+do $consent_writer_search_path$
+declare v_proc oid; v_config text[]; v_definer boolean;
+begin
+ v_proc := to_regprocedure('public.set_booking_address_sharing(uuid,boolean)')::oid;
+ if v_proc is null then
+  raise exception 'Privileged booking consent writer missing';
+ end if;
+ select p.proconfig,p.prosecdef into v_config,v_definer
+ from pg_proc p where p.oid=v_proc;
+ if not coalesce(v_definer,false) then
+  raise exception 'Booking consent writer lost SECURITY DEFINER';
+ end if;
+ if not (coalesce('search_path=' = any(v_config),false)
+         or coalesce('search_path=""' = any(v_config),false)) then
+  raise exception 'Booking consent writer must use explicitly empty search_path';
+ end if;
+end $consent_writer_search_path$;
+
+
+-- Column-level grants can bypass a table-level REVOKE. Exact customer
+-- coordinates must never be exposed or mutable through client API roles,
+-- including after later migrations add new location columns.
+-- Inspect metadata only; no private location rows are selected.
+do $private_site_column_acl$
+declare v_column record; v_role text; v_privilege text;
+begin
+ for v_column in
+  select a.attname
+  from pg_attribute a
+  where a.attrelid='public.job_site_locations'::regclass
+    and a.attnum > 0 and not a.attisdropped
+ loop
+  foreach v_role in array array['anon','authenticated'] loop
+   foreach v_privilege in array array['SELECT','INSERT','UPDATE'] loop
+    if has_column_privilege(v_role,'public.job_site_locations',v_column.attname,v_privilege) then
+     raise exception 'Client role % has % on private location column %',
+      v_role,v_privilege,v_column.attname;
+    end if;
+   end loop;
+  end loop;
+ end loop;
+end $private_site_column_acl$;
+
+
+-- DELETE is checked separately from column SELECT/INSERT/UPDATE: a future
+-- table-level DELETE grant would permit removing private customer locations
+-- even if all address columns remained unreadable. Inspect ACLs only.
+do $private_site_delete_acl$
+declare v_role text;
+begin
+ foreach v_role in array array['anon','authenticated'] loop
+  if has_table_privilege(v_role,'public.job_site_locations','DELETE') then
+   raise exception 'Client role % can DELETE private job-site locations',v_role;
+  end if;
+ end loop;
+end $private_site_delete_acl$;

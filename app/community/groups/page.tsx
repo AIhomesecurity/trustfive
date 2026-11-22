@@ -7,6 +7,7 @@ import {canPublishCommunityGroupPost} from '../../../lib/community-group-publish
 import {restoreGroupListFocus} from '../../../lib/community-group-focus';
 import {communityGroupActionLabel,communityGroupActionDisabled} from '../../../lib/community-group-actions';
 import {communityGroupLocationLabel} from '../../../lib/community-group-location';
+import {communityGroupDraftError} from '../../../lib/community-group-draft';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -54,6 +55,8 @@ export default function CommunityGroups(){
  }catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setLoading(false);}})()},[]);
  async function retryGroups(){if(busy)return;setBusy(true);setNotice('');try{await load();}catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setBusy(false);}}
  async function create(e:FormEvent){e.preventDefault();if(busy||!userId)return;
+  const draftError=communityGroupDraftError(name,description);
+  if(draftError){setNotice(draftError);return;}
   setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().from('community_groups')
@@ -131,7 +134,7 @@ export default function CommunityGroups(){
      <span className="pill">{communityGroupLocationLabel(g.area_id,areas)}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
-      <Link className="btn secondary" href={`/community/groups/${g.id}`}>View group page</Link>
+      <Link className="btn secondary" href={`/community/groups/${g.id}`} aria-label={communityGroupActionLabel('view',g.name)}>View group page</Link>
       {member?<button type="button" className="btn secondary" aria-expanded={selected===g.id} aria-controls="selected-group-posts" aria-label={communityGroupActionLabel('open',g.name)} disabled={communityGroupActionDisabled(busy,loading)} onClick={e=>choose(g.id,e.currentTarget)}>Open group</button>:
        <button type="button" className="btn" disabled={communityGroupActionDisabled(busy,loading)} aria-label={communityGroupActionLabel('join',g.name)} onClick={()=>join(g.id)}>Join group</button>}
      </div>
@@ -140,7 +143,7 @@ export default function CommunityGroups(){
   </div>}
   {userId&&selected&&<section id="selected-group-posts" className="section" aria-labelledby="selected-group-heading">
    <h2 id="selected-group-heading" ref={selectedHeadingRef} tabIndex={-1}>{groups.find(g=>g.id===selected)?.name||'Group'} — posts</h2>
-   <button type="button" className="btn secondary" disabled={busy} onClick={()=>{selectedRequest.current++;setSelected('');setPosts([]);setPostBody('');setPostsError(false);setPostsLoading(false);setNotice('');restoreGroupListFocus(lastOpenedGroupButton.current,groupSearchRef.current);}}>Close group posts</button>
+   <button type="button" className="btn secondary" aria-label={communityGroupActionLabel('close',groups.find(g=>g.id===selected)?.name||'Group')} disabled={busy} onClick={()=>{selectedRequest.current++;setSelected('');setPosts([]);setPostBody('');setPostsError(false);setPostsLoading(false);setNotice('');restoreGroupListFocus(lastOpenedGroupButton.current,groupSearchRef.current);}}>Close group posts</button>
    <p className="muted-note">Draft updates are cleared when you switch or close a group, so they cannot be posted to the wrong group.</p>
    <div className="two-col">
     <div className="card"><form className="form" onSubmit={publish}>
