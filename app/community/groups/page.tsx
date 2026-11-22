@@ -2,6 +2,7 @@
 import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
+import {filterLoadedCommunityGroups} from '../../../lib/community-group-search';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -91,7 +92,7 @@ export default function CommunityGroups(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to publish group post');}
   finally{setBusy(false);}
  }
- const filteredGroups=groups.filter(g=>`${g.name} ${g.description} ${areas.find(a=>a.id===g.area_id)?.area_name||''}`.toLocaleLowerCase().includes(groupSearch.trim().toLocaleLowerCase()));
+ const filteredGroups=filterLoadedCommunityGroups(groups,areas,groupSearch);
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Find your people</span><h1>Neighbourhood groups</h1>
   <p className="subtle">Create or join local interest groups and share updates with members.</p></div>
