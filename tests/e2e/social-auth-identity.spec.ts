@@ -12,3 +12,10 @@ test('initial session and token refresh do not produce redundant account invalid
  expect(socialNeedsAuthRecheck('TOKEN_REFRESHED')).toBe(false);
  expect(socialNeedsAuthRecheck('PASSWORD_RECOVERY')).toBe(false);
 });
+
+test('re-authenticating the same account does not discard an unsent community draft',()=>{
+ expect(socialNeedsAuthRecheck('SIGNED_IN','account-1','account-1')).toBe(false);
+ expect(socialNeedsAuthRecheck('SIGNED_IN','account-1','account-2')).toBe(true);
+ expect(socialNeedsAuthRecheck('SIGNED_IN','','account-1')).toBe(true);
+ expect(socialNeedsAuthRecheck('SIGNED_OUT','account-1','')).toBe(true);
+});
