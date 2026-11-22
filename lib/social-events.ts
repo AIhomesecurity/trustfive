@@ -27,8 +27,8 @@ export function socialDisplayedEventIds(events:readonly SocialEventSummary[]):st
 /** Key a private RSVP result to its precise account, area and refresh request.
  * A previous user's RSVP state must never be shown while a new view loads.
  */
-export function socialEventViewKey(userId:string,areaId:string,revision:number):string{
- return JSON.stringify([userId,areaId,revision]);
+export function socialEventViewKey(userId:string,areaId:string,revision:number,search=''):string{
+ return JSON.stringify([userId,areaId,revision,search]);
 }
 export function socialEventViewReady(loadedKey:string,currentKey:string,loading:boolean):boolean{
  return !loading&&loadedKey===currentKey;
@@ -49,4 +49,10 @@ export function socialFilterEventsByOwnRsvp(
   const response=socialEventRsvpStatus(mine.get(event.id));
   return filter==='saved'?response!==null:response===filter;
  });
+}
+
+/** Escape PostgreSQL LIKE special characters, preserving literal event-title searches. */
+export function socialEventSearchPattern(text:string):string|null{
+ const value=text.trim().slice(0,120);
+ return value?'%'+value.replace(/[\\%_]/g,character=>'\\'+character)+'%':null;
 }
