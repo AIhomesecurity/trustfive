@@ -31,7 +31,9 @@ create index social_trade_interests_responder_idx
 
 alter table public.social_trade_requests enable row level security;
 alter table public.social_trade_interests enable row level security;
-revoke all on public.social_trade_requests,public.social_trade_interests from public,anon;
+-- Explicitly clear inherited/default grants, including authenticated, before
+-- applying least-privilege column grants (test bootstrap grants broadly).
+revoke all on public.social_trade_requests,public.social_trade_interests from public,anon,authenticated;
 grant select,insert on public.social_trade_requests to authenticated;
 -- Existing requests are immutable except their lifecycle status.
 grant update(status) on public.social_trade_requests to authenticated;
