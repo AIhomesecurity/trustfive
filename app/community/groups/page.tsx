@@ -10,6 +10,7 @@ export default function CommunityGroups(){
  const [userId,setUserId]=useState('');
  const [areas,setAreas]=useState<Area[]>([]);
  const [groups,setGroups]=useState<Group[]>([]);
+ const [groupSearch,setGroupSearch]=useState('');
  const [memberships,setMemberships]=useState<Membership[]>([]);
  const [posts,setPosts]=useState<Post[]>([]);
  const [area,setArea]=useState(''),[name,setName]=useState(''),[description,setDescription]=useState('');
@@ -90,6 +91,7 @@ export default function CommunityGroups(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to publish group post');}
   finally{setBusy(false);}
  }
+ const filteredGroups=groups.filter(g=>`${g.name} ${g.description} ${areas.find(a=>a.id===g.area_id)?.area_name||''}`.toLocaleLowerCase().includes(groupSearch.trim().toLocaleLowerCase()));
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Find your people</span><h1>Neighbourhood groups</h1>
   <p className="subtle">Create or join local interest groups and share updates with members.</p></div>
@@ -107,10 +109,16 @@ export default function CommunityGroups(){
      <button className="btn" disabled={busy||areas.length===0} type="submit">Create community group</button>
     </form><p className="muted-note">Groups are publicly discoverable to signed-in members in this pilot. Address verification and private groups are not yet supported.</p>
    </div></section>
-   <section><h2>Explore groups</h2><div className="list">
+   <section><h2>Explore groups</h2>
+    <div className="card"><label htmlFor="community-group-search">Find a group by name, topic or neighbourhood</label>
+     <input id="community-group-search" type="search" maxLength={120} value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} placeholder="Search listed groups" aria-describedby="community-group-search-help"/>
+     <p id="community-group-search-help" className="muted-note">Search covers the 100 most recently listed groups, not every group on TrustFive.</p>
+     {!loadError&&<p role="status" aria-live="polite" className="muted-note">{filteredGroups.length} matching {filteredGroups.length===1?'group':'groups'} in the loaded list.</p>}
+    </div><div className="list">
     {!loading&&loadError&&<div className="card" role="alert"><p>Community groups could not be loaded. We cannot confirm whether any groups are available.</p><button type="button" className="btn secondary" disabled={busy} onClick={retryGroups}>Try loading groups again</button></div>}
     {!loading&&!loadError&&groups.length===0&&<div className="card">No groups yet. Start the first one!</div>}
-    {!loadError&&groups.map(g=>{const member=memberships.some(m=>m.group_id===g.id);return <article className="card" key={g.id}>
+    {!loading&&!loadError&&groups.length>0&&filteredGroups.length===0&&<div className="card" role="status">No listed groups match your search. <button type="button" className="btn secondary" onClick={()=>setGroupSearch('')}>Clear group search</button></div>}
+    {!loadError&&filteredGroups.map(g=>{const member=memberships.some(m=>m.group_id===g.id);return <article className="card" key={g.id}>
      <span className="pill">{areas.find(a=>a.id===g.area_id)?.area_name||'Neighbourhood'}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
