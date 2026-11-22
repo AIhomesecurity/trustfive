@@ -170,7 +170,7 @@ export default function SocialGroupConversation(){
    <h1>Group conversations</h1>
    <p className="subtle">Community group membership is not TrustFive professional verification. Only group members may see or write group updates.</p>
    <div className="social-hub-shortcuts">
-    <Link href="/community/social" className="btn secondary">Back to Social</Link>
+    <Link href="/community/social?tab=trade" className="btn secondary">Back to Trade Network</Link>
     <Link href="/community/groups" className="btn secondary">Browse all groups</Link>
    </div>
   </div>

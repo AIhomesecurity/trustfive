@@ -29,6 +29,10 @@ test.describe('TrustFive Social anonymous route boundary',()=>{
   await expect(page).toHaveURL(/\/account\?next=%2Fcommunity%2Fsocial(?:&|$)/);
   await expect(page.getByRole('heading',{name:'TrustFive Social'})).toHaveCount(0);
  });
+ test('sign-in retains the selected Social section',async({page})=>{
+  await page.goto('/community/social?tab=events');
+  await expect(page).toHaveURL(url=>url.pathname==='/account'&&url.searchParams.get('next')==='/community/social?tab=events');
+ });
  test('360px anonymous social entry does not overflow',async({page})=>{
   await page.setViewportSize({width:360,height:740});
   await page.goto('/community/social');
