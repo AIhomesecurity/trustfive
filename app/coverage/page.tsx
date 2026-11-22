@@ -98,7 +98,7 @@ export default function UKCoverage(){
       {trades.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
      </select>
     </label>}
-    {!loading&&!signedIn&&<p className="notice">Sign in before registering. <Link href="/account?next=%2Fcoverage">Go to your account</Link>.</p>}
+    {!signedIn&&<p className="notice">Sign in before registering. <Link href="/account?next=%2Fcoverage">Go to your account</Link>.</p>}
     <button className="btn" type="submit" disabled={busy||loading||!signedIn||!outcode||(role==='professional'&&!trade)}>
      {busy?'Registering…':'Register pending area interest'}
     </button>
