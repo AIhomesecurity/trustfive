@@ -76,8 +76,10 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
     ?old.filter(item=>item.event_id!==eventId)
     :[...old.filter(item=>item.event_id!==eventId),{event_id:eventId,status}]);
    setNotice(status==='none'?'Your RSVP was cancelled.':'Your RSVP was saved. Refresh if the event changes.');
-  }catch{setNotice('Your RSVP could not be changed. Please retry after checking the event is still available.');}
-  finally{actionInFlight.current=false;setChangingId('');}
+  }catch{
+   if(currentViewRef.current===requestViewKey)
+    setNotice('Your RSVP could not be changed. Please retry after checking the event is still available.');
+  }finally{actionInFlight.current=false;setChangingId('');}
  }
 
  return <section aria-labelledby="social-events-title">
