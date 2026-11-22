@@ -3,7 +3,6 @@ import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {readablePostDate,type SocialPostSummary} from '../lib/social-discovery';
-import SocialDiscussion from './social-discussion';
 import {socialVisibleSavedPosts,type SocialSavedRecord} from '../lib/social-saved-posts';
 
 export default function SocialSavedPosts({userId}:{userId:string}){
@@ -72,7 +71,6 @@ export default function SocialSavedPosts({userId}:{userId:string}){
        <button type="button" className="btn secondary" disabled={busy}
         onClick={()=>{void remove(post.id);}}>Remove bookmark</button>
       </div>
-      <SocialDiscussion postId={post.id} userId={userId}/>
      </article>)}
     </div>
    </>}
