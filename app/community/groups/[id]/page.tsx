@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {useParams} from 'next/navigation';
 import {supabaseBrowser} from '../../../../lib/supabase';
 import {readablePostDate} from '../../../../lib/social-discovery';
+import {socialNeedsAuthRecheck} from '../../../../lib/social-auth-identity';
 import {socialGroupCanLeave,socialGroupCanPublish,socialGroupPostError,socialGroupPostPage,
  socialGroupRouteId,socialGroupVisiblePage,
  type GroupConversationMembership,type GroupConversationPost,type GroupConversationSummary
@@ -25,10 +26,25 @@ export default function SocialGroupConversation(){
  const [error,setError]=useState(''),[postsError,setPostsError]=useState('');
  const [busy,setBusy]=useState(false),[leaveConfirm,setLeaveConfirm]=useState(false);
  const [revision,setRevision]=useState(0),[postsRevision,setPostsRevision]=useState(0);
+ const userIdRef=useRef('');
+ userIdRef.current=userId;
  const inFlight=useRef(false);
  const authEpoch=useRef(0);
  const postLoadEpoch=useRef(0);
  const groupKey=groupId||'invalid';
+
+ // Supabase auth changes can arrive from another browser tab. Never keep
+ // previous member posts or a draft visible across a real account switch.
+ useEffect(()=>{
+  const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange((event,session)=>{
+   if(!socialNeedsAuthRecheck(event,userIdRef.current,session?.user?.id||''))return;
+   authEpoch.current++;
+   postLoadEpoch.current++;
+   setPosts([]);setMembership(null);setBody('');setNotice('');
+   setRevision(value=>value+1);
+  });
+  return()=>subscription.unsubscribe();
+ },[]);
 
  useEffect(()=>{
   authEpoch.current++;
