@@ -97,8 +97,10 @@ export default function SocialTradeCollaboration({userId,areas}:{userId:string;a
   inFlight.current=true;setBusy(true);setNotice('');
   try{
    const result=await supabaseBrowser().from('social_trade_requests')
-    .update({status:'closed'}).eq('id',request.id).eq('creator_id',userId);
-   if(result.error)throw result.error;
+    .update({status:'closed'}).eq('id',request.id).eq('creator_id',userId)
+    .select('id,status').maybeSingle();
+   if(result.error||result.data?.id!==request.id||result.data?.status!=='closed')
+    throw Error('Request was not confirmed closed');
    setConfirmClose('');setRefresh(n=>n+1);
    setNotice('Your collaboration request was closed. If the list does not refresh, do not repeat the action.');
   }catch{setNotice('Could not close this request. Please retry after checking its current status.');}
