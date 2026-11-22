@@ -26,3 +26,12 @@ test('search tolerates area records without a city and does not match unrelated 
  expect(filterLoadedCommunityGroups(groups,[{id:'north',area_name:'North Quarter'}],'manchester')).toEqual([]);
  expect(filterLoadedCommunityGroups(groups,[{id:'north',area_name:'North Quarter'}],'north').map(g=>g.id)).toEqual(['a','c']);
 });
+
+test('matches accents and repeated mobile keyboard whitespace without changing source data',()=>{
+ const accented=[...groups,{id:'d',name:'Café neighbours',description:'  Local   safety discussions',area_id:'north'}];
+ expect(filterLoadedCommunityGroups(accented,areas,'cafe').map(g=>g.id)).toEqual(['d']);
+ expect(filterLoadedCommunityGroups(accented,areas,'local safety').map(g=>g.id)).toEqual(['d']);
+ expect(filterLoadedCommunityGroups(accented,areas,'  north   quarter  ').map(g=>g.id)).toEqual(['a','c','d']);
+ expect(filterLoadedCommunityGroups(accented,areas,'café').map(g=>g.id)).toEqual(['d']);
+ expect(accented[3].name).toBe('Café neighbours');
+});
