@@ -519,3 +519,28 @@ begin
   raise exception 'Booking consent writer must use explicitly empty search_path';
  end if;
 end $consent_writer_search_path$;
+
+
+-- Column-level grants can bypass a table-level REVOKE. Exact customer
+-- coordinates must never be exposed or mutable through client API roles,
+-- including after later migrations add new location columns.
+-- Inspect metadata only; no private location rows are selected.
+do $private_site_column_acl$
+declare v_column record; v_role text; v_privilege text;
+begin
+ for v_column in
+  select a.attname
+  from pg_attribute a
+  where a.attrelid='public.job_site_locations'::regclass
+    and a.attnum > 0 and not a.attisdropped
+ loop
+  foreach v_role in array array['anon','authenticated'] loop
+   foreach v_privilege in array array['SELECT','INSERT','UPDATE'] loop
+    if has_column_privilege(v_role,'public.job_site_locations',v_column.attname,v_privilege) then
+     raise exception 'Client role % has % on private location column %',
+      v_role,v_privilege,v_column.attname;
+    end if;
+   end loop;
+  end loop;
+ end loop;
+end $private_site_column_acl$;
