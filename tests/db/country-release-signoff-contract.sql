@@ -284,3 +284,27 @@ begin
   raise exception 'Country release audit trigger has a conditional or column-restricted event';
  end if;
 end $history_unconditional$;
+
+
+-- A future permissive RLS policy must not turn the release decision or
+-- append-only audit log into client-readable/writable data. Even when table
+-- grants remain revoked, reject policies targeting API roles as defense in depth.
+-- Catalog-only: no country approvals or customer properties are inspected.
+do $release_policy_boundary$
+begin
+ if exists (
+  select 1
+  from pg_policy p
+  join pg_class c on c.oid=p.polrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public'
+    and c.relname in ('country_release_signoffs','country_release_signoff_events')
+    and (
+      0::oid = any(p.polroles) -- PUBLIC, including anon/authenticated
+      or 'anon'::regrole::oid = any(p.polroles)
+      or 'authenticated'::regrole::oid = any(p.polroles)
+    )
+ ) then
+  raise exception 'Client-facing RLS policy added to private country release evidence';
+ end if;
+end $release_policy_boundary$;
