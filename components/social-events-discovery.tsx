@@ -29,15 +29,24 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
      .gt('ends_at',new Date().toISOString())
      .order('starts_at',{ascending:true}).limit(60);
     if(areaId)query=query.eq('area_id',areaId);
-    const [eventResult,responseResult]=await Promise.all([
-     query,
-     client.from('community_event_rsvps').select('event_id,status').eq('user_id',userId).limit(250)
-    ]);
+    const eventResult=await query;
     if(eventResult.error)throw eventResult.error;
-    if(responseResult.error)throw responseResult.error;
     if(!active)return;
-    setEvents((eventResult.data||[]) as SocialEventSummary[]);
-    setResponses((responseResult.data||[]) as SocialEventRsvp[]);
+    const visibleEvents=(eventResult.data||[]) as SocialEventSummary[];
+    // Fetch RSVP states for exactly the displayed events. A global 250-RSVP
+    // cap can otherwise drop the newest event's response for active members.
+    let visibleResponses:SocialEventRsvp[]=[];
+    if(visibleEvents.length){
+     const responseResult=await client.from('community_event_rsvps')
+      .select('event_id,status')
+      .eq('user_id',userId)
+      .in('event_id',visibleEvents.map(event=>event.id));
+     if(responseResult.error)throw responseResult.error;
+     visibleResponses=(responseResult.data||[]) as SocialEventRsvp[];
+    }
+    if(!active)return;
+    setEvents(visibleEvents);
+    setResponses(visibleResponses);
    }catch{
     if(active){setEvents([]);setResponses([]);setError('Unable to load community events and your private responses. Please retry.');}
    }finally{if(active)setLoading(false);}
@@ -61,7 +70,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
 
  return <section aria-labelledby="social-events-title">
   <h2 id="social-events-title">Community events</h2>
-  <p className="subtle">Discover genuine upcoming events shared with signed-in TrustFive members. Only your own RSVP is shown, never other attendees' identities. Event venues are published by their organisers and should be public meeting places, not home addresses.</p>
+  <p className="subtle">Discover genuine upcoming events shared with signed-in TrustFive members. Only your own RSVP is shown, never other attendees' identities. Times appear in your device's time zone. Event venues are published by organisers; choose public meeting places and do not share home addresses.</p>
   {!userId?<div className="card" role="status">Sign in to browse and respond to community events.</div>:<>
    <div className="card social-hub-filters">
     <label>Neighbourhood<select value={areaId} onChange={e=>setAreaId(e.target.value)}>
