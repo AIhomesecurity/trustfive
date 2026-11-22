@@ -30,6 +30,10 @@ export function socialTradeRequestError(input:{
  if(!input.areaIds.includes(input.areaId))return 'Choose a general service area.';
  if(!isSocialAssistanceType(input.assistanceType))return 'Choose a recognised assistance type.';
  if(input.earliestWeek&&!/^\d{4}-\d{2}-\d{2}$/.test(input.earliestWeek))return 'Choose a valid date.';
- if(input.earliestWeek&&!Number.isFinite(Date.parse(input.earliestWeek+'T12:00:00Z')))return 'Choose a valid date.';
+ if(input.earliestWeek){
+  const parsed=new Date(input.earliestWeek+'T12:00:00Z');
+  if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==input.earliestWeek)
+   return 'Choose a valid date.';
+ }
  return null;
 }
