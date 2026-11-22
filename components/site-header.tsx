@@ -17,7 +17,8 @@ const accountLinks=[
  {href:'/notifications',label:'Notifications'},
  {href:'/bookings',label:'Bookings'},
  {href:'/schedule',label:'Appointments'},
- {href:'/billing',label:'Business tools'}
+ {href:'/billing',label:'Business tools'},
+ {href:'/preferences/regional',label:'Region & currency'}
 ];
 
 export default function SiteHeader(){
