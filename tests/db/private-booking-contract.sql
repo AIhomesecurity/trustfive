@@ -453,3 +453,25 @@ begin
   raise exception 'Booking address reader must use an explicitly empty search_path';
  end if;
 end $booking_reader_search_path$;
+
+
+-- The customer-only exact-location reader is a privileged identity boundary.
+-- A client API role must not own the function or inherit its owning role:
+-- that would allow replacement of the authenticated-customer predicate.
+-- Catalog-only check; never reads customer coordinates or addresses.
+do $customer_location_reader_owner_membership$
+declare v_owner oid; v_role text;
+begin
+ select p.proowner into v_owner
+ from pg_proc p
+ where p.oid=to_regprocedure('public.customer_job_site_location(uuid)');
+ if v_owner is null then
+  raise exception 'Privileged customer location reader missing';
+ end if;
+ foreach v_role in array array['anon','authenticated'] loop
+  if pg_has_role(v_role,v_owner,'MEMBER')
+     or pg_has_role(v_role,v_owner,'USAGE') then
+   raise exception 'API role % can own or assume customer location reader owner',v_role;
+  end if;
+ end loop;
+end $customer_location_reader_owner_membership$;
