@@ -149,7 +149,7 @@ export default function CommunityGroups(){
    <div className="two-col">
     <div className="card"><form className="form" onSubmit={publish}>
      <label>Share an update<textarea required minLength={8} maxLength={3000} value={postBody} onChange={e=>setPostBody(e.target.value)} aria-describedby="group-post-guidance"/></label>
-     <p id="group-post-guidance" className="muted-note">Posts are visible to group members. Avoid sharing private addresses or customer information. {postBody.length} of 3,000 characters.</p>
+     <p id="group-post-guidance" className="muted-note">Posts are visible to group members. Avoid sharing private addresses or customer information. {postBody.trim().length} of at least 8 characters (maximum 3,000), excluding spaces at the start and end.</p>
      <button type="submit" disabled={!canPublishCommunityGroupPost({signedIn:Boolean(userId),selectedGroupId:selected,memberGroupIds:memberships.map(m=>m.group_id),body:postBody,busy,postsLoading,postsError})} className="btn">Publish to group</button>
     </form></div>
     <div className="list" aria-busy={postsLoading}>{postsLoading?<div className="card" role="status">Loading group posts…</div>:postsError?<div className="card" role="alert"><p>Group posts could not be loaded. We cannot confirm whether this group has any posts.</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryPosts()}>Retry loading group posts</button></div>:posts.length===0?<div className="card">No group posts yet.</div>:null}
