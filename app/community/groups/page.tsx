@@ -20,6 +20,9 @@ export default function CommunityGroups(){
  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(false);
  const [postsLoading,setPostsLoading]=useState(false),[postsError,setPostsError]=useState(false);
  const selectedRequest=useRef(0);
+ const selectedHeadingRef=useRef<HTMLHeadingElement>(null);
+ const lastOpenedGroupButton=useRef<HTMLButtonElement|null>(null);
+ useEffect(()=>{if(selected)selectedHeadingRef.current?.focus();},[selected]);
  async function load(){
   const s=supabaseBrowser();
   const [g,m]=await Promise.all([
@@ -67,7 +70,7 @@ export default function CommunityGroups(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to join group');}
   finally{setBusy(false);}
  }
- async function choose(id:string){if(busy)return;setSelected(id);setPostBody('');setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
+ async function choose(id:string,opener:HTMLButtonElement){if(busy)return;lastOpenedGroupButton.current=opener;setSelected(id);setPostBody('');setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
   const request=selectedRequest.current+1;
   try{await loadPosts(id)}catch{if(request===selectedRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
   finally{if(request===selectedRequest.current)setPostsLoading(false);}
@@ -123,15 +126,15 @@ export default function CommunityGroups(){
      <span className="pill">{areas.find(a=>a.id===g.area_id)?.area_name||'Neighbourhood'}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
-      {member?<button type="button" className="btn secondary" onClick={()=>choose(g.id)}>Open group</button>:
+      {member?<button type="button" className="btn secondary" aria-expanded={selected===g.id} aria-controls="selected-group-posts" aria-label={`Open posts for ${g.name}`} onClick={e=>choose(g.id,e.currentTarget)}>Open group</button>:
        <button type="button" className="btn" disabled={busy} onClick={()=>join(g.id)}>Join group</button>}
      </div>
     </article>})}
    </div></section>
   </div>}
-  {userId&&selected&&<section className="section" aria-labelledby="selected-group-heading">
-   <h2 id="selected-group-heading">{groups.find(g=>g.id===selected)?.name||'Group'} — posts</h2>
-   <button type="button" className="btn secondary" disabled={busy} onClick={()=>{selectedRequest.current++;setSelected('');setPosts([]);setPostBody('');setPostsError(false);setPostsLoading(false);setNotice('');}}>Close group posts</button>
+  {userId&&selected&&<section id="selected-group-posts" className="section" aria-labelledby="selected-group-heading">
+   <h2 id="selected-group-heading" ref={selectedHeadingRef} tabIndex={-1}>{groups.find(g=>g.id===selected)?.name||'Group'} — posts</h2>
+   <button type="button" className="btn secondary" disabled={busy} onClick={()=>{selectedRequest.current++;setSelected('');setPosts([]);setPostBody('');setPostsError(false);setPostsLoading(false);setNotice('');lastOpenedGroupButton.current?.focus();}}>Close group posts</button>
    <p className="muted-note">Draft updates are cleared when you switch or close a group, so they cannot be posted to the wrong group.</p>
    <div className="two-col">
     <div className="card"><form className="form" onSubmit={publish}>
@@ -139,8 +142,8 @@ export default function CommunityGroups(){
      <button type="submit" disabled={busy||postsLoading||postsError||postBody.trim().length<8} className="btn">Publish to group</button>
     </form></div>
     <div className="list" aria-busy={postsLoading}>{postsLoading?<div className="card" role="status">Loading group posts…</div>:postsError?<div className="card" role="alert"><p>Group posts could not be loaded. We cannot confirm whether this group has any posts.</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryPosts()}>Retry loading group posts</button></div>:posts.length===0?<div className="card">No group posts yet.</div>:null}
-     {!postsLoading&&!postsError&&posts.map(p=><article className="card" key={p.id}><p style={{whiteSpace:'pre-wrap'}}>{p.body}</p>
-      <p className="muted-note">{new Date(p.created_at).toLocaleString('en-GB')}</p></article>)}
+     {!postsLoading&&!postsError&&posts.map(p=><article className="card" key={p.id}><p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{p.body}</p>
+      <p className="muted-note"><time dateTime={p.created_at}>{new Date(p.created_at).toLocaleString('en-GB')}</time></p></article>)}
     </div>
    </div>
   </section>}
