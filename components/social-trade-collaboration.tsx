@@ -156,7 +156,7 @@ export default function SocialTradeCollaboration({userId,areas}:{userId:string;a
         <p>{SOCIAL_ASSISTANCE_TYPES.find(([key])=>key===request.assistance_type)?.[1]||'Professional assistance'} · {areas.find(a=>a.id===request.area_id)?.area_name||'General service area'}</p>
         {request.earliest_week&&<p className="muted-note">Earliest suggested date: {request.earliest_week}</p>}
         {mine?<div>
-         <p className="muted-note">Your request. Expressions of interest are recorded privately; private messaging is not yet enabled.</p>
+         <p className="muted-note">Your request. {interests.filter(item=>item.request_id===request.id).length} currently loaded {interests.filter(item=>item.request_id===request.id).length===1?'expression':'expressions'} of interest. {interests.length>=200?'More may exist. ':''}Only you and each responding member can access their response record; private messaging is not yet enabled.</p>
          {request.status==='open'&&(confirmClose===request.id?
           <div className="social-hub-shortcuts" role="group" aria-label="Confirm closing request">
            <button type="button" className="btn" disabled={busy} onClick={()=>{void closeRequest(request);}}>Confirm close</button>
