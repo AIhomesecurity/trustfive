@@ -575,3 +575,25 @@ begin
   end loop;
  end loop;
 end $private_site_ddl_acl$;
+
+
+-- RLS policies cannot protect consent or customer coordinates if a client
+-- API role can bypass RLS directly or assume a BYPASSRLS role. Check role
+-- metadata only; never select private location or consent audit records.
+do $private_booking_bypassrls$
+declare v_client text; v_bypass record;
+begin
+ foreach v_client in array array['anon','authenticated'] loop
+  for v_bypass in
+   select r.oid, r.rolname
+   from pg_roles r
+   where r.rolbypassrls or r.rolsuper
+  loop
+   if pg_has_role(v_client,v_bypass.oid,'MEMBER')
+      or pg_has_role(v_client,v_bypass.oid,'USAGE') then
+    raise exception 'Client role % can assume or inherit RLS bypass role %',
+      v_client,v_bypass.rolname;
+   end if;
+  end loop;
+ end loop;
+end $private_booking_bypassrls$;
