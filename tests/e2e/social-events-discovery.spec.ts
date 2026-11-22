@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,socialEventSearchPattern,type SocialEventSummary} from '../../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,socialEventSearchPattern,socialRsvpKeepsEventVisible,type SocialEventSummary} from '../../lib/social-events';
 
 const event:SocialEventSummary={
  id:'event-1',area_id:'area-1',title:'Community repair café',
@@ -76,4 +76,13 @@ test('an event search cannot display a different search result set while stale R
  const original=socialEventViewKey('user-a','area-1',5,'CCTV');
  expect(socialEventViewReady(original,original,false)).toBe(true);
  expect(socialEventViewReady(original,socialEventViewKey('user-a','area-1',5,'plumbing'),false)).toBe(false);
+});
+
+test('filter changes keep keyboard focus out of an RSVP card that will disappear',()=>{
+ expect(socialRsvpKeepsEventVisible('all','none')).toBe(true);
+ expect(socialRsvpKeepsEventVisible('saved','none')).toBe(false);
+ expect(socialRsvpKeepsEventVisible('saved','interested')).toBe(true);
+ expect(socialRsvpKeepsEventVisible('going','interested')).toBe(false);
+ expect(socialRsvpKeepsEventVisible('interested','going')).toBe(false);
+ expect(socialRsvpKeepsEventVisible('going','going')).toBe(true);
 });
