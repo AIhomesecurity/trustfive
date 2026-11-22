@@ -7,6 +7,7 @@ import {canPublishCommunityGroupPost} from '../../../lib/community-group-publish
 import {restoreGroupListFocus} from '../../../lib/community-group-focus';
 import {communityGroupActionLabel,communityGroupActionDisabled} from '../../../lib/community-group-actions';
 import {communityGroupLocationLabel} from '../../../lib/community-group-location';
+import {communityGroupDraftError} from '../../../lib/community-group-draft';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -54,6 +55,8 @@ export default function CommunityGroups(){
  }catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setLoading(false);}})()},[]);
  async function retryGroups(){if(busy)return;setBusy(true);setNotice('');try{await load();}catch{setLoadError(true);setNotice('Unable to load community groups. Please try again.');}finally{setBusy(false);}}
  async function create(e:FormEvent){e.preventDefault();if(busy||!userId)return;
+  const draftError=communityGroupDraftError(name,description);
+  if(draftError){setNotice(draftError);return;}
   setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().from('community_groups')
