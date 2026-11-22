@@ -4,11 +4,11 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {readablePostDate,type SocialPostSummary} from '../lib/social-discovery';
 import SocialDiscussion from './social-discussion';
+import {socialVisibleSavedPosts,type SocialSavedRecord} from '../lib/social-saved-posts';
 
-type SavedRecord={post_id:string;saved_at:string};
 export default function SocialSavedPosts({userId}:{userId:string}){
  const [posts,setPosts]=useState<SocialPostSummary[]>([]);
- const [saved,setSaved]=useState<SavedRecord[]>([]);
+ const [saved,setSaved]=useState<SocialSavedRecord[]>([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [retry,setRetry]=useState(0),[busy,setBusy]=useState(false);
  const inFlight=useRef(false);
@@ -24,7 +24,7 @@ export default function SocialSavedPosts({userId}:{userId:string}){
      .order('saved_at',{ascending:false}).limit(100);
     if(records.error)throw records.error;
     if(!active)return;
-    const selection=(records.data||[]) as SavedRecord[];
+    const selection=(records.data||[]) as SocialSavedRecord[];
     setSaved(selection);
     if(!selection.length){setPosts([]);return;}
     const result=await s.from('community_posts')
@@ -32,8 +32,7 @@ export default function SocialSavedPosts({userId}:{userId:string}){
      .in('id',selection.map(item=>item.post_id)).eq('visibility','published');
     if(result.error)throw result.error;
     if(!active)return;
-    const byId=new Map(((result.data||[]) as SocialPostSummary[]).map(item=>[item.id,item]));
-    setPosts(selection.map(record=>byId.get(record.post_id)).filter((item):item is SocialPostSummary=>Boolean(item)));
+    setPosts(socialVisibleSavedPosts(selection,(result.data||[]) as SocialPostSummary[]));
    }catch{if(active){setSaved([]);setPosts([]);setError('Could not load your saved discussions. Please retry.');}}
    finally{if(active)setLoading(false);}
   })();
