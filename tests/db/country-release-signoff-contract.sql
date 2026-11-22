@@ -470,3 +470,18 @@ begin
   end if;
  end loop;
 end $release_sequence_owner_membership$;
+
+
+-- TRIGGER is a separate table privilege: granting it to API roles could
+-- install client-controlled triggers on the human release signoff matrix.
+-- RLS does not restrict CREATE TRIGGER. Inspect metadata only, no signoffs read.
+do $release_trigger_grant_boundary$
+declare v_role text;
+begin
+ foreach v_role in array array['anon','authenticated'] loop
+  if has_table_privilege(v_role,'public.country_release_signoffs','TRIGGER')
+     or has_table_privilege(v_role,'public.country_release_signoff_events','TRIGGER') then
+   raise exception 'API role % gained TRIGGER privilege on private release evidence',v_role;
+  end if;
+ end loop;
+end $release_trigger_grant_boundary$;
