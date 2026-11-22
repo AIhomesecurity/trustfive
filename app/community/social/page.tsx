@@ -7,6 +7,7 @@ import {socialPageBounds,socialPageRows,socialSearchPattern,type SocialFeedOrder
 import {socialPostValidationError} from '../../../lib/social-post-composer';
 import SocialDiscussion from '../../../components/social-discussion';
 import SocialAdviceBoard from '../../../components/social-advice-board';
+import SocialGroupDiscovery from '../../../components/social-group-discovery';
 
 type SocialTab='neighbourhood'|'trade'|'advice';
 const TABS:{id:SocialTab;label:string}[]=[
@@ -166,13 +167,7 @@ export default function TrustFiveSocial(){
     </>}
    </>}
   </section>}
-  {tab==='trade'&&<section className="card" aria-labelledby="social-trade-title">
-   <span className="eyebrow">Professional community</span>
-   <h2 id="social-trade-title">Trade Network</h2>
-   <p>We're building a dedicated space for professional discussions, specialist advice and safe collaboration requests. The professional social feed and job exchange are not yet live.</p>
-   <p className="muted-note">Joining a discussion will not grant approved professional status. Customer job details and exact addresses cannot be shared here without customer consent and server authorisation. TrustFive's five-approved-professionals-per-trade-per-area rule stays independent.</p>
-   <Link className="btn secondary" href="/services">Explore the existing approved directory</Link>
-  </section>}
+  {tab==='trade'&&<SocialGroupDiscovery userId={userId} areas={areas}/>}
   {tab==='advice'&&<SocialAdviceBoard userId={userId} areas={areas}/>}
  </main>;
 }

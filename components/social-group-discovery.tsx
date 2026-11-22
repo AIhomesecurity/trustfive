@@ -1,0 +1,83 @@
+'use client';
+import {FormEvent,useEffect,useState} from 'react';
+import Link from 'next/link';
+import {supabaseBrowser} from '../lib/supabase';
+import {type SocialArea} from '../lib/social-discovery';
+import {socialPageBounds,socialPageRows} from '../lib/social-feed-paging';
+import {socialGroupAreaLabel,socialGroupSearchPattern,type SocialGroupSummary} from '../lib/social-group-discovery';
+
+export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas:SocialArea[]}){
+ const [input,setInput]=useState(''),[search,setSearch]=useState(''),[areaId,setAreaId]=useState('');
+ const [page,setPage]=useState(0),[retry,setRetry]=useState(0);
+ const [groups,setGroups]=useState<SocialGroupSummary[]>([]);
+ const [hasMore,setHasMore]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ useEffect(()=>{
+  if(!userId){setLoading(false);return;}
+  let active=true;
+  (async()=>{
+   setLoading(true);setError('');
+   try{
+    const bounds=socialPageBounds(page);
+    let request=supabaseBrowser().from('community_groups')
+     .select('id,area_id,name,description,created_at')
+     .eq('visibility','public')
+     .order('created_at',{ascending:false})
+     .order('id',{ascending:true})
+     .range(bounds.from,bounds.to);
+    if(areaId)request=request.eq('area_id',areaId);
+    const pattern=socialGroupSearchPattern(search);
+    if(pattern)request=request.ilike('name',pattern);
+    const {data,error:queryError}=await request;
+    if(queryError)throw queryError;
+    if(!active)return;
+    const selection=socialPageRows((data||[]) as SocialGroupSummary[]);
+    setGroups(selection.items);setHasMore(selection.hasMore);
+   }catch{if(active){setGroups([]);setHasMore(false);setError('Public community groups could not be loaded. Please retry.');}}
+   finally{if(active)setLoading(false);}
+  })();
+  return()=>{active=false;};
+ },[userId,areaId,search,page,retry]);
+ function searchGroups(event:FormEvent){event.preventDefault();setSearch(input.trim());setPage(0);}
+ return <section aria-labelledby="social-trade-title">
+  <span className="eyebrow">People sharing practical knowledge</span>
+  <h2 id="social-trade-title">Trade Network &amp; Community Groups</h2>
+  <p className="subtle">Explore actual public TrustFive community groups, including any formed around trades and specialist interests. A group's name does not prove its members are verified or approved professionals.</p>
+  <div className="card" style={{marginBottom:16}}>
+   <h3>Professional collaboration is being developed</h3>
+   <p className="muted-note">Use these groups for general conversation only. Never publish a customer's address, contact details, quote, protected lead or private job information. Sharing in Social does not grant marketplace approval, a sixth professional slot, or access to private customer work.</p>
+   <Link className="btn secondary" href="/services">Find genuinely approved professionals</Link>
+  </div>
+  {!userId?<div className="card" role="status">Sign in to discover TrustFive groups.</div>:<>
+   <form className="card social-hub-filters" onSubmit={searchGroups}>
+    <label>Search group names<input type="search" value={input} maxLength={120}
+     placeholder="e.g. CCTV, plumbing, electricians"
+     onChange={event=>setInput(event.target.value)}/></label>
+    <label>Neighbourhood<select value={areaId} onChange={event=>{setAreaId(event.target.value);setPage(0);}}>
+     <option value="">All available areas</option>
+     {areas.map(item=><option key={item.id} value={item.id}>{item.area_name}, {item.city}</option>)}
+    </select></label>
+    <button type="submit" className="btn" disabled={loading}>Find groups</button>
+    <button type="button" className="btn secondary" onClick={()=>{setInput('');setSearch('');setAreaId('');setPage(0);}}>Clear filters</button>
+   </form>
+   {loading?<div className="card" role="status">Loading public groups…</div>
+   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={()=>setRetry(n=>n+1)}>Retry groups</button></div>
+   :<>
+    <p className="muted-note" role="status">Page {page+1}: {groups.length} public {groups.length===1?'group':'groups'}.</p>
+    <div className="list">
+     {!groups.length&&<div className="card">No public groups match the current filters. You can create a new group from the groups directory.</div>}
+     {groups.map(group=><article key={group.id} className="card">
+      <span className="pill">{socialGroupAreaLabel(group.area_id,areas)}</span>
+      <h3 style={{marginTop:12}}>{group.name}</h3>
+      <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{group.description}</p>
+      <p className="muted-note">Public group — membership is not a professional verification</p>
+      <Link className="btn secondary" href="/community/groups">Open group directory to join or discuss</Link>
+     </article>)}
+    </div>
+    <nav className="social-hub-shortcuts" aria-label="Public group pages">
+     <button type="button" className="btn secondary" disabled={page===0} onClick={()=>setPage(n=>Math.max(0,n-1))}>Previous groups</button>
+     <button type="button" className="btn secondary" disabled={!hasMore||page>=500} onClick={()=>setPage(n=>n+1)}>Next groups</button>
+    </nav>
+   </>}
+  </>}
+ </section>;
+}
