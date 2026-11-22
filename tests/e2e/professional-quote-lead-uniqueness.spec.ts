@@ -38,3 +38,16 @@ test('separate unique jobs remain available', () => {
   const second = { job_id: '44444444-4444-4444-8444-444444444444', allocation_id: otherAllocation };
   expect(professionalQuoteStats([lead, second], []).available).toBe(2);
 });
+
+test('UUID case differences cannot bypass duplicate, quote, or allocation checks', () => {
+  const upperJob = 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA';
+  const lowerJob = upperJob.toLowerCase();
+  const upperAllocation = 'BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB';
+  const lowerAllocation = upperAllocation.toLowerCase();
+  const selected = { job_id: upperJob, allocation_id: upperAllocation };
+  expect(canPrepareProfessionalQuote(selected, [{ job_id: lowerJob, allocation_id: lowerAllocation }], [])).toBe(true);
+  expect(canPrepareProfessionalQuote(selected, [selected, { job_id: lowerJob, allocation_id: lowerAllocation }], [])).toBe(false);
+  expect(professionalQuoteStats([selected, { job_id: lowerJob, allocation_id: lowerAllocation }], []).available).toBe(0);
+  expect(canPrepareProfessionalQuote(selected, [selected], [{ job_id: lowerJob, status: 'pending' }])).toBe(false);
+  expect(professionalQuoteStats([selected], [{ job_id: lowerJob, status: 'pending' }]).available).toBe(0);
+});

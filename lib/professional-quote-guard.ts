@@ -16,24 +16,25 @@ export function canPrepareProfessionalQuote(
   submitted: readonly SubmittedQuoteRef[]
 ): boolean {
   if (!lead || !UUID.test(lead.job_id) || !UUID.test(lead.allocation_id)) return false;
-  const matchingJob = visibleLeads.filter(row => row.job_id === lead.job_id);
+  const jobId = lead.job_id.toLowerCase();
+  const matchingJob = visibleLeads.filter(row => row.job_id.toLowerCase() === jobId);
   return matchingJob.length === 1 &&
-    matchingJob[0].allocation_id === lead.allocation_id &&
-    !submitted.some(quote => quote.job_id === lead.job_id);
+    matchingJob[0].allocation_id.toLowerCase() === lead.allocation_id.toLowerCase() &&
+    !submitted.some(quote => quote.job_id.toLowerCase() === jobId);
 }
 
 export function professionalQuoteStats(
   leads: readonly ProfessionalLeadRef[],
   submitted: readonly SubmittedQuoteRef[]
 ) {
-  const quotedJobs = new Set(submitted.map(quote => quote.job_id));
+  const quotedJobs = new Set(submitted.map(quote => quote.job_id.toLowerCase()));
   // Count unique, unambiguous jobs rather than duplicate lead rows.
   const leadCounts = new Map<string, number>();
-  for (const lead of leads) leadCounts.set(lead.job_id, (leadCounts.get(lead.job_id) ?? 0) + 1);
+  for (const lead of leads) leadCounts.set(lead.job_id.toLowerCase(), (leadCounts.get(lead.job_id.toLowerCase()) ?? 0) + 1);
   return {
     available: leads.filter(lead => UUID.test(lead.job_id) &&
-      UUID.test(lead.allocation_id) && leadCounts.get(lead.job_id) === 1 &&
-      !quotedJobs.has(lead.job_id)).length,
+      UUID.test(lead.allocation_id) && leadCounts.get(lead.job_id.toLowerCase()) === 1 &&
+      !quotedJobs.has(lead.job_id.toLowerCase())).length,
     submitted: submitted.length,
     awaiting: submitted.filter(quote => quote.status === 'pending').length
   };
