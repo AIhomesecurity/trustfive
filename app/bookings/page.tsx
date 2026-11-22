@@ -14,9 +14,12 @@ import {formatAppointmentWindow} from '../../lib/appointment-schedule';
 import {
   applyCommittedBookingStatus,
   applyCommittedReview,
+  clearBookingSiteCache,
   executeBookingAction,
   filterBookings,
   getBookingStatusMeta,
+  markBookingSiteNeedsRecheck,
+  resolveCustomerSiteConsentView,
   summarizeBookingStatuses,
   validateBookingReviewInput,
   type BookingStatusFilter,
@@ -225,10 +228,11 @@ export default function Bookings(){
   actionInFlight.current=true;
   setSiteBusy(booking.id);
   setNotice('');
-  // Remove any cached address immediately. A failed change must not leave
-  // stale private address details displayed as though consent were current.
-  setSites({});
-  setSiteUnavailableIds([]);
+  // Remove the target booking's cached address immediately so a failed change
+  // never leaves stale private address consent displayed as current, while
+  // marking it for live recheck so recovery controls never vanish.
+  setSites(prev=>clearBookingSiteCache(prev,booking.id));
+  setSiteUnavailableIds(prev=>markBookingSiteNeedsRecheck(prev,booking.id));
 
   const result=await executeBookingAction({
    runRpc:async()=>supabaseBrowser().rpc('set_booking_address_sharing',{p_booking:booking.id,p_allow:enabled}),
@@ -242,8 +246,8 @@ export default function Bookings(){
     ?'Your selected address is now available to this booked professional.'
     :'Exact address sharing has been turned off for this booking.',
    refreshFailedMessage:enabled
-    ?'Address sharing was enabled and saved, but refreshing the display failed. Use “Refresh bookings” to verify.'
-    :'Address sharing was turned off and saved, but refreshing the display failed. Use “Refresh bookings” to verify.',
+    ?'Address sharing was enabled and saved, but refreshing the display failed. Use “Recheck address status” or “Refresh bookings” to verify.'
+    :'Address sharing was turned off and saved, but refreshing the display failed. Use “Recheck address status” or “Refresh bookings” to verify.',
    fallbackErrorMessage:'Unable to update address sharing',
   });
 
@@ -254,7 +258,8 @@ export default function Bookings(){
   }else if(result.outcome==='committed_refresh_failed'){
    showNotice(result.message,'warning',true);
   }else{
-   showNotice(result.message,'error',false);
+   setShareConfirmBookingId(null);
+   showNotice(result.message,'error',true);
   }
  }
 
@@ -475,59 +480,89 @@ export default function Bookings(){
            <Link className="job-related-link" href="/jobs">View job requests →</Link>
           </nav>
 
-          {isCustomer&&siteInfo&&(
-           <div className="notice booking-site-box">
+          {isCustomer&&(()=>{
+           const consentView=resolveCustomerSiteConsentView({
+            bookingStatus:b.status,
+            hasLoadedSite:Boolean(siteInfo),
+            siteUnavailable:siteUnavailableIds.includes(b.id),
+            siteBusy:siteBusy===b.id,
+            loadingBookings,
+           });
+           if(consentView==='none')return null;
+           return <div className="notice booking-site-box" data-testid={`customer-site-box-${b.id}`}>
             <h3 style={{marginTop:0,fontSize:16}}>Private job-site address</h3>
-            <p style={{overflowWrap:'anywhere'}}>{siteInfo.address_label}</p>
-            <p className="muted-note" style={{marginTop:4}}>
-             Only you can share your full address with the professional who has this booking. It is never shown in public leads.
-            </p>
-            {(b.status==='booked'||b.status==='awaiting_customer')&&(
-             <div style={{marginTop:10}}>
-              {siteInfo.sharing_enabled?(
-               <>
-                <p className="muted-note" style={{marginBottom:8}}><strong>Sharing enabled.</strong> Turn this off at any time to revoke further access in TrustFive.</p>
-                <button
-                 type="button"
-                 className="btn secondary"
-                 disabled={Boolean(siteBusy||busy)}
-                 onClick={()=>void shareAddress(b,false)}
-                >
-                 {siteBusy===b.id?'Updating…':'Turn off exact address sharing'}
-                </button>
-               </>
-              ):shareConfirmBookingId===b.id?(
-               <div
-                className="job-confirm-panel"
-                role="group"
-                aria-label={`Confirm sharing private address for booking ${b.id.slice(0,8)}`}
-                onKeyDown={e=>{if(e.key==='Escape'&&!siteBusy)setShareConfirmBookingId(null);}}
-               >
-                <h4>Share your exact address with this booked professional?</h4>
-                <p className="muted-note">Only the approved professional assigned to this confirmed booking will be able to view it, and you can turn sharing off afterwards.</p>
-                <div className="job-confirm-actions">
-                 <button type="button" className="btn" disabled={Boolean(siteBusy||busy)} onClick={()=>void shareAddress(b,true)}>
-                  {siteBusy===b.id?'Sharing…':'Confirm share address'}
-                 </button>
-                 <button type="button" className="btn secondary" disabled={Boolean(siteBusy)} onClick={()=>setShareConfirmBookingId(null)}>
-                  Keep private
-                 </button>
-                </div>
-               </div>
-              ):(
-               <button
-                type="button"
-                className="btn secondary"
-                disabled={Boolean(siteBusy||busy)}
-                onClick={()=>{setShareConfirmBookingId(b.id);setNotice('');}}
-               >
-                Share exact address with booked professional
-               </button>
-              )}
+            {consentView==='updating'?(
+             <p className="muted-note" role="status">Updating private address sharing consent…</p>
+            ):consentView==='checking'?(
+             <p className="muted-note" role="status">Checking your private address sharing status…</p>
+            ):consentView==='unavailable'?(
+             <div>
+              <p className="muted-note" style={{marginBottom:10}}>
+               Private address sharing status could not be confirmed. No cached address is displayed until a live check succeeds.
+              </p>
+              <button
+               type="button"
+               className="btn secondary"
+               disabled={Boolean(loadingBookings||busy||siteBusy)}
+               onClick={()=>void handleManualRefresh()}
+              >
+               {loadingBookings?'Rechecking…':'Recheck address status'}
+              </button>
              </div>
-            )}
-           </div>
-          )}
+            ):siteInfo?(
+             <>
+              <p style={{overflowWrap:'anywhere'}}>{siteInfo.address_label}</p>
+              <p className="muted-note" style={{marginTop:4}}>
+               Only you can share your full address with the professional who has this booking. It is never shown in public leads.
+              </p>
+              {(b.status==='booked'||b.status==='awaiting_customer')&&(
+               <div style={{marginTop:10}}>
+                {siteInfo.sharing_enabled?(
+                 <>
+                  <p className="muted-note" style={{marginBottom:8}}><strong>Sharing enabled.</strong> Turn this off at any time to revoke further access in TrustFive.</p>
+                  <button
+                   type="button"
+                   className="btn secondary"
+                   disabled={Boolean(siteBusy||busy)}
+                   onClick={()=>void shareAddress(b,false)}
+                  >
+                   {siteBusy===b.id?'Updating…':'Turn off exact address sharing'}
+                  </button>
+                 </>
+                ):shareConfirmBookingId===b.id?(
+                 <div
+                  className="job-confirm-panel"
+                  role="group"
+                  aria-label={`Confirm sharing private address for booking ${b.id.slice(0,8)}`}
+                  onKeyDown={e=>{if(e.key==='Escape'&&!siteBusy)setShareConfirmBookingId(null);}}
+                 >
+                  <h4>Share your exact address with this booked professional?</h4>
+                  <p className="muted-note">Only the approved professional assigned to this confirmed booking will be able to view it, and you can turn sharing off afterwards.</p>
+                  <div className="job-confirm-actions">
+                   <button type="button" className="btn" disabled={Boolean(siteBusy||busy)} onClick={()=>void shareAddress(b,true)}>
+                    {siteBusy===b.id?'Sharing…':'Confirm share address'}
+                   </button>
+                   <button type="button" className="btn secondary" disabled={Boolean(siteBusy)} onClick={()=>setShareConfirmBookingId(null)}>
+                    Keep private
+                   </button>
+                  </div>
+                 </div>
+                ):(
+                 <button
+                  type="button"
+                  className="btn secondary"
+                  disabled={Boolean(siteBusy||busy)}
+                  onClick={()=>{setShareConfirmBookingId(b.id);setNotice('');}}
+                 >
+                  Share exact address with booked professional
+                 </button>
+                )}
+               </div>
+              )}
+             </>
+            ):null}
+           </div>;
+          })()}
 
           {isProfessional&&(b.status==='booked'||b.status==='awaiting_customer')&&(
            <div className="notice booking-site-box">

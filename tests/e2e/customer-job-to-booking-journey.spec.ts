@@ -4,9 +4,12 @@ import {
   applyCommittedBookingStatus,
   applyCommittedReview,
   bookingNeedsUserAction,
+  clearBookingSiteCache,
   executeBookingAction,
   filterBookings,
   getBookingStatusMeta,
+  markBookingSiteNeedsRecheck,
+  resolveCustomerSiteConsentView,
   summarizeBookingStatuses,
   validateBookingReviewInput,
 } from '../../lib/booking-lifecycle';
@@ -156,6 +159,54 @@ test('Review validation and customer completion guard enforce strict input and p
   expect(canConfirmCompletedBooking('b2', awaiting, 'other-user')).toBe(false);
   expect(canConfirmCompletedBooking(null, awaiting, 'cust-1')).toBe(false);
   expect(canConfirmCompletedBooking('b2', {...awaiting, status: 'booked'}, 'cust-1')).toBe(false);
+});
+
+test('Failed address-sharing update clears only the target cached address and preserves inline customer recheck recovery', () => {
+  const initialSites = {
+    'b-target': {address_label: '14 High Street', postcode: 'M1 1AE', sharing_enabled: true},
+    'b-other': {address_label: '22 Park Road', postcode: 'M2 2BF', sharing_enabled: false},
+  };
+
+  // Before calling set_booking_address_sharing, target cache is cleared and marked for live recheck
+  const clearedSites = clearBookingSiteCache(initialSites, 'b-target');
+  const unavailable = markBookingSiteNeedsRecheck([], 'b-target');
+
+  expect(clearedSites['b-target']).toBeUndefined();
+  expect(clearedSites['b-other']).toEqual(initialSites['b-other']);
+  expect(markBookingSiteNeedsRecheck(unavailable, 'b-target')).toEqual(['b-target']);
+
+  // While RPC is in flight, customer sees explicit updating state
+  expect(
+    resolveCustomerSiteConsentView({
+      bookingStatus: 'booked',
+      hasLoadedSite: false,
+      siteUnavailable: true,
+      siteBusy: true,
+      loadingBookings: false,
+    })
+  ).toBe('updating');
+
+  // When RPC fails (or refresh fails), customer sees inline unavailable/recheck state — never 'none'
+  expect(
+    resolveCustomerSiteConsentView({
+      bookingStatus: 'booked',
+      hasLoadedSite: false,
+      siteUnavailable: unavailable.includes('b-target'),
+      siteBusy: false,
+      loadingBookings: false,
+    })
+  ).toBe('unavailable');
+
+  // Unrelated booking remains loaded and actionable
+  expect(
+    resolveCustomerSiteConsentView({
+      bookingStatus: 'booked',
+      hasLoadedSite: Boolean(clearedSites['b-other']),
+      siteUnavailable: unavailable.includes('b-other'),
+      siteBusy: false,
+      loadingBookings: false,
+    })
+  ).toBe('loaded');
 });
 
 test('Protected customer job-to-booking routes preserve return paths and zero overflow across 320px, 360px, 390px and 1280px', async ({

@@ -208,3 +208,47 @@ export async function executeBookingAction(params: {
     };
   }
 }
+
+export type CustomerSiteConsentView = 'updating' | 'checking' | 'unavailable' | 'loaded' | 'none';
+
+/** Remove only the target booking's cached private address before a consent mutation
+ * so stale consent is never shown while unrelated bookings stay intact. */
+export function clearBookingSiteCache<T>(
+  sites: Readonly<Record<string, T | null>>,
+  bookingId: string
+): Record<string, T | null> {
+  const next: Record<string, T | null> = {...sites};
+  delete next[bookingId];
+  return next;
+}
+
+/** Mark a booking's private address consent status as requiring a live recheck. */
+export function markBookingSiteNeedsRecheck(
+  unavailableIds: readonly string[],
+  bookingId: string
+): string[] {
+  if (unavailableIds.includes(bookingId)) return [...unavailableIds];
+  return [...unavailableIds, bookingId];
+}
+
+/** Resolve the honest customer UI state for a booking's private job-site address card.
+ * Guarantees that a failed consent RPC or failed refresh never leaves a silently missing
+ * consent box without an inline recheck recovery action. */
+export function resolveCustomerSiteConsentView(params: {
+  bookingStatus: string;
+  hasLoadedSite: boolean;
+  siteUnavailable: boolean;
+  siteBusy: boolean;
+  loadingBookings: boolean;
+}): CustomerSiteConsentView {
+  if (params.siteBusy) return 'updating';
+  if (params.hasLoadedSite) return 'loaded';
+  if (params.siteUnavailable) return 'unavailable';
+  if (
+    params.loadingBookings &&
+    (params.bookingStatus === 'booked' || params.bookingStatus === 'awaiting_customer')
+  ) {
+    return 'checking';
+  }
+  return 'none';
+}
