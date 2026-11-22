@@ -394,3 +394,29 @@ begin
   end if;
  end loop;
 end $release_rpc_owners$;
+
+
+-- Even without direct ownership, inherited membership or SET ROLE access to
+-- a privileged function owner would let an API client replace its definition.
+-- Inspect role membership only; no approval records or customer data are read.
+do $release_rpc_owner_membership$
+declare v_rpc record; v_role text;
+begin
+ for v_rpc in
+  select p.oid::regprocedure::text as signature, p.proowner as owner_oid
+  from pg_proc p
+  where p.oid in (
+   'public.trustfive_admin_country_release_gate(text)'::regprocedure,
+   'public.record_country_release_signoff(text,text,boolean,text,text)'::regprocedure,
+   'public.log_country_release_signoff_change()'::regprocedure
+  )
+ loop
+  foreach v_role in array array['anon','authenticated'] loop
+   if pg_has_role(v_role, v_rpc.owner_oid, 'MEMBER')
+      or pg_has_role(v_role, v_rpc.owner_oid, 'USAGE') then
+    raise exception 'API role % can inherit or assume privileged release RPC owner for %',
+      v_role, v_rpc.signature;
+   end if;
+  end loop;
+ end loop;
+end $release_rpc_owner_membership$;
