@@ -9,12 +9,14 @@ import SocialDiscussion from '../../../components/social-discussion';
 import SocialAdviceBoard from '../../../components/social-advice-board';
 import SocialGroupDiscovery from '../../../components/social-group-discovery';
 import SocialTradeCollaboration from '../../../components/social-trade-collaboration';
+import SocialSavedPosts from '../../../components/social-saved-posts';
 
-type SocialTab='neighbourhood'|'trade'|'advice';
+type SocialTab='neighbourhood'|'trade'|'advice'|'saved';
 const TABS:{id:SocialTab;label:string}[]=[
  {id:'neighbourhood',label:'Neighbourhood'},
  {id:'trade',label:'Trade Network'},
- {id:'advice',label:'Questions & Advice'}
+ {id:'advice',label:'Questions & Advice'},
+ {id:'saved',label:'Saved'}
 ];
 
 /** Early social hub: honest, signed-in data only; no fabricated social graph. */
@@ -170,5 +172,6 @@ export default function TrustFiveSocial(){
   </section>}
   {tab==='trade'&&<><SocialGroupDiscovery userId={userId} areas={areas}/><SocialTradeCollaboration userId={userId} areas={areas}/></>}
   {tab==='advice'&&<SocialAdviceBoard userId={userId} areas={areas}/>}
+  {tab==='saved'&&<SocialSavedPosts userId={userId}/>}
  </main>;
 }
