@@ -10,11 +10,13 @@ function normalizeSearchText(value:string):string{
 export function filterLoadedCommunityGroups<T extends SearchableCommunityGroup>(
  groups:readonly T[],areas:readonly SearchableArea[],query:string
 ):T[]{
- const term=normalizeSearchText(query);
- if(!term)return [...groups];
+ const terms=normalizeSearchText(query).split(' ').filter(Boolean);
+ if(!terms.length)return [...groups];
  const areaNames=new Map(areas.map(area=>[area.id,normalizeSearchText([area.area_name,area.city||''].join(' '))]));
- return groups.filter(group=>
-  [group.name,group.description,areaNames.get(group.area_id)||'']
-   .some(value=>normalizeSearchText(value).includes(term))
- );
+ return groups.filter(group=>{
+  const searchable=[group.name,group.description,areaNames.get(group.area_id)||'']
+   .map(normalizeSearchText);
+  // Each word may match a different field, e.g. "CCTV Manchester".
+  return terms.every(term=>searchable.some(value=>value.includes(term)));
+ });
 }
