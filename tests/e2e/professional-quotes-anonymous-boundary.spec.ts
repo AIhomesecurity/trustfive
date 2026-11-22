@@ -4,6 +4,8 @@ import {expect,test} from '@playwright/test';
 // Authenticated professional lead permissions require independently approved
 // allocations and a separate opt-in staging acceptance run.
 // Worker-scoped capture settings must be configured at file scope in Playwright.
+// trace/screenshot/video stay outside test.describe(), while preserving empty
+// anonymous storageState.
 test.use({storageState:{cookies:[],origins:[]},trace:'off',screenshot:'off',video:'off'});
 
 test.describe('professional quote workspace anonymous boundary',()=>{
