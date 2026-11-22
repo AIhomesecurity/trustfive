@@ -39,3 +39,11 @@ export function socialGroupPostPage(page:number):{from:number;to:number}{
 export function socialGroupVisiblePage<T>(items:readonly T[]):{posts:T[];hasMore:boolean}{
  return {posts:items.slice(0,20),hasMore:items.length>20};
 }
+
+/** Membership controls disappear after a successful action. Focus must move
+ * to a stable visible destination instead of the removed submit button.
+ */
+export type SocialGroupMembershipAction='joined'|'left';
+export function socialGroupFocusTarget(action:SocialGroupMembershipAction):'composer'|'join'{
+ return action==='joined'?'composer':'join';
+}
