@@ -70,6 +70,7 @@ export default function Jobs(){
  const [message,setMessage]=useState('');
  const [messageTone,setMessageTone]=useState<NoticeTone>('status');
  const [needsManualRefresh,setNeedsManualRefresh]=useState(false);
+ const [showBookingsCta,setShowBookingsCta]=useState(false);
  const [busy,setBusy]=useState(false);
  const [busyActionLabel,setBusyActionLabel]=useState('');
  const [refreshingList,setRefreshingList]=useState(false);
@@ -112,10 +113,11 @@ export default function Jobs(){
  const statusCounts=useMemo(()=>summarizeJobStatuses(jobs),[jobs]);
  const visibleJobs=useMemo(()=>filterJobsByStatus(jobs,statusFilter),[jobs,statusFilter]);
 
- function showNotice(text:string,tone:NoticeTone='status',requireRefresh=false){
+ function showNotice(text:string,tone:NoticeTone='status',requireRefresh=false,bookingCta=false){
   setMessage(text);
   setMessageTone(tone);
   setNeedsManualRefresh(requireRefresh);
+  setShowBookingsCta(bookingCta);
  }
 
  const refresh=useCallback(async(activeUserId?:string)=>{
@@ -382,11 +384,11 @@ export default function Jobs(){
   });
   actionInFlight.current=false;setBusy(false);setBusyActionLabel('');
   if(result.outcome==='committed'){
-   showNotice(result.message,'status',false);
+   showNotice(result.message,'status',false,true);
   }else if(result.outcome==='committed_refresh_failed'){
-   showNotice(result.message,'warning',true);
+   showNotice(result.message,'warning',true,true);
   }else{
-   showNotice(result.message,'error',false);
+   showNotice(result.message,'error',false,false);
   }
  }
 
@@ -492,11 +494,16 @@ export default function Jobs(){
     data-testid="job-status-banner"
    >
     <p style={{margin:0}}>{message}</p>
-    {needsManualRefresh&&(
-     <div style={{marginTop:10}}>
-      <button type="button" className="btn secondary" disabled={refreshingList||busy} onClick={()=>void handleManualRefresh()}>
-       {refreshingList?'Refreshing…':'Refresh job list'}
-      </button>
+    {(needsManualRefresh||showBookingsCta)&&(
+     <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>
+      {showBookingsCta&&(
+       <Link className="btn" href="/bookings">Open My bookings →</Link>
+      )}
+      {needsManualRefresh&&(
+       <button type="button" className="btn secondary" disabled={refreshingList||busy} onClick={()=>void handleManualRefresh()}>
+        {refreshingList?'Refreshing…':'Refresh job list'}
+       </button>
+      )}
      </div>
     )}
    </div>

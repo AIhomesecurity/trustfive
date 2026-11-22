@@ -424,3 +424,38 @@
 @media(max-width:350px){
  .job-filter-btn{flex:1 1 100%}
 }
+
+/* Customer booking tracking, completion confirmation & appointment schedule mobile layouts. */
+.bookings-page{padding-bottom:44px}
+.bookings-header-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 12px}
+.bookings-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:16px 0 18px}
+.bookings-toolbar .job-filter-bar{margin-bottom:0;flex:1}
+.bookings-workspace{align-items:start;grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr)}
+.bookings-list-col,.bookings-side-col,.booking-card{min-width:0}
+.booking-status-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid transparent}
+.booking-status-pill.is-booked{background:#e1eff8;border-color:#9fc7e1;color:#0f4c6e}
+.booking-status-pill.is-awaiting{background:#fff4d6;border-color:#e0b44b;color:#664600}
+.booking-status-pill.is-completed{background:#d4f0df;border-color:#5bb581;color:#084b29}
+.booking-status-pill.is-cancelled{background:#f8e8e8;border-color:#e2b2b2;color:#7f2323}
+.booking-status-pill.is-other{background:#edf2ef;border-color:#c9d8cf;color:#395246}
+.booking-stepper{list-style:none;margin:14px 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.booking-step{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:11px;border:1px solid var(--border);background:#f7fbf8;font-size:12px;font-weight:750;color:#4a6357;min-width:0;line-height:1.25}
+.booking-step-num{width:22px;height:22px;border-radius:999px;flex-shrink:0;display:grid;place-items:center;font-size:11px;font-weight:900;background:#e4eee8;color:#365546}
+.booking-step.is-done{background:#e6f6ec;border-color:#9ed4b5;color:#085c32}
+.booking-step.is-done .booking-step-num{background:#087c46;color:#fff}
+.booking-step.is-current{background:#fff9e8;border-color:#dfb24c;color:#5c4000}
+.booking-step.is-current .booking-step-num{background:#c58a08;color:#fff}
+.booking-step.is-cancelled{background:#fdf2f2;border-color:#e3b9b9;color:#7f2323}
+.booking-appointment-note{margin:8px 0 0;font-size:13px;color:var(--dark);overflow-wrap:anywhere}
+.booking-site-box{margin-top:14px}
+@media(max-width:960px){.bookings-workspace{grid-template-columns:1fr}}
+@media(max-width:680px){.booking-stepper{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){
+ .bookings-header-actions{flex-direction:column}
+ .bookings-header-actions .btn{width:100%}
+ .bookings-toolbar{flex-direction:column;align-items:stretch}
+ .bookings-toolbar .jobs-refresh-btn{width:100%}
+}
+@media(max-width:350px){
+ .booking-stepper{grid-template-columns:1fr}
+}
