@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
-import {socialEventDateLabel,socialEventRsvpStatus,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
 
 /** Browse genuine upcoming events from existing authenticated community tables.
  * The dedicated /community/events page remains the only event publishing UI.
@@ -40,7 +40,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
      const responseResult=await client.from('community_event_rsvps')
       .select('event_id,status')
       .eq('user_id',userId)
-      .in('event_id',visibleEvents.map(event=>event.id));
+      .in('event_id',socialDisplayedEventIds(visibleEvents));
      if(responseResult.error)throw responseResult.error;
      visibleResponses=(responseResult.data||[]) as SocialEventRsvp[];
     }
