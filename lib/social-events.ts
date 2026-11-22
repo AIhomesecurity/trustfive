@@ -16,3 +16,10 @@ export function socialEventDateLabel(timestamp:string,locale='en-GB'):string{
 export function socialEventRsvpStatus(value:string|undefined):'going'|'interested'|null{
  return value==='going'||value==='interested'?value:null;
 }
+
+/** Limit private RSVP reads to the current page of already authorised events.
+ * Never query an unbounded personal RSVP history for a feed card.
+ */
+export function socialDisplayedEventIds(events:readonly SocialEventSummary[]):string[]{
+ return [...new Set(events.map(event=>event.id).filter(Boolean))].slice(0,60);
+}
