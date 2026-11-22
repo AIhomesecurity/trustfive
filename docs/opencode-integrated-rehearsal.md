@@ -19,20 +19,19 @@ database, Vercel deployment, paid API, credential or production data was used.
 
 ## Migration version reconciliation
 
-The four dependent migrations were applied with these unique versions, in the
-same alphabetical/SQL order as the original branches:
+In this sprint branch every dependent migration was assigned a unique monotonic
+version, preserving the original glob/SQL order:
 
 | New version | Original version | Source PR/branch | Body comparison |
 | --- | --- | --- | --- |
-| `0036_job_contact_prefs_and_quote_availability.sql` | `0036_…` | #32 / `agent/agy-bookings-quotes` | byte-identical (`e857dec73684`) |
-| `0037_professional_onboarding_verification_and_suspension.sql` | `0036_…` | #31 / `agent/gemini-professional-onboarding` | byte-identical (`5843138624cc`) |
-| `0038_targeted_marketplace_fk_indexes.sql` | `0036_…` | #28 / `agent/antigravity-fk-indexes-issue-13` | byte-identical (`b0b5593a0e2f`) |
-| `0039_marketplace_job_lifecycle_and_audit.sql` | `0037_…` | #36 / `agent/agy-marketplace-lifecycle-and-hardening` | byte-identical (`63e951272f0e`) |
+| `0036_uk_nationwide_area_interest.sql` | `0035_…` | integration base | byte-identical (`3635fd4f4b92`) |
+| `0037_job_contact_prefs_and_quote_availability.sql` | `0036_…` | #32 / `agent/agy-bookings-quotes` | byte-identical (`e857dec73684`) |
+| `0038_professional_onboarding_verification_and_suspension.sql` | `0036_…` | #31 / `agent/gemini-professional-onboarding` | byte-identical (`5843138624cc`) |
+| `0039_targeted_marketplace_fk_indexes.sql` | `0036_…` | #28 / `agent/antigravity-fk-indexes-issue-13` | byte-identical (`b0b5593a0e2f`) |
+| `0040_marketplace_job_lifecycle_and_audit.sql` | `0037_…` | #36 / `agent/agy-marketplace-lifecycle-and-hardening` | byte-identical (`63e951272f0e`) |
 
-Only the version prefix changed. No SQL body was edited, no migration was
-dropped, and no duplicate version remains among the four new files. The two
-pre-existing `0035_*` files are inherited from the integration base and were
-not changed by this rehearsal.
+Only version prefixes changed. No SQL body was edited, no migration was dropped,
+and there are no duplicate versions anywhere in `supabase/migrations`.
 
 ## Conflict manifest (machine-verifiable)
 

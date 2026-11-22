@@ -7,7 +7,7 @@ was used.
 
 | Area | Status | Exact evidence |
 | --- | --- | --- |
-| Integration rehearsal of #28/#31/#32/#36/#40 | PASS locally | PR #43 current head `a435990a435eb8263a5035cf8d28c0999dbd74b2` (evidence commit `256cc1921f4f6ef5b5d316ea9a3952b39ab17994`): four migrations renumbered to unique 0036/0037/0038/0039 with byte-identical SQL bodies; all four DB workflow contract groups retained; 57/57 disposable PostgreSQL 16 steps PASS. |
+| Integration rehearsal of #28/#31/#32/#36/#40 | PASS locally | Sprint branch from `feature/verified-marketplace-core` @ `841c9ab`: all duplicate versions removed (0035/0036–0040) with byte-identical SQL bodies; all DB workflow contract groups retained; 57/57 disposable PostgreSQL 16 steps PASS. |
 | Reproducible install / build | PASS locally | PR #43: `npm ci` PASS, `npx tsc --noEmit` PASS, `npm run build` PASS. PR #44 head `44cb29e4ec6fd11486dbad2df9be44107ee0e18d`: same three checks PASS. |
 | Lint gate | PARTIAL | PR #35 has ESLint 9 flat config and zero baseline, but this integration base does not include it. PR #43/#44 bases have no ESLint dependency/config, so lint was not run there. Merged integration must include PR #35's gate. |
 | Browser tests | PASS locally | PR #43: 115 passed / 1 known env failure / 4 skips. PR #44: after the hermetic fix, **102 passed / 0 failed / 4 opt-in skips** on the newer base. No skip was counted as a pass. |
