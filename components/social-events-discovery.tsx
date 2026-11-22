@@ -13,14 +13,19 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const [events,setEvents]=useState<SocialEventSummary[]>([]);
  const [responses,setResponses]=useState<SocialEventRsvp[]>([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ // Prevent an old account's private RSVP state appearing during account or filter switches.
+ const [loadedViewKey,setLoadedViewKey]=useState('');
  const [changingId,setChangingId]=useState(''),[revision,setRevision]=useState(0);
  const actionInFlight=useRef(false);
+ const viewKey=JSON.stringify([userId,areaId,revision]);
+ const isLoadingView=loading||loadedViewKey!==viewKey;
 
  useEffect(()=>{
-  if(!userId){setLoading(false);return;}
+  if(!userId){setEvents([]);setResponses([]);setNotice('');setLoading(false);return;}
   let active=true;
+  const requestKey=JSON.stringify([userId,areaId,revision]);
   (async()=>{
-   setLoading(true);setError('');
+   setLoading(true);setError('');setNotice('');
    try{
     const client=supabaseBrowser();
     let query=client.from('community_events')
@@ -47,8 +52,9 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
     if(!active)return;
     setEvents(visibleEvents);
     setResponses(visibleResponses);
+    setLoadedViewKey(requestKey);
    }catch{
-    if(active){setEvents([]);setResponses([]);setError('Unable to load community events and your private responses. Please retry.');}
+    if(active){setEvents([]);setResponses([]);setLoadedViewKey(requestKey);setError('Unable to load community events and your private responses. Please retry.');}
    }finally{if(active)setLoading(false);}
   })();
   return()=>{active=false;};
@@ -82,7 +88,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
     <Link href="/community/events" className="btn secondary">Organise an event</Link>
    </div>
    {notice&&<p className="notice" role="status">{notice}</p>}
-   {loading?<div className="card" role="status">Loading upcoming events…</div>
+   {isLoadingView?<div className="card" role="status">Loading upcoming events…</div>
    :error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>setRevision(v=>v+1)}>Retry events</button></div>
    :<>
     <p className="muted-note" role="status">{events.length} upcoming {events.length===1?'event':'events'} in this selection (up to 60 shown).</p>
