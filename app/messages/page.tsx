@@ -3,6 +3,7 @@ import {FormEvent,useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {authorisedQuoteSelection,quoteMessagesHref} from '../../lib/workflow-links';
+import {draftAfterThreadChange,shouldClearSentDraft} from '../../lib/message-draft-guard';
 
 type Thread={quote_id:string;job_id:string;label:string;amount_pence:number;status:string};
 type Message={id:string;quote_id:string;author_id:string;body:string;created_at:string};
@@ -43,6 +44,7 @@ export default function Messages(){
   // The URL is an untrusted navigation hint. Never query a quote which is not
   // present in this signed-in account's authorised customer/pro list.
   if(!authorisedIds.current.includes(id)){setNotice('That conversation is not available to this account.');return;}
+  setBody(draft=>draftAfterThreadChange(selectedRef.current,id,draft));
   selectedRef.current=id;
   setSelected(id);setMessages([]);setNotice('');
   const url=quoteMessagesHref(id);
@@ -71,7 +73,7 @@ export default function Messages(){
    if(next){await select(next);}
    else{
     selectedRequest.current+=1;
-    selectedRef.current='';setSelected('');setMessages([]);setMessagesLoading(false);
+    selectedRef.current='';setSelected('');setBody('');setMessages([]);setMessagesLoading(false);
     if(requested){setNotice('That conversation is not available to your account. Choose one of your conversations below.');}
    }
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to load conversations');}
@@ -103,10 +105,12 @@ export default function Messages(){
   try{
    const {error}=await supabaseBrowser().from('quote_messages').insert({quote_id:quoteId,author_id:userId,body:text});
    if(error)throw error;
-   setBody('');
-   if(quoteId===selectedRef.current)await loadMessages(quoteId);
-   setNotice('Message saved. Automatic email and push delivery are not yet enabled.');
-  }catch(error){setNotice(error instanceof Error?error.message:'Unable to send message');}
+   if(quoteId===selectedRef.current){
+    setBody(draft=>shouldClearSentDraft(quoteId,selectedRef.current,text,draft)?'':draft);
+    await loadMessages(quoteId);
+    setNotice('Message saved. Automatic email and push delivery are not yet enabled.');
+   }
+  }catch(error){if(quoteId===selectedRef.current)setNotice(error instanceof Error?error.message:'Unable to send message');}
   finally{setBusy(false);}
  }
  const active=threads.find(t=>t.quote_id===selected);
