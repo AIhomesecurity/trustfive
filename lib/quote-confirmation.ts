@@ -10,13 +10,17 @@ export type JobConfirmationCandidate = {
  status: string;
 };
 
-/** Only a pending quote for an open job can reach the confirmation action. */
+/** Only one pending quote for exactly one open job can reach confirmation.
+ * Ambiguous or stale result sets must fail closed rather than picking the
+ * first matching row. The database still authorises every acceptance. */
 export function canConfirmJobQuote(
  quoteId: string | null,
  quotes: readonly QuoteConfirmationCandidate[],
  jobs: readonly JobConfirmationCandidate[],
 ): boolean {
- if(!quoteId) return false;
- const selected = quotes.find(q=>q.quote_id===quoteId && q.status==='pending');
- return Boolean(selected && jobs.some(job=>job.id===selected.job_id && job.status==='open'));
+ if(!quoteId || !quoteId.trim()) return false;
+ const matchingQuotes=quotes.filter(q=>q.quote_id===quoteId);
+ if(matchingQuotes.length!==1 || matchingQuotes[0].status!=='pending') return false;
+ const matchingJobs=jobs.filter(job=>job.id===matchingQuotes[0].job_id);
+ return matchingJobs.length===1 && matchingJobs[0].status==='open';
 }
