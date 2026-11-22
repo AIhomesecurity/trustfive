@@ -496,3 +496,26 @@ begin
   raise exception 'Customer location reader must use an explicitly empty search_path';
  end if;
 end $customer_location_reader_search_path$;
+
+
+-- Consent writes are privileged because they update private job-site sharing
+-- and append an immutable audit event. Keep a fixed empty search_path so a
+-- future migration cannot resolve unqualified objects from caller schemas.
+-- Catalog-only: never access any customer booking, address or audit rows.
+do $consent_writer_search_path$
+declare v_proc oid; v_config text[]; v_definer boolean;
+begin
+ v_proc := to_regprocedure('public.set_booking_address_sharing(uuid,boolean)')::oid;
+ if v_proc is null then
+  raise exception 'Privileged booking consent writer missing';
+ end if;
+ select p.proconfig,p.prosecdef into v_config,v_definer
+ from pg_proc p where p.oid=v_proc;
+ if not coalesce(v_definer,false) then
+  raise exception 'Booking consent writer lost SECURITY DEFINER';
+ end if;
+ if not (coalesce('search_path=' = any(v_config),false)
+         or coalesce('search_path=""' = any(v_config),false)) then
+  raise exception 'Booking consent writer must use explicitly empty search_path';
+ end if;
+end $consent_writer_search_path$;
