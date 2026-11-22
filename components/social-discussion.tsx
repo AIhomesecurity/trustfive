@@ -99,13 +99,18 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
   if(!userId||inFlight.current)return;
   inFlight.current=true;setBusy(true);setNotice('');
   try{
-   const result=saved
-    ?await supabaseBrowser().from('social_saved_posts').delete()
-      .eq('post_id',postId).eq('user_id',userId)
-    :await supabaseBrowser().from('social_saved_posts').insert({post_id:postId,user_id:userId});
-   if(result.error)throw result.error;
-   setSaved(!saved);
-   setNotice(saved?'Removed from your private saved posts.':'Saved privately to your account. This does not affect rankings or post popularity.');
+   if(saved){
+    const result=await supabaseBrowser().from('social_saved_posts').delete()
+     .eq('post_id',postId).eq('user_id',userId).select('post_id').maybeSingle();
+    if(result.error)throw result.error;
+    setSaved(false);
+    setNotice(result.data?'Removed from your private saved posts.':'The post was already removed from your saved list.');
+   }else{
+    const result=await supabaseBrowser().from('social_saved_posts').insert({post_id:postId,user_id:userId});
+    if(result.error)throw result.error;
+    setSaved(true);
+    setNotice('Saved privately to your account. This does not affect rankings or post popularity.');
+   }
   }catch{setNotice('Could not update saved posts. Please refresh this discussion and retry.');}
   finally{inFlight.current=false;setBusy(false);}
  }
