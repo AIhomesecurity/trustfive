@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {socialPostReplyCount,socialReactionIsActive,socialReplyError} from '../../lib/social-discussion';
+import {socialPostReplyCount,socialReactionIsActive,socialReplyError,socialReportError,SOCIAL_REPORT_CATEGORIES} from '../../lib/social-discussion';
 
 test('replies reject insufficient content and overlong text',()=>{
  expect(socialReplyError('')).toMatch(/two characters/);
@@ -26,4 +26,12 @@ test('discussion counts respect the post boundary',()=>{
  expect(socialPostReplyCount(rows,'a')).toBe(2);
  expect(socialPostReplyCount(rows,'b')).toBe(1);
  expect(socialPostReplyCount(rows,'c')).toBe(0);
+});
+
+test('reporting uses server-supported categories without accepting arbitrary values',()=>{
+ expect(SOCIAL_REPORT_CATEGORIES).toEqual(['spam','abuse','privacy','other']);
+ for(const value of SOCIAL_REPORT_CATEGORIES)expect(socialReportError(value,'Useful report')).toBeNull();
+ expect(socialReportError('fake-category','')).toMatch(/valid reason/);
+ expect(socialReportError('privacy','x'.repeat(1201))).toMatch(/1,200/);
+ expect(socialReportError('spam','x'.repeat(1200))).toBeNull();
 });
