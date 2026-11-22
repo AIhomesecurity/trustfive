@@ -1,4 +1,4 @@
-import {NextResponse,type NextRequest} from 'next/server.js';
+import {NextResponse,type NextRequest} from 'next/server';
 import {createServerClient} from '@supabase/ssr';
 import {safeAuthReturnPath} from './lib/auth-return-path';
 type CookieWrite={name:string;value:string;options?:{path?:string;domain?:string;maxAge?:number;expires?:Date;httpOnly?:boolean;secure?:boolean;sameSite?:boolean|'lax'|'strict'|'none'}};
