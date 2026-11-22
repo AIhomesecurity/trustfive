@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {communityGroupDraftError} from '../../lib/community-group-draft';
+import {communityGroupDraftError,communityGroupMeaningfulLength} from '../../lib/community-group-draft';
 
 test('rejects whitespace-only and padded short group names',()=>{
  expect(communityGroupDraftError('     ','A useful community group for neighbours')).toMatch(/group name/);
@@ -29,4 +29,13 @@ test('rejects internal whitespace padding and line breaks used to bypass minimum
 
 test('accepts minimum meaningful characters despite spacing',()=>{
  expect(communityGroupDraftError('C C T V','One two three four five six')).toBeNull();
+});
+
+
+test('meaningful character guidance matches validation for whitespace-padded drafts',()=>{
+ expect(communityGroupMeaningfulLength(' a  b  c ')).toBe(3);
+ expect(communityGroupDraftError(' a  b  c ','A sufficiently descriptive group topic')).toMatch(/group name/);
+ expect(communityGroupMeaningfulLength(' C C T V ')).toBe(4);
+ expect(communityGroupDraftError(' C C T V ','A sufficiently descriptive group topic')).toBeNull();
+ expect(communityGroupMeaningfulLength('a\\n\\t b')).toBe(2);
 });
