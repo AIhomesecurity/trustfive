@@ -125,7 +125,7 @@ export default function CommunityGroups(){
     </div><div className="list">
     {!loading&&loadError&&<div className="card" role="alert"><p>Community groups could not be loaded. We cannot confirm whether any groups are available.</p><button type="button" className="btn secondary" disabled={busy} onClick={retryGroups}>Try loading groups again</button></div>}
     {!loading&&!loadError&&groups.length===0&&<div className="card">No groups yet. Start the first one!</div>}
-    {!loading&&!loadError&&groups.length>0&&filteredGroups.length===0&&<div className="card" role="status">No listed groups match your search. <button type="button" className="btn secondary" onClick={()=>setGroupSearch('')}>Clear group search</button></div>}
+    {!loading&&!loadError&&groups.length>0&&filteredGroups.length===0&&<div className="card" role="status">No listed groups match your search. <button type="button" className="btn secondary" onClick={()=>{setGroupSearch('');groupSearchRef.current?.focus();}}>Clear group search</button></div>}
     {!loadError&&filteredGroups.map(g=>{const member=memberships.some(m=>m.group_id===g.id);return <article className="card" key={g.id}>
      <span className="pill">{areas.find(a=>a.id===g.area_id)?.area_name||'Neighbourhood'}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
