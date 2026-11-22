@@ -350,6 +350,26 @@ begin
  end if;
 end $consent_audit_owner$;
 
+-- Even with RLS and revoked table grants, API roles must not be members
+-- of the consent audit table's owning role. Membership can permit changing
+-- grants or disabling RLS. Metadata only; no private rows are accessed.
+do $consent_audit_owner_membership$
+declare v_owner oid; v_role text;
+begin
+ select c.relowner into v_owner
+ from pg_class c
+ where c.oid='public.booking_address_consent_events'::regclass;
+ if v_owner is null then
+  raise exception 'Private booking consent audit table missing';
+ end if;
+ foreach v_role in array array['anon','authenticated'] loop
+  if pg_has_role(v_role,v_owner,'MEMBER')
+     or pg_has_role(v_role,v_owner,'USAGE') then
+   raise exception 'API role % can inherit or assume consent audit owner',v_role;
+  end if;
+ end loop;
+end $consent_audit_owner_membership$;
+
 -- A client role must not inherit or SET ROLE to the privileged consent writer
 -- owner. Such membership would permit replacing the SECURITY DEFINER body
 -- and bypassing consent revocation checks. Catalog-only; no address reads.
