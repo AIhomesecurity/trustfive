@@ -12,7 +12,7 @@ export default function BookingSchedule(){
  const [selected,setSelected]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [zone,setZone]=useState('Europe/London'),[notice,setNotice]=useState('Loading your bookings…'),[busy,setBusy]=useState(false);
  const [unavailableBooking,setUnavailableBooking]=useState(false);
- async function refresh(){
+ async function refresh(accountId=userId){
   const s=supabaseBrowser();const [b,a]=await Promise.all([
    s.from('job_bookings').select('id,customer_id,professional_id,status').order('created_at',{ascending:false}),
    s.from('booking_appointments').select('booking_id,proposed_by,starts_at,ends_at,timezone_name,status')
@@ -22,7 +22,7 @@ export default function BookingSchedule(){
   setBookings(current);setAppointments(a.data||[]);
   const requested=new URLSearchParams(window.location.search).get('booking');
   if(requested){
-   const eligible=current.filter(b=>canManageBookingAppointment(b.id,current,userId)).map(b=>b.id);
+   const eligible=current.filter(b=>canManageBookingAppointment(b.id,current,accountId)).map(b=>b.id);
    const allowed=authorisedBookingSelection(requested,eligible);
    setUnavailableBooking(!allowed);
    if(allowed)setSelected(allowed);
@@ -35,7 +35,7 @@ export default function BookingSchedule(){
   const {data:{user},error}=await supabaseBrowser().auth.getUser();
   if(error)throw error;
   if(!user){setNotice('Sign in to arrange an appointment.');return;}
-  setUserId(user.id);await refresh();setNotice('');
+  setUserId(user.id);await refresh(user.id);setNotice('');
  }catch(e){setNotice(e instanceof Error?e.message:'Unable to load appointment calendar')}})()},[]);
  async function propose(e:FormEvent){e.preventDefault();if(busy||!selected)return;
   if(!canManageBookingAppointment(selected,bookings,userId)){
