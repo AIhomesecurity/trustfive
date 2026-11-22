@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,type SocialEventSummary} from '../../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,type SocialEventSummary} from '../../lib/social-events';
 
 const event:SocialEventSummary={
  id:'event-1',area_id:'area-1',title:'Community repair café',
@@ -33,4 +33,13 @@ test('private RSVP lookup targets only the visible event page, never unrelated h
  const many=Array.from({length:300},(_,i)=>({...event,id:'event-'+i}));
  expect(socialDisplayedEventIds(many)).toHaveLength(60);
  expect(socialDisplayedEventIds(many).at(-1)).toBe('event-59');
+});
+
+test('private RSVP state is never reused for a new account, neighbourhood or refresh',()=>{
+ const original=socialEventViewKey('user-a','area-one',0);
+ expect(socialEventViewReady(original,original,false)).toBe(true);
+ expect(socialEventViewReady(original,original,true)).toBe(false);
+ expect(socialEventViewReady(original,socialEventViewKey('user-b','area-one',0),false)).toBe(false);
+ expect(socialEventViewReady(original,socialEventViewKey('user-a','area-two',0),false)).toBe(false);
+ expect(socialEventViewReady(original,socialEventViewKey('user-a','area-one',1),false)).toBe(false);
 });
