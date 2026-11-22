@@ -42,3 +42,12 @@ test('meaningful character guidance matches validation for whitespace-padded dra
  expect(communityGroupDraftError('a\u200Bb\u200Cc','A sufficiently descriptive group topic')).toMatch(/group name/);
  expect(communityGroupMeaningfulLength('CCTV\u200B')).toBe(4);
 });
+
+
+test('combining marks cannot pad group names or descriptions',()=>{
+ expect(communityGroupMeaningfulLength('a\u0301\u0301\u0301')).toBe(1);
+ expect(communityGroupDraftError('a\u0301\u0301\u0301','Sharing practical CCTV advice with neighbours')).toMatch(/group name/);
+ expect(communityGroupDraftError('CCTV neighbours','a'+ '\u0301'.repeat(30))).toMatch(/Describe/);
+ expect(communityGroupMeaningfulLength('Cafe\u0301')).toBe(4);
+ expect(communityGroupDraftError('Cafe\u0301','Sharing practical CCTV advice with neighbours')).toBeNull();
+});
