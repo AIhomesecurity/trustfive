@@ -544,3 +544,17 @@ begin
   end loop;
  end loop;
 end $private_site_column_acl$;
+
+
+-- DELETE is checked separately from column SELECT/INSERT/UPDATE: a future
+-- table-level DELETE grant would permit removing private customer locations
+-- even if all address columns remained unreadable. Inspect ACLs only.
+do $private_site_delete_acl$
+declare v_role text;
+begin
+ foreach v_role in array array['anon','authenticated'] loop
+  if has_table_privilege(v_role,'public.job_site_locations','DELETE') then
+   raise exception 'Client role % can DELETE private job-site locations',v_role;
+  end if;
+ end loop;
+end $private_site_delete_acl$;
