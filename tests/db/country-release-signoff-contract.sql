@@ -351,3 +351,20 @@ begin
   raise exception 'Private release signoff relation missing';
  end if;
 end $release_relation_ownership$;
+
+
+-- Sequence ownership is stronger than ordinary grants: an API-role owner
+-- could regrant access or manipulate audit identity state. Metadata only.
+do $release_sequence_owner$
+declare v_sequence text; v_owner name;
+begin
+ v_sequence := pg_get_serial_sequence('public.country_release_signoff_events','id');
+ if v_sequence is null then
+  raise exception 'Private release audit identity sequence missing';
+ end if;
+ select pg_get_userbyid(c.relowner) into v_owner
+ from pg_class c where c.oid=v_sequence::regclass and c.relkind='S';
+ if v_owner is null or v_owner in ('anon','authenticated') then
+  raise exception 'Private release audit identity sequence is owned by an API role';
+ end if;
+end $release_sequence_owner$;
