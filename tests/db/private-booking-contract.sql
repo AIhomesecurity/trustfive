@@ -349,3 +349,23 @@ begin
   raise exception 'Private booking consent audit is owned by a client API role';
  end if;
 end $consent_audit_owner$;
+
+-- A client role must not inherit or SET ROLE to the privileged consent writer
+-- owner. Such membership would permit replacing the SECURITY DEFINER body
+-- and bypassing consent revocation checks. Catalog-only; no address reads.
+do $consent_writer_owner_membership$
+declare v_owner oid; v_role text;
+begin
+ select p.proowner into v_owner
+ from pg_proc p
+ where p.oid=to_regprocedure('public.set_booking_address_sharing(uuid,boolean)');
+ if v_owner is null then
+  raise exception 'Audited consent writer missing';
+ end if;
+ foreach v_role in array array['anon','authenticated'] loop
+  if pg_has_role(v_role,v_owner,'MEMBER')
+     or pg_has_role(v_role,v_owner,'USAGE') then
+   raise exception 'API role % can inherit or assume privileged consent writer owner',v_role;
+  end if;
+ end loop;
+end $consent_writer_owner_membership$;
