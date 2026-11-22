@@ -1,5 +1,6 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
+import {createNotificationReadGate} from '../../lib/notification-read-gate';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {safeNotificationTarget} from '../../lib/notification-target';
@@ -10,6 +11,7 @@ export default function Notifications(){
  const [checkingAccount,setCheckingAccount]=useState(true);
  const [notice,setNotice]=useState('Loading your notifications…');
  const [busy,setBusy]=useState('');
+ const readGate=useRef(createNotificationReadGate());
  async function reload(){
   const {data,error}=await supabaseBrowser().from('account_notifications')
     .select('id,kind,title,body,target_path,created_at,read_at')
@@ -27,15 +29,16 @@ export default function Notifications(){
   finally{setCheckingAccount(false);}
  })()},[]);
  async function markRead(id:string){
-  if(busy)return;
-  setBusy(id);
-  try{
-   const {data,error}=await supabaseBrowser().rpc('mark_notification_read',{p_notification:id});
-   if(error)throw error;
-   if(data!==true)throw Error('Notification not found');
-   await reload();setNotice('');
-  }catch(error){setNotice(error instanceof Error?error.message:'Unable to mark notification as read');}
-  finally{setBusy('');}
+  await readGate.current.run(async()=>{
+   setBusy(id);
+   try{
+    const {data,error}=await supabaseBrowser().rpc('mark_notification_read',{p_notification:id});
+    if(error)throw error;
+    if(data!==true)throw Error('Notification not found');
+    await reload();setNotice('');
+   }catch(error){setNotice(error instanceof Error?error.message:'Unable to mark notification as read');}
+   finally{setBusy('');}
+  });
  }
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Private account activity</span><h1>Notifications</h1>
