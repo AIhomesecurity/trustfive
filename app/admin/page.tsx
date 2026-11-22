@@ -2,6 +2,7 @@
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
+import GroupPostModeration from '../../components/group-post-moderation';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
 type Application={id:string;business_name:string|null;status:string;experience_years:number|null;about:string|null;submitted_at:string;trade_id:string;area_id:string};
 type Offer={id:string;application_id:string;status:string;expires_at:string};
@@ -81,5 +82,5 @@ export default function Admin(){
    <button type="button" className="btn" disabled={busy||!coverageApp||!coveragePoint||coverageEvidence.trim().length<20} onClick={verifyCoverage}>Save verified coverage</button>
   </div>
  </section>
- <section className="card"><h2>Community reports</h2>{reports.length===0?<p className="subtle">No outstanding reports.</p>:reports.map(r=><div className="notice" key={r.id}><p>Report: {r.category} · {new Date(r.created_at).toLocaleString('en-GB')}</p><p className="muted-note">Post ID: {r.post_id}</p><button className="btn secondary" disabled={busy} onClick={()=>moderate(r.post_id)}>Hide reported post pending investigation</button></div>)}</section></>}</main>;
+ <section className="card"><h2>Community reports</h2>{reports.length===0?<p className="subtle">No outstanding reports.</p>:reports.map(r=><div className="notice" key={r.id}><p>Report: {r.category} · {new Date(r.created_at).toLocaleString('en-GB')}</p><p className="muted-note">Post ID: {r.post_id}</p><button className="btn secondary" disabled={busy} onClick={()=>moderate(r.post_id)}>Hide reported post pending investigation</button></div>)}</section><GroupPostModeration/></>}</main>;
 }
