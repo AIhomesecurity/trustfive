@@ -1,7 +1,7 @@
 import {expect,test} from '@playwright/test';
 import {
  socialGroupRouteId,socialGroupPostError,socialGroupCanPublish,socialGroupCanLeave,
- socialGroupPostPage,socialGroupVisiblePage,type GroupConversationMembership
+ socialGroupPostPage,socialGroupVisiblePage,socialGroupFocusTarget,type GroupConversationMembership
 } from '../../lib/social-group-conversation';
 
 const member:GroupConversationMembership={
@@ -72,4 +72,9 @@ test.describe('real group discussions anonymous security boundary',()=>{
   await expect(page).toHaveURL(/\/account\?next=%2Fcommunity%2Fgroups%2F/);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1)).toBe(false);
  });
+});
+
+test('membership controls restore focus after their buttons unmount',()=>{
+ expect(socialGroupFocusTarget('joined')).toBe('composer');
+ expect(socialGroupFocusTarget('left')).toBe('join');
 });
