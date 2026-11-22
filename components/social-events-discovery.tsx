@@ -1,15 +1,16 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,type SocialEventAttendanceFilter,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,socialEventSearchPattern,type SocialEventAttendanceFilter,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
 
 /** Browse genuine upcoming events from existing authenticated community tables.
  * The dedicated /community/events page remains the only event publishing UI.
  */
 export default function SocialEventsDiscovery({userId,areas}:{userId:string;areas:SocialArea[]}){
  const [areaId,setAreaId]=useState('');
+ const [searchInput,setSearchInput]=useState(''),[search,setSearch]=useState('');
  const [attendanceFilter,setAttendanceFilter]=useState<SocialEventAttendanceFilter>('all');
  const [events,setEvents]=useState<SocialEventSummary[]>([]);
  const [responses,setResponses]=useState<SocialEventRsvp[]>([]);
@@ -18,7 +19,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const [loadedViewKey,setLoadedViewKey]=useState('');
  const [changingId,setChangingId]=useState(''),[revision,setRevision]=useState(0);
  const actionInFlight=useRef(false);
- const viewKey=socialEventViewKey(userId,areaId,revision);
+ const viewKey=socialEventViewKey(userId,areaId,revision,search);
  const currentViewRef=useRef(viewKey);
  currentViewRef.current=viewKey;
  const isLoadingView=!socialEventViewReady(loadedViewKey,viewKey,loading);
@@ -27,7 +28,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  useEffect(()=>{
   if(!userId){setEvents([]);setResponses([]);setNotice('');setLoading(false);return;}
   let active=true;
-  const requestKey=socialEventViewKey(userId,areaId,revision);
+  const requestKey=socialEventViewKey(userId,areaId,revision,search);
   (async()=>{
    setLoading(true);setError('');setNotice('');
    try{
@@ -38,6 +39,8 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
      .gt('ends_at',new Date().toISOString())
      .order('starts_at',{ascending:true}).limit(60);
     if(areaId)query=query.eq('area_id',areaId);
+    const titlePattern=socialEventSearchPattern(search);
+    if(titlePattern)query=query.ilike('title',titlePattern);
     const eventResult=await query;
     if(eventResult.error)throw eventResult.error;
     if(!active)return;
@@ -62,7 +65,12 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
    }finally{if(active)setLoading(false);}
   })();
   return()=>{active=false;};
- },[userId,areaId,revision]);
+ },[userId,areaId,revision,search]);
+
+ function submitSearch(event:FormEvent){
+  event.preventDefault();
+  setSearch(searchInput.trim());
+ }
 
  async function respond(eventId:string,status:'going'|'interested'|'none'){
   if(!userId||actionInFlight.current||isLoadingView)return;
@@ -88,7 +96,10 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
   <h2 id="social-events-title">Community events</h2>
   <p className="subtle">Discover genuine upcoming events shared with signed-in TrustFive members. Only your own RSVP is shown, never other attendees' identities. Times appear in your device's time zone. Event venues are published by organisers; choose public meeting places and do not share home addresses.</p>
   {!userId?<div className="card" role="status">Sign in to browse and respond to community events.</div>:<>
-   <div className="card social-hub-filters">
+   <form className="card social-hub-filters" onSubmit={submitSearch}>
+    <label>Search event titles<input type="search" maxLength={120} placeholder="Community repair café" value={searchInput} onChange={e=>setSearchInput(e.target.value)}/></label>
+    <button type="submit" className="btn secondary">Search events</button>
+    <button type="button" className="btn secondary" disabled={!search&&!searchInput} onClick={()=>{setSearchInput('');setSearch('');}}>Clear search</button>
     <label>Neighbourhood<select value={areaId} onChange={e=>setAreaId(e.target.value)}>
      <option value="">All available areas</option>
      {areas.map(item=><option key={item.id} value={item.id}>{item.area_name}, {item.city}</option>)}
@@ -104,14 +115,14 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
     <button type="button" className="btn secondary" disabled={Boolean(changingId)}
      onClick={()=>setRevision(v=>v+1)}>Refresh events</button>
     <Link href="/community/events" className="btn secondary">Organise an event</Link>
-   </div>
+   </form>
    {notice&&<p className="notice" role="status">{notice}</p>}
    {isLoadingView?<div className="card" role="status">Loading upcoming events…</div>
    :error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>setRevision(v=>v+1)}>Retry events</button></div>
    :<>
     <p className="muted-note" role="status">{visibleEvents.length} matching upcoming {visibleEvents.length===1?'event':'events'} from {events.length} loaded (up to 60 total). Response filters only show your own RSVP data.</p>
     <div className="list">
-     {!visibleEvents.length&&<p className="card">{events.length===0?'No upcoming events match this neighbourhood yet. You can organise one on the events page.':'No upcoming events match your own RSVP filter. Choose All upcoming events to see the full list.'}</p>}
+     {!visibleEvents.length&&<p className="card">{events.length===0?'No upcoming events match the area or title you searched. You can clear the search or organise an event.':'No upcoming events match your own RSVP filter. Choose All upcoming events to see the full list.'}</p>}
      {visibleEvents.map(event=>{
       const status=socialEventRsvpStatus(responses.find(item=>item.event_id===event.id)?.status);
       return <article className="card" key={event.id}>
