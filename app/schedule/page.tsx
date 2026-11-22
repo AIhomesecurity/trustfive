@@ -3,6 +3,7 @@ import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {authorisedBookingSelection,bookingHistoryHref} from '../../lib/workflow-links';
+import {canManageBookingAppointment} from '../../lib/booking-appointment-guard';
 type Booking={id:string;customer_id:string;professional_id:string;status:string};
 type Appointment={booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string};
 export default function BookingSchedule(){
@@ -21,7 +22,7 @@ export default function BookingSchedule(){
   setBookings(current);setAppointments(a.data||[]);
   const requested=new URLSearchParams(window.location.search).get('booking');
   if(requested){
-   const eligible=current.filter(b=>b.status==='booked'||b.status==='awaiting_customer').map(b=>b.id);
+   const eligible=current.filter(b=>canManageBookingAppointment(b.id,current,userId)).map(b=>b.id);
    const allowed=authorisedBookingSelection(requested,eligible);
    setUnavailableBooking(!allowed);
    if(allowed)setSelected(allowed);
@@ -36,7 +37,11 @@ export default function BookingSchedule(){
   if(!user){setNotice('Sign in to arrange an appointment.');return;}
   setUserId(user.id);await refresh();setNotice('');
  }catch(e){setNotice(e instanceof Error?e.message:'Unable to load appointment calendar')}})()},[]);
- async function propose(e:FormEvent){e.preventDefault();if(busy||!selected)return;setBusy(true);setNotice('');
+ async function propose(e:FormEvent){e.preventDefault();if(busy||!selected)return;
+  if(!canManageBookingAppointment(selected,bookings,userId)){
+   setNotice('This booking is no longer eligible for appointment changes. Refresh your bookings.');return;
+  }
+  setBusy(true);setNotice('');
   try{
    const begins=new Date(start),finishes=new Date(end);
    if(!Number.isFinite(begins.getTime())||!Number.isFinite(finishes.getTime())||finishes<=begins)throw Error('Enter a valid start and end time');
@@ -49,7 +54,11 @@ export default function BookingSchedule(){
   finally{setBusy(false);}
  }
  async function action(bookingId:string,kind:'confirm_booking_appointment'|'cancel_booking_appointment'){
-  if(busy)return;setBusy(true);setNotice('');
+  if(busy)return;
+  if(!canManageBookingAppointment(bookingId,bookings,userId)){
+   setNotice('This booking is no longer eligible for appointment changes. Refresh your bookings.');return;
+  }
+  setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().rpc(kind,{p_booking:bookingId});
    if(error)throw error;await refresh();
@@ -57,7 +66,7 @@ export default function BookingSchedule(){
   }catch(e){setNotice(e instanceof Error?e.message:'Could not update appointment');}
   finally{setBusy(false);}
  }
- const active=bookings.filter(b=>b.status==='booked'||b.status==='awaiting_customer');
+ const active=bookings.filter(b=>canManageBookingAppointment(b.id,bookings,userId));
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Agree a time together</span><h1>Booking appointments</h1>
   <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments cannot overlap for the same professional.</p></div>
