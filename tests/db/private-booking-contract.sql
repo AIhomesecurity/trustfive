@@ -475,3 +475,24 @@ begin
   end if;
  end loop;
 end $customer_location_reader_owner_membership$;
+
+
+-- The customer-only location reader is also a privileged exact-address
+-- boundary. Reject future migrations that remove SECURITY DEFINER or allow
+-- caller-controlled search_path shadowing. Catalog metadata only.
+do $customer_location_reader_search_path$
+declare v_proc oid; v_config text[];
+begin
+ v_proc := to_regprocedure('public.customer_job_site_location(uuid)')::oid;
+ if v_proc is null then
+  raise exception 'Privileged customer location reader missing';
+ end if;
+ select p.proconfig into v_config from pg_proc p where p.oid=v_proc;
+ if not (select p.prosecdef from pg_proc p where p.oid=v_proc) then
+  raise exception 'Customer location reader lost SECURITY DEFINER contract';
+ end if;
+ if not (coalesce('search_path=' = any(v_config),false)
+         or coalesce('search_path=""' = any(v_config),false)) then
+  raise exception 'Customer location reader must use an explicitly empty search_path';
+ end if;
+end $customer_location_reader_search_path$;
