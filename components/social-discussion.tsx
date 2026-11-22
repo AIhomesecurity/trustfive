@@ -2,7 +2,7 @@
 import {FormEvent,useRef,useState} from 'react';
 import {supabaseBrowser} from '../lib/supabase';
 import {readablePostDate} from '../lib/social-discovery';
-import {socialReactionIsActive,socialReplyError,type SocialComment,type SocialReactionKind,type SocialReactionSummary} from '../lib/social-discussion';
+import {SOCIAL_REPORT_CATEGORIES,socialReactionIsActive,socialReplyError,socialReportError,type SocialComment,type SocialReactionKind,type SocialReactionSummary,type SocialReportCategory} from '../lib/social-discussion';
 
 /**
  * Loads only the discussion opened by the user, instead of downloading
@@ -19,6 +19,9 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  const [reply,setReply]=useState('');
  const [busy,setBusy]=useState(false);
  const [reporting,setReporting]=useState(false);
+ const [reportOpen,setReportOpen]=useState(false);
+ const [reportCategory,setReportCategory]=useState<SocialReportCategory>('spam');
+ const [reportDetails,setReportDetails]=useState('');
  const inFlight=useRef(false);
 
  async function readDiscussion(){
@@ -87,15 +90,19 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
   }catch{setNotice('Could not update your reaction. Please retry.');}
   finally{inFlight.current=false;setBusy(false);}
  }
- async function report(){
+ async function report(event:FormEvent){
+  event.preventDefault();
+  const validation=socialReportError(reportCategory,reportDetails);
+  if(validation){setNotice(validation);return;}
   if(!userId||reporting||inFlight.current)return;
   inFlight.current=true;setReporting(true);setNotice('');
   try{
    const result=await supabaseBrowser().from('community_reports').insert({
-    post_id:postId,reporter_id:userId,category:'other',
-    explanation:'Flagged by a community member for moderator review'
+    post_id:postId,reporter_id:userId,category:reportCategory,
+    explanation:reportDetails.trim()||'Flagged by a community member for moderator review'
    });
    if(result.error)throw result.error;
+   setReportOpen(false);setReportDetails('');
    setNotice('Report submitted for moderator review.');
   }catch{setNotice('Could not submit the report. Please retry.');}
   finally{inFlight.current=false;setReporting(false);}
@@ -115,10 +122,26 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
       aria-pressed={socialReactionIsActive(reaction?.my_reaction||null,'support')}
       onClick={()=>{void react('support');}}>Support ({reaction?.supports??0})</button>
      <button type="button" className="btn secondary" disabled={busy||reporting}
-      onClick={()=>{void report();}}>{reporting?'Reporting…':'Report post'}</button>
+      aria-expanded={reportOpen} onClick={()=>{setReportOpen(v=>!v);setNotice('');}}>
+      {reportOpen?'Cancel report':'Report post'}
+     </button>
      <button type="button" className="btn secondary" disabled={busy||reporting}
       onClick={()=>{void readDiscussion();}}>Refresh discussion</button>
     </div>
+    {reportOpen&&<form className="form card" aria-label="Report this community post" onSubmit={report} style={{marginBottom:14}}>
+      <h4>Report this post</h4>
+      <p className="muted-note">Your report is sent to moderators. Reporting does not automatically remove a post or affect professional approval.</p>
+      <label>Reason
+       <select value={reportCategory} disabled={reporting} onChange={event=>setReportCategory(event.target.value as SocialReportCategory)}>
+        {SOCIAL_REPORT_CATEGORIES.map(kind=><option key={kind} value={kind}>{kind==='privacy'?'Private information':kind==='abuse'?'Abusive content':kind==='spam'?'Spam':'Other concern'}</option>)}
+       </select>
+      </label>
+      <label>Additional details (optional)
+       <textarea maxLength={1200} value={reportDetails} disabled={reporting}
+        onChange={event=>setReportDetails(event.target.value)} placeholder="Describe what needs moderator review without repeating private information."/>
+      </label>
+      <button type="submit" className="btn" disabled={reporting||busy||Boolean(socialReportError(reportCategory,reportDetails))}>{reporting?'Submitting report…':'Submit report'}</button>
+     </form>}
     <h4>Replies</h4>
     {comments.length===0?<p className="muted-note">No replies yet.</p>:comments.map(item=>
      <div className="social-discussion-comment" key={item.id}>
