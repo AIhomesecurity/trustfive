@@ -65,7 +65,7 @@ export default function CommunityGroups(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to join group');}
   finally{setBusy(false);}
  }
- async function choose(id:string){if(busy)return;setSelected(id);setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
+ async function choose(id:string){if(busy)return;setSelected(id);setPostBody('');setPosts([]);setPostsError(false);setPostsLoading(true);setNotice('');
   const request=selectedRequest.current+1;
   try{await loadPosts(id)}catch{if(request===selectedRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
   finally{if(request===selectedRequest.current)setPostsLoading(false);}
@@ -111,8 +111,10 @@ export default function CommunityGroups(){
     </article>})}
    </div></section>
   </div>}
-  {userId&&selected&&<section className="section">
-   <h2>{groups.find(g=>g.id===selected)?.name||'Group'} — posts</h2>
+  {userId&&selected&&<section className="section" aria-labelledby="selected-group-heading">
+   <h2 id="selected-group-heading">{groups.find(g=>g.id===selected)?.name||'Group'} — posts</h2>
+   <button type="button" className="btn secondary" disabled={busy} onClick={()=>{selectedRequest.current++;setSelected('');setPosts([]);setPostBody('');setPostsError(false);setPostsLoading(false);setNotice('');}}>Close group posts</button>
+   <p className="muted-note">Draft updates are cleared when you switch or close a group, so they cannot be posted to the wrong group.</p>
    <div className="two-col">
     <div className="card"><form className="form" onSubmit={publish}>
      <label>Share an update<textarea required minLength={8} maxLength={3000} value={postBody} onChange={e=>setPostBody(e.target.value)}/></label>
