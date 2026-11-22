@@ -3,6 +3,7 @@ import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
 import {filterLoadedCommunityGroups} from '../../../lib/community-group-search';
+import {canPublishCommunityGroupPost} from '../../../lib/community-group-publishing';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -84,7 +85,7 @@ export default function CommunityGroups(){
   catch{if(request===selectedRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
   finally{if(request===selectedRequest.current)setPostsLoading(false);}
  }
- async function publish(e:FormEvent){e.preventDefault();if(!selected||busy||postsLoading||postsError||postBody.trim().length<8||!memberships.some(m=>m.group_id===selected))return;setBusy(true);
+ async function publish(e:FormEvent){e.preventDefault();if(!canPublishCommunityGroupPost({signedIn:Boolean(userId),selectedGroupId:selected,memberGroupIds:memberships.map(m=>m.group_id),body:postBody,busy,postsLoading,postsError}))return;setBusy(true);
   try{
    const {error}=await supabaseBrowser().from('community_group_posts')
     .insert({group_id:selected,author_id:userId,body:postBody.trim()});
@@ -138,8 +139,9 @@ export default function CommunityGroups(){
    <p className="muted-note">Draft updates are cleared when you switch or close a group, so they cannot be posted to the wrong group.</p>
    <div className="two-col">
     <div className="card"><form className="form" onSubmit={publish}>
-     <label>Share an update<textarea required minLength={8} maxLength={3000} value={postBody} onChange={e=>setPostBody(e.target.value)}/></label>
-     <button type="submit" disabled={busy||postsLoading||postsError||postBody.trim().length<8} className="btn">Publish to group</button>
+     <label>Share an update<textarea required minLength={8} maxLength={3000} value={postBody} onChange={e=>setPostBody(e.target.value)} aria-describedby="group-post-guidance"/></label>
+     <p id="group-post-guidance" className="muted-note">Posts are visible to group members. Avoid sharing private addresses or customer information. {postBody.length} of 3,000 characters.</p>
+     <button type="submit" disabled={!canPublishCommunityGroupPost({signedIn:Boolean(userId),selectedGroupId:selected,memberGroupIds:memberships.map(m=>m.group_id),body:postBody,busy,postsLoading,postsError})} className="btn">Publish to group</button>
     </form></div>
     <div className="list" aria-busy={postsLoading}>{postsLoading?<div className="card" role="status">Loading group posts…</div>:postsError?<div className="card" role="alert"><p>Group posts could not be loaded. We cannot confirm whether this group has any posts.</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryPosts()}>Retry loading group posts</button></div>:posts.length===0?<div className="card">No group posts yet.</div>:null}
      {!postsLoading&&!postsError&&posts.map(p=><article className="card" key={p.id}><p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{p.body}</p>
