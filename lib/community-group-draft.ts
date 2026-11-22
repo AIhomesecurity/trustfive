@@ -1,8 +1,8 @@
 /** Client-side guard only; database validation remains authoritative. */
 /** Count visible meaningful characters, excluding whitespace and invisible
- * formatting controls that otherwise inflate minimum-length guidance. */
+ * formatting controls and combining-only marks that inflate minimum-length guidance. */
 export function communityGroupMeaningfulLength(value:string):number {
- return Array.from(value.replace(/[\s\p{Cf}\p{Cc}]/gu,'')).length;
+ return Array.from(value.replace(/[\s\p{Cf}\p{Cc}\p{M}]/gu,'')).length;
 }
 
 export function communityGroupDraftError(name:string,description:string):string|null {
