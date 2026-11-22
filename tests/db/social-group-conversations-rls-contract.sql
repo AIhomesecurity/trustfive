@@ -132,4 +132,95 @@ begin
 end
 $member$;
 reset role;
+-- Verify report submission and admin-only moderation with synthetic accounts.
+insert into public.platform_admins(user_id) values ('00000000-0000-0000-00e7-000000000003');
+
+set role authenticated;
+do $report$
+declare member_id uuid := '00000000-0000-0000-00e7-000000000002';
+ v_group uuid := '00000000-0000-0000-00e8-000000000001';
+ v_post uuid := '00000000-0000-0000-00e9-000000000001';
+begin
+ perform set_config('request.jwt.claim.sub',member_id::text,true);
+ begin
+  insert into public.community_group_post_reports(post_id,reporter_id,category)
+   values(v_post,member_id,'spam');
+  raise exception 'Former member could report a private group post';
+ exception when insufficient_privilege then null;
+ end;
+ insert into public.community_group_memberships(group_id,user_id,role) values(v_group,member_id,'member');
+ begin
+  insert into public.community_group_post_reports(post_id,reporter_id,category)
+   values(v_post,'00000000-0000-0000-00e7-000000000001','spam');
+  raise exception 'Report author could be impersonated';
+ exception when insufficient_privilege then null;
+ end;
+ insert into public.community_group_post_reports(post_id,reporter_id,category,explanation)
+  values(v_post,member_id,'privacy','Synthetic explanation for moderator review.');
+ begin
+  insert into public.community_group_post_reports(post_id,reporter_id,category)
+   values(v_post,member_id,'spam');
+  raise exception 'Duplicate report was accepted';
+ exception when unique_violation then null;
+ end;
+ begin
+  perform public.pending_group_post_reports();
+  raise exception 'Non-admin could read the moderation queue';
+ exception when insufficient_privilege then null;
+ end;
+ begin
+  perform public.moderate_group_post_report(gen_random_uuid(),'hide');
+  raise exception 'Non-admin could invoke moderation';
+ exception when insufficient_privilege then null;
+ end;
+ perform set_config('request.jwt.claim.sub','00000000-0000-0000-00e7-000000000001',true);
+ insert into public.community_group_post_reports(post_id,reporter_id,category,explanation)
+  values('00000000-0000-0000-00e9-000000000002',
+   '00000000-0000-0000-00e7-000000000001','other','Synthetic report to dismiss.');
+end
+$report$;
+
+do $moderate$
+declare v_admin uuid := '00000000-0000-0000-00e7-000000000003';
+ v_report uuid;
+begin
+ perform set_config('request.jwt.claim.sub',v_admin::text,true);
+ select id into strict v_report from public.pending_group_post_reports()
+  where explanation='Synthetic explanation for moderator review.';
+ perform public.moderate_group_post_report(v_report,'hide');
+ if exists(select 1 from public.pending_group_post_reports() where id=v_report) then
+  raise exception 'Resolved report stayed in the pending queue';
+ end if;
+ if not exists(select 1 from public.network_audit_events
+  where action='community_group_post_report_resolved' and actor_id=v_admin
+   and detail->>'report_id'=v_report::text and detail->>'decision'='hide'
+   and not (detail ? 'explanation' or detail ? 'post_body')) then
+  raise exception 'Expected a redacted moderation audit event';
+ end if;
+ begin
+  perform public.moderate_group_post_report(v_report,'dismiss');
+  raise exception 'A moderation decision could be replayed';
+ exception when no_data_found then null;
+ end;
+ select id into strict v_report from public.pending_group_post_reports()
+  where explanation='Synthetic report to dismiss.';
+ perform public.moderate_group_post_report(v_report,'dismiss');
+ if exists(select 1 from public.pending_group_post_reports() where id=v_report)
+  or not exists(select 1 from public.network_audit_events
+   where action='community_group_post_report_resolved' and actor_id=v_admin
+    and detail->>'report_id'=v_report::text and detail->>'decision'='dismiss') then
+  raise exception 'Dismissal did not resolve the report and record a decision';
+ end if;
+ perform set_config('request.jwt.claim.sub','00000000-0000-0000-00e7-000000000001',true);
+ if not exists(select 1 from public.community_group_posts
+  where id='00000000-0000-0000-00e9-000000000002' and visibility='published') then
+  raise exception 'Dismissal unexpectedly hid the reported post';
+ end if;
+ perform set_config('request.jwt.claim.sub','00000000-0000-0000-00e7-000000000002',true);
+ if exists(select 1 from public.community_group_posts where id='00000000-0000-0000-00e9-000000000001') then
+  raise exception 'Moderated post remained visible to another group member';
+ end if;
+end
+$moderate$;
+reset role;
 rollback;

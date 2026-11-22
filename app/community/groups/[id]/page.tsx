@@ -2,6 +2,7 @@
 import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {useParams} from 'next/navigation';
+import GroupPostReport from '../../../../components/group-post-report';
 import {supabaseBrowser} from '../../../../lib/supabase';
 import {readablePostDate} from '../../../../lib/social-discovery';
 import {socialNeedsAuthRecheck} from '../../../../lib/social-auth-identity';
@@ -221,6 +222,7 @@ export default function SocialGroupConversation(){
          {posts.map(post=><article className="card" key={post.id}>
           <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{post.body}</p>
           <p className="muted-note"><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
+          {post.author_id!==userId&&<GroupPostReport key={userId} postId={post.id} userId={userId}/>}
          </article>)}
         </div>
         <nav aria-label="Group post pages" className="social-hub-shortcuts">
