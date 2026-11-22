@@ -4,15 +4,41 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
 import {socialPageBounds,socialPageRows} from '../lib/social-feed-paging';
-import {socialGroupAreaLabel,socialGroupSearchPattern,type SocialGroupSummary} from '../lib/social-group-discovery';
+import {socialGroupAreaLabel,socialGroupSearchPattern,socialOwnGroupIds,type SocialGroupSummary} from '../lib/social-group-discovery';
 
 export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas:SocialArea[]}){
  const [input,setInput]=useState(''),[search,setSearch]=useState(''),[areaId,setAreaId]=useState('');
+ const [myGroupsOnly,setMyGroupsOnly]=useState(false);
+ const [membershipOwner,setMembershipOwner]=useState(''),[ownGroupIds,setOwnGroupIds]=useState<string[]>([]);
+ const [membershipError,setMembershipError]=useState(''),[membershipRetry,setMembershipRetry]=useState(0);
  const [page,setPage]=useState(0),[retry,setRetry]=useState(0);
  const [groups,setGroups]=useState<SocialGroupSummary[]>([]);
  const [hasMore,setHasMore]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');
  useEffect(()=>{
+  let active=true;
+  setMembershipOwner('');setOwnGroupIds([]);setMembershipError('');
+  if(!userId)return()=>{active=false;};
+  (async()=>{
+   try{
+    const result=await supabaseBrowser().from('community_group_memberships')
+     .select('group_id,user_id').eq('user_id',userId).order('joined_at',{ascending:false}).limit(200);
+    if(result.error)throw result.error;
+    if(!active)return;
+    setOwnGroupIds(socialOwnGroupIds(result.data||[],userId));setMembershipOwner(userId);
+   }catch{
+    if(active){setMembershipOwner(userId);setMembershipError('Could not verify your group memberships. Retry My groups.');}
+   }
+  })();
+  return()=>{active=false;};
+ },[userId,membershipRetry]);
+
+ useEffect(()=>{
   if(!userId){setLoading(false);return;}
+  if(myGroupsOnly&&membershipOwner!==userId){setLoading(true);return;}
+  if(myGroupsOnly&&membershipError){setLoading(false);return;}
+  if(myGroupsOnly&&ownGroupIds.length===0){
+   setGroups([]);setHasMore(false);setLoading(false);setError('');return;
+  }
   let active=true;
   (async()=>{
    setLoading(true);setError('');
@@ -25,6 +51,7 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
      .order('id',{ascending:true})
      .range(bounds.from,bounds.to);
     if(areaId)request=request.eq('area_id',areaId);
+    if(myGroupsOnly)request=request.in('id',ownGroupIds);
     const pattern=socialGroupSearchPattern(search);
     if(pattern)request=request.ilike('name',pattern);
     const {data,error:queryError}=await request;
@@ -36,7 +63,7 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
    finally{if(active)setLoading(false);}
   })();
   return()=>{active=false;};
- },[userId,areaId,search,page,retry]);
+ },[userId,areaId,search,page,retry,myGroupsOnly,ownGroupIds,membershipOwner,membershipError]);
  function searchGroups(event:FormEvent){event.preventDefault();setSearch(input.trim());setPage(0);}
  return <section aria-labelledby="social-trade-title">
   <span className="eyebrow">People sharing practical knowledge</span>
@@ -56,15 +83,17 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
      <option value="">All available areas</option>
      {areas.map(item=><option key={item.id} value={item.id}>{item.area_name}, {item.city}</option>)}
     </select></label>
+    <label><input type="checkbox" checked={myGroupsOnly} onChange={event=>{setMyGroupsOnly(event.target.checked);setPage(0);}}/> My groups only</label>
     <button type="submit" className="btn" disabled={loading}>Find groups</button>
-    <button type="button" className="btn secondary" onClick={()=>{setInput('');setSearch('');setAreaId('');setPage(0);}}>Clear filters</button>
+    <button type="button" className="btn secondary" onClick={()=>{setInput('');setSearch('');setAreaId('');setMyGroupsOnly(false);setPage(0);}}>Clear filters</button>
    </form>
-   {loading?<div className="card" role="status">Loading public groups…</div>
+   {myGroupsOnly&&membershipError?<div className="card" role="alert"><p>{membershipError}</p><button className="btn secondary" type="button" onClick={()=>setMembershipRetry(v=>v+1)}>Retry memberships</button></div>
+   :loading?<div className="card" role="status">Loading public groups…</div>
    :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={()=>setRetry(n=>n+1)}>Retry groups</button></div>
    :<>
     <p className="muted-note" role="status">Page {page+1}: {groups.length} public {groups.length===1?'group':'groups'}.</p>
     <div className="list">
-     {!groups.length&&<div className="card">No public groups match the current filters. You can create a new group from the groups directory.</div>}
+     {!groups.length&&<div className="card">{myGroupsOnly?'No joined groups match these filters. Join a group from the public directory first.':'No public groups match the current filters. You can create a new group from the groups directory.'}</div>}
      {groups.map(group=><article key={group.id} className="card">
       <span className="pill">{socialGroupAreaLabel(group.area_id,areas)}</span>
       <h3 style={{marginTop:12}}>{group.name}</h3>
