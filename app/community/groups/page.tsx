@@ -131,6 +131,7 @@ export default function CommunityGroups(){
      <span className="pill">{communityGroupLocationLabel(g.area_id,areas)}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
+      <Link className="btn secondary" href={`/community/groups/${g.id}`}>View group page</Link>
       {member?<button type="button" className="btn secondary" aria-expanded={selected===g.id} aria-controls="selected-group-posts" aria-label={communityGroupActionLabel('open',g.name)} disabled={communityGroupActionDisabled(busy,loading)} onClick={e=>choose(g.id,e.currentTarget)}>Open group</button>:
        <button type="button" className="btn" disabled={communityGroupActionDisabled(busy,loading)} aria-label={communityGroupActionLabel('join',g.name)} onClick={()=>join(g.id)}>Join group</button>}
      </div>
