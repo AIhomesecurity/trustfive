@@ -323,3 +323,31 @@ begin
   raise exception 'Private release audit writer is owned by an API client role';
  end if;
 end $history_owner_boundary$;
+
+
+-- API roles must never own release signoff or audit relations. Ownership can
+-- bypass ordinary GRANT restrictions and allow policy/trigger alterations.
+-- This inspects PostgreSQL catalogs only, not approval evidence or user data.
+do $release_relation_ownership$
+declare v_relation record;
+begin
+ for v_relation in
+  select c.relname, pg_get_userbyid(c.relowner) as owner_name
+  from pg_class c
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public'
+    and c.relname in ('country_release_signoffs','country_release_signoff_events')
+    and c.relkind in ('r','p')
+ loop
+  if v_relation.owner_name is null
+     or v_relation.owner_name in ('anon','authenticated') then
+   raise exception 'Private release relation % is owned by an API role',v_relation.relname;
+  end if;
+ end loop;
+ if (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
+     where n.nspname='public'
+       and c.relname in ('country_release_signoffs','country_release_signoff_events')
+       and c.relkind in ('r','p')) <> 2 then
+  raise exception 'Private release signoff relation missing';
+ end if;
+end $release_relation_ownership$;
