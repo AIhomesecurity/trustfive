@@ -2,6 +2,7 @@
 import {FormEvent,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
+import {communityGroupLocationLabel} from '../../../lib/community-group-location';
 type Area={id:string;area_name:string;city:string};
 type Event={id:string;area_id:string;title:string;description:string;venue_label:string;starts_at:string;ends_at:string;host_id:string};
 type RSVP={event_id:string;status:string};
@@ -93,7 +94,7 @@ export default function CommunityEvents(){
    <section aria-labelledby="upcoming-events-heading"><h2 id="upcoming-events-heading">Upcoming events</h2>{!loadError&&<p className="muted-note" role="status">{events.length} upcoming {events.length===1?'event':'events'} listed.{events.length>0?' RSVP controls are available for each event below.':''}</p>}{loadError&&<div role="alert"><p>Upcoming events could not be refreshed. The list is hidden until it can be checked again.</p><button className="btn secondary" type="button" disabled={busy} onClick={retryEvents}>Try loading events again</button></div>}<div className="list">
     {!loadError&&events.length===0&&<div className="card">No upcoming events. Why not organise one?</div>}
     {!loadError&&events.map(e=>{const savedResponse=responses.find(a=>a.event_id===e.id)?.status;const r=savedResponse==='going'||savedResponse==='interested'?savedResponse:undefined;return <article className="card" key={e.id}>
-     <span className="pill">{areas.find(a=>a.id===e.area_id)?.area_name||'Local event'}</span>
+     <span className="pill">{communityGroupLocationLabel(e.area_id,areas)}</span>
      <h3 id={`event-title-${e.id}`} style={{marginTop:12}}>{e.title}</h3>
      <p style={{marginBottom:9}}>{e.description}</p>
      <p><strong>Starts:</strong> <time dateTime={e.starts_at}>{new Date(e.starts_at).toLocaleString('en-GB')}</time></p>
