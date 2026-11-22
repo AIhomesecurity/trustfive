@@ -267,3 +267,20 @@ begin
   raise exception 'Private country-release signoffs lost row-level security';
  end if;
 end $signoff_rls$;
+
+
+-- An audit trigger restricted by WHEN or UPDATE OF columns can silently miss
+-- revocations or changes to evidence fields. Require unconditional coverage
+-- of every UPDATE; catalog-only, no real release records are inspected.
+do $history_unconditional$
+declare v_when pg_node_tree; v_columns text;
+begin
+ select t.tgqual,t.tgattr::text into v_when,v_columns
+ from pg_trigger t
+ where t.tgrelid='public.country_release_signoffs'::regclass
+   and t.tgname='audit_country_release_signoff_change'
+   and not t.tgisinternal;
+ if not found or v_when is not null or coalesce(trim(v_columns),'') <> '' then
+  raise exception 'Country release audit trigger has a conditional or column-restricted event';
+ end if;
+end $history_unconditional$;
