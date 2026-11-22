@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
 import {filterLoadedCommunityGroups} from '../../../lib/community-group-search';
 import {canPublishCommunityGroupPost} from '../../../lib/community-group-publishing';
+import {restoreGroupListFocus} from '../../../lib/community-group-focus';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -136,7 +137,7 @@ export default function CommunityGroups(){
   </div>}
   {userId&&selected&&<section id="selected-group-posts" className="section" aria-labelledby="selected-group-heading">
    <h2 id="selected-group-heading" ref={selectedHeadingRef} tabIndex={-1}>{groups.find(g=>g.id===selected)?.name||'Group'} — posts</h2>
-   <button type="button" className="btn secondary" disabled={busy} onClick={()=>{selectedRequest.current++;setSelected('');setPosts([]);setPostBody('');setPostsError(false);setPostsLoading(false);setNotice('');const opener=lastOpenedGroupButton.current;if(opener?.isConnected&&!opener.disabled)opener.focus();else groupSearchRef.current?.focus();}}>Close group posts</button>
+   <button type="button" className="btn secondary" disabled={busy} onClick={()=>{selectedRequest.current++;setSelected('');setPosts([]);setPostBody('');setPostsError(false);setPostsLoading(false);setNotice('');restoreGroupListFocus(lastOpenedGroupButton.current,groupSearchRef.current);}}>Close group posts</button>
    <p className="muted-note">Draft updates are cleared when you switch or close a group, so they cannot be posted to the wrong group.</p>
    <div className="two-col">
     <div className="card"><form className="form" onSubmit={publish}>
