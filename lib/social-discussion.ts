@@ -21,3 +21,11 @@ export function socialReactionIsActive(current:string|null,kind:SocialReactionKi
 export function socialPostReplyCount(comments:readonly SocialComment[],postId:string):number{
  return comments.filter(comment=>comment.post_id===postId).length;
 }
+
+export type SocialReportCategory='spam'|'abuse'|'privacy'|'other';
+export const SOCIAL_REPORT_CATEGORIES:readonly SocialReportCategory[]=['spam','abuse','privacy','other'];
+export function socialReportError(category:string,details:string):string|null{
+ if(!SOCIAL_REPORT_CATEGORIES.includes(category as SocialReportCategory))return 'Choose a valid reason for reporting.';
+ if(details.length>1200)return 'Keep report details to 1,200 characters or fewer.';
+ return null;
+}
