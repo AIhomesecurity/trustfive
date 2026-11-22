@@ -23,3 +23,13 @@ export function socialEventRsvpStatus(value:string|undefined):'going'|'intereste
 export function socialDisplayedEventIds(events:readonly SocialEventSummary[]):string[]{
  return [...new Set(events.map(event=>event.id).filter(Boolean))].slice(0,60);
 }
+
+/** Key a private RSVP result to its precise account, area and refresh request.
+ * A previous user's RSVP state must never be shown while a new view loads.
+ */
+export function socialEventViewKey(userId:string,areaId:string,revision:number):string{
+ return JSON.stringify([userId,areaId,revision]);
+}
+export function socialEventViewReady(loadedKey:string,currentKey:string,loading:boolean):boolean{
+ return !loading&&loadedKey===currentKey;
+}
