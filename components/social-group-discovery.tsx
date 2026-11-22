@@ -70,7 +70,7 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
       <h3 style={{marginTop:12}}>{group.name}</h3>
       <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{group.description}</p>
       <p className="muted-note">Public group — membership is not a professional verification</p>
-      <Link className="btn secondary" href="/community/groups">Open group directory to join or discuss</Link>
+      <Link className="btn secondary" href={`/community/groups/${group.id}`}>Open this group</Link>
      </article>)}
     </div>
     <nav className="social-hub-shortcuts" aria-label="Public group pages">
