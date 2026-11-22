@@ -1,98 +1,192 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {authorisedBookingSelection,bookingHistoryHref} from '../../lib/workflow-links';
+import {
+  formatAppointmentWindow,
+  summarizeAppointments,
+  validateAppointmentProposal,
+  type ScheduledAppointment,
+} from '../../lib/appointment-schedule';
+
 type Booking={id:string;customer_id:string;professional_id:string;status:string};
-type Appointment={booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string};
+
 export default function BookingSchedule(){
- const [userId,setUserId]=useState(''),[bookings,setBookings]=useState<Booking[]>([]);
- const [appointments,setAppointments]=useState<Appointment[]>([]);
- const [selected,setSelected]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('');
- const [zone,setZone]=useState('Europe/London'),[notice,setNotice]=useState('Loading your bookings…'),[busy,setBusy]=useState(false);
+ const [userId,setUserId]=useState('');
+ const [bookings,setBookings]=useState<Booking[]>([]);
+ const [appointments,setAppointments]=useState<ScheduledAppointment[]>([]);
+ const [selected,setSelected]=useState('');
+ const [start,setStart]=useState('');
+ const [end,setEnd]=useState('');
+ const [zone,setZone]=useState('Europe/London');
+ const [notice,setNotice]=useState('');
+ const [loadError,setLoadError]=useState('');
+ const [loading,setLoading]=useState(true);
+ const [busy,setBusy]=useState(false);
+ const [confirmCancelId,setConfirmCancelId]=useState<string|null>(null);
  const [unavailableBooking,setUnavailableBooking]=useState(false);
+ const inFlight=useRef(false);
+
  async function refresh(){
-  const s=supabaseBrowser();const [b,a]=await Promise.all([
-   s.from('job_bookings').select('id,customer_id,professional_id,status').order('created_at',{ascending:false}),
-   s.from('booking_appointments').select('booking_id,proposed_by,starts_at,ends_at,timezone_name,status')
-  ]);
-  if(b.error)throw b.error;if(a.error)throw a.error;
-  const current=b.data||[];
-  setBookings(current);setAppointments(a.data||[]);
+  setLoadError('');
+  const s=supabaseBrowser();
+  const b=await s.from('job_bookings')
+   .select('id,customer_id,professional_id,status')
+   .order('created_at',{ascending:false})
+   .limit(75);
+  if(b.error)throw b.error;
+  const current=(b.data||[]) as Booking[];
+  setBookings(current);
+  const bookingIds=current.map(item=>item.id);
+  if(bookingIds.length){
+   const a=await s.from('booking_appointments')
+    .select('booking_id,proposed_by,starts_at,ends_at,timezone_name,status')
+    .in('booking_id',bookingIds);
+   if(a.error)throw a.error;
+   setAppointments((a.data||[]) as ScheduledAppointment[]);
+  }else{
+   setAppointments([]);
+  }
   const requested=new URLSearchParams(window.location.search).get('booking');
   if(requested){
-   const eligible=current.filter(b=>b.status==='booked'||b.status==='awaiting_customer').map(b=>b.id);
+   const eligible=current.filter(item=>item.status==='booked'||item.status==='awaiting_customer').map(item=>item.id);
    const allowed=authorisedBookingSelection(requested,eligible);
    setUnavailableBooking(!allowed);
-   if(allowed)setSelected(allowed);
-   else setSelected('');
+   setSelected(allowed||'');
   }
  }
- useEffect(()=>{(async()=>{try{
-  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-  if(tz)setZone(tz);
-  const {data:{user},error}=await supabaseBrowser().auth.getUser();
-  if(error)throw error;
-  if(!user){setNotice('Sign in to arrange an appointment.');return;}
-  setUserId(user.id);await refresh();setNotice('');
- }catch(e){setNotice(e instanceof Error?e.message:'Unable to load appointment calendar')}})()},[]);
- async function propose(e:FormEvent){e.preventDefault();if(busy||!selected)return;setBusy(true);setNotice('');
+
+ useEffect(()=>{
+  let active=true;
+  (async()=>{
+   try{
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if(tz)setZone(tz);
+    const {data:{user},error}=await supabaseBrowser().auth.getUser();
+    if(error)throw error;
+    if(!active)return;
+    if(!user){setNotice('Sign in to arrange an appointment.');return;}
+    setUserId(user.id);
+    await refresh();
+   }catch(e){
+    if(active)setLoadError(e instanceof Error?e.message:'Unable to load appointment calendar');
+   }finally{
+    if(active)setLoading(false);
+   }
+  })();
+  return()=>{active=false;};
+ },[]);
+
+ async function propose(e:FormEvent){
+  e.preventDefault();
+  if(busy||inFlight.current||!selected)return;
+  const begins=new Date(start),finishes=new Date(end);
+  const validationError=validateAppointmentProposal({
+   bookingId:selected,
+   startIso:Number.isFinite(begins.getTime())?begins.toISOString():'',
+   endIso:Number.isFinite(finishes.getTime())?finishes.toISOString():'',
+   timezoneName:zone,
+  });
+  if(validationError){setNotice(validationError);return;}
+  inFlight.current=true;setBusy(true);setNotice('');
   try{
-   const begins=new Date(start),finishes=new Date(end);
-   if(!Number.isFinite(begins.getTime())||!Number.isFinite(finishes.getTime())||finishes<=begins)throw Error('Enter a valid start and end time');
    const {error}=await supabaseBrowser().rpc('propose_booking_appointment',{
-    p_booking:selected,p_start:begins.toISOString(),p_end:finishes.toISOString(),p_timezone:zone
+    p_booking:selected,
+    p_start:begins.toISOString(),
+    p_end:finishes.toISOString(),
+    p_timezone:zone.trim(),
    });
    if(error)throw error;
-   await refresh();setNotice('Appointment time proposed. The other participant must confirm it.');
+   await refresh();
+   setNotice('Appointment time proposed in '+zone.trim()+'. The other participant must confirm it.');
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to propose appointment');}
-  finally{setBusy(false);}
+  finally{inFlight.current=false;setBusy(false);}
  }
+
  async function action(bookingId:string,kind:'confirm_booking_appointment'|'cancel_booking_appointment'){
-  if(busy)return;setBusy(true);setNotice('');
+  if(busy||inFlight.current)return;
+  inFlight.current=true;setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().rpc(kind,{p_booking:bookingId});
-   if(error)throw error;await refresh();
-   setNotice(kind==='confirm_booking_appointment'?'Appointment confirmed.':'Appointment time cancelled; the booking itself remains active.');
+   if(error)throw error;
+   setConfirmCancelId(null);
+   await refresh();
+   setNotice(kind==='confirm_booking_appointment'
+    ?'Appointment confirmed. Both participants now see the agreed time.'
+    :'Appointment time cancelled; the booking itself remains active so a new time can be proposed.');
   }catch(e){setNotice(e instanceof Error?e.message:'Could not update appointment');}
-  finally{setBusy(false);}
+  finally{inFlight.current=false;setBusy(false);}
  }
+
  const active=bookings.filter(b=>b.status==='booked'||b.status==='awaiting_customer');
+ const summary=summarizeAppointments(appointments,userId);
+
  return <main className="container">
-  <div className="page-heading"><span className="eyebrow">Agree a time together</span><h1>Booking appointments</h1>
-  <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments cannot overlap for the same professional.</p></div>
+  <div className="page-heading">
+   <span className="eyebrow">Agree a time together</span>
+   <h1>Booking appointments</h1>
+   <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments preserve their exact IANA time zone and cannot overlap for the same professional.</p>
+  </div>
   {notice&&<p role="status" className="notice">{notice}</p>}
+  {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void refresh().catch(e=>setLoadError(e instanceof Error?e.message:'Retry failed'))}>Retry loading appointments</button></div>}
   {unavailableBooking&&<p role="alert" className="notice">That appointment is not available to your account, or the booking is no longer active. Choose an eligible booking below.</p>}
-  {!userId?<Link href="/account" className="btn">Sign in</Link>:
-  <div className="two-col">
-   <section className="card"><h2>Propose or change a time</h2>
-    <form className="form" onSubmit={propose}>
-     <label>Booking<select required value={selected} onChange={e=>setSelected(e.target.value)}>
-      <option value="">Choose active booking</option>{active.map(b=><option key={b.id} value={b.id}>Booking #{b.id.slice(0,8)} · {b.customer_id===userId?'Customer':'Professional'}</option>)}
-     </select></label>
-     <label>Start date and time<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
-     <label>End date and time<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
-     <label>IANA time zone<input required minLength={3} maxLength={80} value={zone} onChange={e=>setZone(e.target.value)} placeholder="Europe/London"/></label>
-     <button className="btn" disabled={busy} type="submit">Propose appointment</button>
-    </form>
-    <p className="muted-note">Date/time inputs use your device's time zone; we store the exact UTC timestamps and time-zone identifier. This is a scheduling request, not an automatic payment or booking cancellation.</p>
-   </section>
-   <section><h2>Appointment calendar</h2><div className="list">
-    {bookings.length===0&&<div className="card">No bookings yet. <Link href="/jobs">Post a job</Link> to get started.</div>}
-    {bookings.map(b=>{const a=appointments.find(v=>v.booking_id===b.id);return <article className="card" id={'booking-'+b.id} key={b.id} style={selected===b.id?{borderColor:'#087c46'}:undefined}>
-     <span className="pill">{b.status}</span><h3 style={{marginTop:12}}>Booking #{b.id.slice(0,8)}</h3><p className="muted-note"><Link href={bookingHistoryHref(b.id)}>Open booking details →</Link></p>
-     {!a?<p>No time has been proposed yet.</p>:<>
-      <p><strong>Appointment:</strong> {a.status}</p>
-      <p>{new Date(a.starts_at).toLocaleString('en-GB')} — {new Date(a.ends_at).toLocaleString('en-GB')}</p>
-      <p className="muted-note">Time zone: {a.timezone_name}</p>
-      {a.status==='proposed'&&a.proposed_by!==userId&&
-       <button className="btn" disabled={busy} onClick={()=>action(b.id,'confirm_booking_appointment')}>Accept proposed time</button>}
-      {a.status==='proposed'&&a.proposed_by===userId&&<p className="muted-note">Awaiting the other participant's confirmation</p>}
-      {(a.status==='confirmed'||a.status==='proposed')&&
-       <p style={{marginTop:10}}><button className="btn secondary" disabled={busy} onClick={()=>action(b.id,'cancel_booking_appointment')}>Cancel appointment time</button></p>}
-     </>}
-    </article>})}
-   </div></section>
-  </div>}
+  {loading?<p role="status" className="notice">Loading your booking appointments…</p>:
+  !userId?<Link href="/account?next=%2Fschedule" className="btn">Sign in</Link>:
+  <>
+   <div className="grid" style={{marginBottom:22}} aria-label="Appointment summary">
+    <div className="card"><h3>{summary.upcomingConfirmed}</h3><p>Upcoming confirmed</p></div>
+    <div className="card"><h3>{summary.awaitingYourConfirmation}</h3><p>Awaiting your confirmation</p></div>
+    <div className="card"><h3>{summary.awaitingOtherParty}</h3><p>Awaiting other participant</p></div>
+   </div>
+   <div className="two-col">
+    <section className="card">
+     <h2>Propose or change a time</h2>
+     <form className="form" onSubmit={propose}>
+      <label>Booking<select required value={selected} onChange={e=>setSelected(e.target.value)}>
+       <option value="">Choose active booking</option>
+       {active.map(b=><option key={b.id} value={b.id}>Booking #{b.id.slice(0,8)} · {b.customer_id===userId?'Customer':'Professional'}</option>)}
+      </select></label>
+      <label>Start date and time<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
+      <label>End date and time<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
+      <label>IANA time zone<input required minLength={3} maxLength={80} value={zone} onChange={e=>setZone(e.target.value)} placeholder="Europe/London"/></label>
+      <button className="btn" disabled={busy||!active.length} type="submit">{busy?'Saving…':'Propose appointment'}</button>
+     </form>
+     <p className="muted-note" style={{marginTop:14}}>Dates are saved as exact UTC timestamps alongside the selected IANA time zone and displayed in that stored time zone for both participants. Proposing a new time replaces any prior proposal and requires the other party's confirmation.</p>
+    </section>
+    <section>
+     <h2>Appointment calendar</h2>
+     <div className="list">
+      {bookings.length===0&&<div className="card">No bookings yet. <Link href="/jobs">Post a job</Link> to get started.</div>}
+      {bookings.map(b=>{
+       const a=appointments.find(v=>v.booking_id===b.id);
+       return <article className="card" id={'booking-'+b.id} key={b.id} style={selected===b.id?{borderColor:'#087c46'}:undefined}>
+        <span className="pill">{b.status.replace('_',' ')}</span>
+        <h3 style={{marginTop:12}}>Booking #{b.id.slice(0,8)}</h3>
+        <p className="muted-note"><Link href={bookingHistoryHref(b.id)}>Open booking details →</Link></p>
+        {!a?<p style={{marginTop:10}}>No time has been proposed yet.</p>:<>
+         <p style={{marginTop:10}}><strong>Appointment:</strong> {a.status}</p>
+         <p>{formatAppointmentWindow(a.starts_at,a.ends_at,a.timezone_name)}</p>
+         {a.status==='proposed'&&a.proposed_by!==userId&&
+          <button type="button" className="btn" style={{marginTop:10}} disabled={busy} onClick={()=>void action(b.id,'confirm_booking_appointment')}>Accept proposed time</button>}
+         {a.status==='proposed'&&a.proposed_by===userId&&<p className="muted-note" style={{marginTop:8}}>Awaiting the other participant's confirmation.</p>}
+         {(a.status==='confirmed'||a.status==='proposed')&&(
+          confirmCancelId===b.id?
+          <div className="notice" style={{marginTop:10}} role="group" aria-label={'Confirm cancelling appointment for booking '+b.id.slice(0,8)}>
+           <p>Cancel this appointment time? The booking stays active so you can agree a new time.</p>
+           <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
+            <button type="button" className="btn secondary" disabled={busy} onClick={()=>void action(b.id,'cancel_booking_appointment')}>Confirm cancellation</button>
+            <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmCancelId(null)}>Keep time</button>
+           </div>
+          </div>:
+          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmCancelId(b.id)}>Cancel appointment time</button></p>
+         )}
+        </>}
+       </article>;
+      })}
+     </div>
+    </section>
+   </div>
+  </>}
  </main>;
 }
