@@ -40,7 +40,10 @@ async function fulfill(route:Route,body:unknown){
  await route.fulfill({status:200,headers:cors(),body:JSON.stringify(body)});
 }
 
-async function stubDirectory(page:Page,professionals:unknown[]){
+const CCTV_ID='55555555-5555-4555-8555-555555555555';
+const cctvTrade={id:CCTV_ID,name:'CCTV & security camera installation',slug:'cctv-installation'};
+
+async function stubDirectory(page:Page,professionals:unknown[],catalog:typeof trades=trades){
  await page.route('**/*supabase.co/**',async route=>{
   const request=route.request();
   const url=request.url();
@@ -48,7 +51,7 @@ async function stubDirectory(page:Page,professionals:unknown[]){
    await route.fulfill({status:204,headers:cors()});
    return;
   }
-  if(url.includes('/rest/v1/trades')){await fulfill(route,trades);return;}
+  if(url.includes('/rest/v1/trades')){await fulfill(route,catalog);return;}
   if(url.includes('/rest/v1/service_areas')){await fulfill(route,areas);return;}
   if(url.includes('/rest/v1/rpc/')){await fulfill(route,professionals);return;}
   if(url.includes('/auth/v1/')){await fulfill(route,{});return;}
@@ -95,6 +98,19 @@ test('Trade filters are usable and fixture customer home addresses stay off the 
  await expect(page.getByText('TrustFive approved')).toBeVisible();
  await expect(page.locator('body')).not.toContainText(CUSTOMER_HOME);
  await expect(page.locator('body')).not.toContainText('Private Customer Lane');
+});
+
+test('CCTV search selects that trade and an uncovered area stays honestly empty',async({page})=>{
+ await stubDirectory(page,[],[...trades,cctvTrade]);
+ await page.goto('/services?q=cctv&area='+AREA_ID);
+ const trade=page.getByLabel('Trade or service');
+ await expect(trade).toBeEnabled();
+ await expect(trade).toHaveValue(CCTV_ID);
+ await expect(page.getByRole('heading',{name:'CCTV & security camera installation'})).toBeVisible();
+ await expect(page.getByRole('status').filter({hasText:'No approved professionals for this trade in the selected area yet'})).toBeVisible();
+ await expect(page.getByText('We will not invent a top five.')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Fixture Plumbing Co'})).toHaveCount(0);
+ await expect(page.locator('body')).not.toContainText(CUSTOMER_HOME);
 });
 
 test('Directory layout does not overflow a 360px screen',async({page})=>{
