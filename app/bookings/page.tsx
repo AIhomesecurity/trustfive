@@ -56,7 +56,7 @@ export default function Bookings(){
  useEffect(()=>{(async()=>{try{const {data:{user},error}=await supabaseBrowser().auth.getUser();if(error)throw error;if(!user){setNotice('Sign in to manage your bookings.');return}setUserId(user.id);await refresh(user.id)}catch(e){setNotice(e instanceof Error?e.message:'Unable to load bookings')}finally{setCheckingAccount(false)}})()},[]);
  async function act(action:'mark_job_ready_for_confirmation'|'confirm_job_completed',id:string){
   if(busy||loadingBookings)return;
-  if(action==='confirm_job_completed'&&!canConfirmCompletedBooking(
+  if(action==='confirm_job_completed'&&!canConfirmCompletedBookingFromRecords(
    completionConfirmationId,bookings,userId
   )){
    setCompletionConfirmationId(null);
