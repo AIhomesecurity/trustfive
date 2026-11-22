@@ -18,4 +18,7 @@ test('collaboration form rejects unknown areas, trades, types and unauthenticate
  expect(socialTradeRequestError({...valid,areaId:'made-up'})).toMatch(/general service area/);
  expect(socialTradeRequestError({...valid,assistanceType:'private_customer_job'})).toMatch(/recognised/);
  expect(socialTradeRequestError({...valid,earliestWeek:'random'})).toMatch(/valid date/);
+ expect(socialTradeRequestError({...valid,earliestWeek:'2026-02-31'})).toMatch(/valid date/);
+ expect(socialTradeRequestError({...valid,earliestWeek:'2027-02-29'})).toMatch(/valid date/);
+ expect(socialTradeRequestError({...valid,earliestWeek:'2028-02-29'})).toBeNull();
 });
