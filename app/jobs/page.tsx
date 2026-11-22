@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
@@ -10,6 +10,7 @@ import {jobPublishBlocker} from '../../lib/job-publish-readiness';
 import TradeQuickPick from '../../components/trade-quick-pick';
 import {canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
+import {createSubmissionGate} from '../../lib/submission-gate';
 type Trade={id:string;name:string;slug:string};type Area={id:string;area_name:string;city:string};
 type Job={id:string;title:string;description:string;status:string;created_at:string;budget_pence:number|null};
 type Quote={quote_id:string;job_id:string;business_name:string;amount_pence:number;message:string;status:string};
@@ -18,6 +19,8 @@ export default function Jobs(){
  const [title,setTitle]=useState(''),[description,setDescription]=useState(''),[trade,setTrade]=useState(''),[area,setArea]=useState(''),[budget,setBudget]=useState('');
  const [userId,setUserId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[initialLoading,setInitialLoading]=useState(true);
  const [confirmQuoteId,setConfirmQuoteId]=useState<string|null>(null);
+ const publishGate=useRef<ReturnType<typeof createSubmissionGate>|null>(null);
+ if(!publishGate.current)publishGate.current=createSubmissionGate();
  const [site,setSite]=useState<SelectedLocation|null>(null),[checkedSite,setCheckedSite]=useState<SelectedLocation|null>(null),[addressVersion,setAddressVersion]=useState(0);
  const [manualProperty,setManualProperty]=useState('');
  const [territoryRetry,setTerritoryRetry]=useState(0),[territoryFailed,setTerritoryFailed]=useState(false);
@@ -69,6 +72,8 @@ export default function Jobs(){
   // Revalidate on submit as well as disabling the button. Keyboard, scripted
   // submits and state changes must not bypass the current address/trade checks.
   if(publishBlocker){setMessage(publishBlocker);return;}
+  // React busy state can lag behind two rapid submit events.
+  if(!publishGate.current!.acquire())return;
   setBusy(true);setMessage('');
   try{
    if(meaningfulJobTextLength(title)<5)throw Error('Enter a job title with at least 5 meaningful characters');
@@ -94,7 +99,7 @@ export default function Jobs(){
     setMessage('Job published successfully, but your job list could not be refreshed. Reload this page to see it before posting again.');
    }
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to save')}
-  finally{setBusy(false)}
+  finally{publishGate.current!.release();setBusy(false)}
  }
  async function accept(quoteId:string){
   if(busy||confirmQuoteId!==quoteId)return;
