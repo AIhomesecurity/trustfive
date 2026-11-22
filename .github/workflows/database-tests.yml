@@ -100,3 +100,6 @@ jobs:
 
       - name: Verify targeted marketplace FK indexes and EXPLAIN plans (Issue #13)
         run: psql -v ON_ERROR_STOP=1 -f tests/db/query-plan-indexes-contract.sql
+
+      - name: Verify professional collaboration registration, private interests and closed-request RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-trade-collaboration-contract.sql

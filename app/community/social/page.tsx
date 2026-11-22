@@ -8,6 +8,7 @@ import {socialPostValidationError} from '../../../lib/social-post-composer';
 import SocialDiscussion from '../../../components/social-discussion';
 import SocialAdviceBoard from '../../../components/social-advice-board';
 import SocialGroupDiscovery from '../../../components/social-group-discovery';
+import SocialTradeCollaboration from '../../../components/social-trade-collaboration';
 
 type SocialTab='neighbourhood'|'trade'|'advice';
 const TABS:{id:SocialTab;label:string}[]=[
@@ -167,7 +168,7 @@ export default function TrustFiveSocial(){
     </>}
    </>}
   </section>}
-  {tab==='trade'&&<SocialGroupDiscovery userId={userId} areas={areas}/>}
+  {tab==='trade'&&<><SocialGroupDiscovery userId={userId} areas={areas}/><SocialTradeCollaboration userId={userId} areas={areas}/></>}
   {tab==='advice'&&<SocialAdviceBoard userId={userId} areas={areas}/>}
  </main>;
 }
