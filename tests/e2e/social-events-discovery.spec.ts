@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,type SocialEventSummary} from '../../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,type SocialEventSummary} from '../../lib/social-events';
 
 const event:SocialEventSummary={
  id:'event-1',area_id:'area-1',title:'Community repair café',
@@ -42,4 +42,24 @@ test('private RSVP state is never reused for a new account, neighbourhood or ref
  expect(socialEventViewReady(original,socialEventViewKey('user-b','area-one',0),false)).toBe(false);
  expect(socialEventViewReady(original,socialEventViewKey('user-a','area-two',0),false)).toBe(false);
  expect(socialEventViewReady(original,socialEventViewKey('user-a','area-one',1),false)).toBe(false);
+});
+
+test('my events uses only the current account RSVP records and preserves event order',()=>{
+ const events=[
+  {...event,id:'a'},
+  {...event,id:'b'},
+  {...event,id:'c'},
+  {...event,id:'d'}
+ ];
+ const mine=[
+  {event_id:'b',status:'going' as const},
+  {event_id:'d',status:'interested' as const},
+  {event_id:'nonvisible',status:'going' as const}
+ ];
+ expect(socialFilterEventsByOwnRsvp(events,mine,'all').map(x=>x.id)).toEqual(['a','b','c','d']);
+ expect(socialFilterEventsByOwnRsvp(events,mine,'saved').map(x=>x.id)).toEqual(['b','d']);
+ expect(socialFilterEventsByOwnRsvp(events,mine,'going').map(x=>x.id)).toEqual(['b']);
+ expect(socialFilterEventsByOwnRsvp(events,mine,'interested').map(x=>x.id)).toEqual(['d']);
+ expect(socialFilterEventsByOwnRsvp(events,[],'saved')).toEqual([]);
+ expect(socialFilterEventsByOwnRsvp([],mine,'going')).toEqual([]);
 });
