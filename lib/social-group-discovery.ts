@@ -16,3 +16,12 @@ export function socialGroupSearchPattern(query:string):string|null{
  const safe=term.slice(0,120).replace(/[\\%_]/g,char=>'\\'+char);
  return '%'+safe+'%';
 }
+
+/** Build a bounded set of group IDs from the member's own authorised rows. */
+export function socialOwnGroupIds(
+ memberships:readonly {group_id:string;user_id:string}[],currentUserId:string
+):string[]{
+ if(!currentUserId)return [];
+ return [...new Set(memberships.filter(item=>item.user_id===currentUserId)
+  .map(item=>item.group_id).filter(Boolean))].slice(0,200);
+}
