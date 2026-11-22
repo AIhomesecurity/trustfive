@@ -597,3 +597,24 @@ begin
   end loop;
  end loop;
 end $private_booking_bypassrls$;
+
+
+-- RLS cannot prevent a role with TRIGGER privilege from installing code on
+-- private customer-location or consent-audit relations. Client API roles
+-- must never gain this separate table privilege. Catalog-only, no private
+-- property values or consent records are read.
+do $private_trigger_grants$
+declare v_role text; v_relation text;
+begin
+ foreach v_role in array array['anon','authenticated'] loop
+  foreach v_relation in array array[
+   'public.job_site_locations',
+   'public.booking_address_consent_events'
+  ] loop
+   if has_table_privilege(v_role,v_relation,'TRIGGER') then
+    raise exception 'API role % can create triggers on private relation %',
+     v_role,v_relation;
+   end if;
+  end loop;
+ end loop;
+end $private_trigger_grants$;
