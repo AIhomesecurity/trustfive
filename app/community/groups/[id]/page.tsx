@@ -6,7 +6,7 @@ import {supabaseBrowser} from '../../../../lib/supabase';
 import {readablePostDate} from '../../../../lib/social-discovery';
 import {socialNeedsAuthRecheck} from '../../../../lib/social-auth-identity';
 import {socialGroupCanLeave,socialGroupCanPublish,socialGroupPostError,socialGroupPostPage,
- socialGroupRouteId,socialGroupVisiblePage,
+ socialGroupRouteId,socialGroupVisiblePage,socialGroupFocusTarget,type SocialGroupMembershipAction,
  type GroupConversationMembership,type GroupConversationPost,type GroupConversationSummary
 } from '../../../../lib/social-group-conversation';
 
@@ -29,6 +29,16 @@ export default function SocialGroupConversation(){
  const userIdRef=useRef('');
  userIdRef.current=userId;
  const inFlight=useRef(false);
+ const joinButtonRef=useRef<HTMLButtonElement>(null);
+ const composerHeadingRef=useRef<HTMLHeadingElement>(null);
+ const pendingFocus=useRef<SocialGroupMembershipAction|null>(null);
+ useEffect(()=>{
+  if(!pendingFocus.current)return;
+  const target=socialGroupFocusTarget(pendingFocus.current);
+  pendingFocus.current=null;
+  if(target==='join')joinButtonRef.current?.focus();
+  else composerHeadingRef.current?.focus();
+ },[membership]);
  const authEpoch=useRef(0);
  const postLoadEpoch=useRef(0);
  const groupKey=groupId||'invalid';
@@ -115,6 +125,7 @@ export default function SocialGroupConversation(){
     .insert({group_id:groupId,user_id:userId,role:'member'});
    if(result.error)throw result.error;
    if(epoch!==authEpoch.current)return;
+   pendingFocus.current='joined';
    setMembership({group_id:groupId,user_id:userId,role:'member'});
    setNotice('You joined this group. Only members can read its discussions.');
   }catch{if(epoch===authEpoch.current)setNotice('Unable to join this group. Please retry.');}
@@ -130,6 +141,7 @@ export default function SocialGroupConversation(){
     .eq('group_id',groupId).eq('user_id',userId).eq('role','member').select('group_id').maybeSingle();
    if(result.error||!result.data)throw Error('Membership not changed');
    if(epoch!==authEpoch.current)return;
+   pendingFocus.current='left';
    ++postLoadEpoch.current;setMembership(null);setPosts([]);setBody('');setLeaveConfirm(false);
    setNotice('You left this group. Its members-only discussions are no longer displayed.');
   }catch{if(epoch===authEpoch.current)setNotice('Unable to confirm that you left. Refresh membership before retrying.');}
@@ -169,7 +181,7 @@ export default function SocialGroupConversation(){
      <h2 id="group-current-name">{group.name}</h2>
      <p style={{overflowWrap:'anywhere',whiteSpace:'pre-wrap'}}>{group.description}</p>
      <p className="muted-note">{membership?'You are a member.':'This group is public to discover. Join to access its members-only posts.'}</p>
-     {!membership?<button className="btn" type="button" disabled={busy} onClick={()=>{void joinGroup();}}>
+     {!membership?<button ref={joinButtonRef} className="btn" type="button" disabled={busy} onClick={()=>{void joinGroup();}}>
       {busy?'Joining…':'Join group'}
      </button>:membership.role==='owner'?<p className="muted-note">You founded this group. Owners cannot leave through this member-only control.</p>
      :<div>
@@ -184,7 +196,7 @@ export default function SocialGroupConversation(){
     </section>
     {membership&&<>
      <section className="card" aria-labelledby="group-compose-title">
-      <h2 id="group-compose-title">Write to this group</h2>
+      <h2 id="group-compose-title" ref={composerHeadingRef} tabIndex={-1}>Write to this group</h2>
       <p className="muted-note">Only members can read these posts. Never share private job addresses, phone numbers, private quotes or customer leads.</p>
       <form className="form" onSubmit={publish}>
        <label>Group update
