@@ -56,3 +56,12 @@ export function socialEventSearchPattern(text:string):string|null{
  const value=text.trim().slice(0,120);
  return value?'%'+value.replace(/[\\%_]/g,character=>'\\'+character)+'%':null;
 }
+
+/** Predict whether an RSVP change removes an event under the current filter.
+ * The UI moves keyboard focus to the filter before removing its active button.
+ */
+export function socialRsvpKeepsEventVisible(
+ filter:SocialEventAttendanceFilter,status:'going'|'interested'|'none'
+):boolean{
+ return filter==='all'||(filter==='saved'&&status!=='none')||filter===status;
+}
