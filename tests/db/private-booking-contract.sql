@@ -369,3 +369,24 @@ begin
   end if;
  end loop;
 end $consent_writer_owner_membership$;
+
+
+-- The booked-address reader runs with elevated privileges. Neither API
+-- role may own its function or assume the owning role, even if EXECUTE
+-- grants and live consent predicates remain correct. Catalog only.
+do $booking_reader_owner_membership$
+declare v_owner oid; v_role text;
+begin
+ select p.proowner into v_owner
+ from pg_proc p
+ where p.oid=to_regprocedure('public.booking_job_site_address(uuid)');
+ if v_owner is null then
+  raise exception 'Privileged booking address reader missing';
+ end if;
+ foreach v_role in array array['anon','authenticated'] loop
+  if pg_has_role(v_role,v_owner,'MEMBER')
+     or pg_has_role(v_role,v_owner,'USAGE') then
+   raise exception 'API role % can own or assume booking address reader owner',v_role;
+  end if;
+ end loop;
+end $booking_reader_owner_membership$;
