@@ -32,7 +32,9 @@ create index social_trade_interests_responder_idx
 alter table public.social_trade_requests enable row level security;
 alter table public.social_trade_interests enable row level security;
 revoke all on public.social_trade_requests,public.social_trade_interests from public,anon;
-grant select,insert,update on public.social_trade_requests to authenticated;
+grant select,insert on public.social_trade_requests to authenticated;
+-- Existing requests are immutable except their lifecycle status.
+grant update(status) on public.social_trade_requests to authenticated;
 grant select,insert,delete on public.social_trade_interests to authenticated;
 
 -- A user must have applied for professional status and still be in the
