@@ -111,8 +111,8 @@ export default function CommunityGroups(){
     </form><p className="muted-note">Groups are publicly discoverable to signed-in members in this pilot. Address verification and private groups are not yet supported.</p>
    </div></section>
    <section><h2>Explore groups</h2>
-    <div className="card"><label htmlFor="community-group-search">Find a group by name, topic or neighbourhood</label>
-     <input id="community-group-search" type="search" maxLength={120} value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} placeholder="Search listed groups" aria-describedby="community-group-search-help"/>
+    <div className="card"><label htmlFor="community-group-search">Find a group by name, topic, neighbourhood or city</label>
+     <input id="community-group-search" type="search" maxLength={120} value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} placeholder="Try CCTV, alarms or Manchester" aria-describedby="community-group-search-help"/>
      <p id="community-group-search-help" className="muted-note">Search covers the 100 most recently listed groups, not every group on TrustFive.</p>
      {!loadError&&<p role="status" aria-live="polite" className="muted-note">{filteredGroups.length} matching {filteredGroups.length===1?'group':'groups'} in the loaded list.</p>}
     </div><div className="list">
