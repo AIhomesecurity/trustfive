@@ -6,6 +6,7 @@ import {findSocialArea,readablePostDate,type SocialArea,type SocialPostSummary} 
 import {socialPageBounds,socialPageRows,socialSearchPattern,type SocialFeedOrder} from '../../../lib/social-feed-paging';
 import {socialPostValidationError} from '../../../lib/social-post-composer';
 import SocialDiscussion from '../../../components/social-discussion';
+import SocialAdviceBoard from '../../../components/social-advice-board';
 
 type SocialTab='neighbourhood'|'trade'|'advice';
 const TABS:{id:SocialTab;label:string}[]=[
@@ -172,12 +173,6 @@ export default function TrustFiveSocial(){
    <p className="muted-note">Joining a discussion will not grant approved professional status. Customer job details and exact addresses cannot be shared here without customer consent and server authorisation. TrustFive's five-approved-professionals-per-trade-per-area rule stays independent.</p>
    <Link className="btn secondary" href="/services">Explore the existing approved directory</Link>
   </section>}
-  {tab==='advice'&&<section className="card" aria-labelledby="social-advice-title">
-   <span className="eyebrow">Help from your community</span>
-   <h2 id="social-advice-title">Questions & Advice</h2>
-   <p>Ask your neighbours about home improvement, maintenance or local services through the existing community composer. Dedicated question categories and verified professional answer badges are being developed; we will not assign them to existing posts without evidence.</p>
-   <p className="muted-note">For electrical, gas or other regulated work, use a suitably qualified professional. Social replies are not a substitute for a professional inspection.</p>
-   <Link className="btn" href="/community">Ask in the neighbourhood community</Link>
-  </section>}
+  {tab==='advice'&&<SocialAdviceBoard userId={userId} areas={areas}/>}
  </main>;
 }
