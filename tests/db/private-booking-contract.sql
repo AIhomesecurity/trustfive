@@ -335,3 +335,17 @@ begin
  end loop;
 end
 $tf$;
+
+-- The consent audit is private even if all grants and RLS remain intact:
+-- table ownership lets a client role alter ACLs or disable RLS outright.
+-- Catalog-only negative regression; no customer addresses or audit rows read.
+do $consent_audit_owner$
+declare v_owner oid;
+begin
+ select c.relowner into v_owner
+ from pg_class c
+ where c.oid='public.booking_address_consent_events'::regclass;
+ if v_owner is null or v_owner in ('anon'::regrole::oid,'authenticated'::regrole::oid) then
+  raise exception 'Private booking consent audit is owned by a client API role';
+ end if;
+end $consent_audit_owner$;
