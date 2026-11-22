@@ -74,12 +74,18 @@ begin
  if exists(select 1 from public.community_group_posts where group_id=v_group_id) then
   raise exception 'Nonmember read protected group conversation';
  end if;
+ insert into public.community_groups(id,area_id,creator_id,name,description,visibility)
+ values('00000000-0000-0000-00e8-000000000002',
+  current_setting('trustfive.sg_area')::uuid,outsider,
+  'Synthetic Unrelated Group','An unrelated public group for membership isolation.','public');
+ if exists(select 1 from public.community_group_posts where group_id=v_group_id) then
+  raise exception 'Membership in an unrelated group exposed protected posts';
+ end if;
  begin
   insert into public.community_group_posts(group_id,author_id,body)
   values(v_group_id,outsider,'A nonmember must not be able to post here.');
-  raise exception 'SENTINEL: nonmember published to a group';
- exception when others then
-  if sqlerrm like 'SENTINEL:%' then raise; end if;
+  raise exception 'Unrelated group member published to protected group';
+ exception when insufficient_privilege then null;
  end;
  begin
   insert into public.community_group_memberships(group_id,user_id,role)
