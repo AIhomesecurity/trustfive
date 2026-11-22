@@ -88,3 +88,6 @@ jobs:
 
       - name: Enforce nationwide pending-area interest privacy and no self-approval
         run: psql -v ON_ERROR_STOP=1 -f tests/db/uk-area-interest-contract.sql
+
+      - name: Verify professional collaboration registration, private interests and closed-request RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-trade-collaboration-contract.sql
