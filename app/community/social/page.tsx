@@ -27,6 +27,8 @@ export default function TrustFiveSocial(){
  const [tab,setTab]=useState<SocialTab>('neighbourhood');
  const [areas,setAreas]=useState<SocialArea[]>([]);
  const [userId,setUserId]=useState('');
+ const currentUserIdRef=useRef('');
+ currentUserIdRef.current=userId;
  const [postingAreaId,setPostingAreaId]=useState(''),[postBody,setPostBody]=useState('');
  const [posting,setPosting]=useState(false),[postNotice,setPostNotice]=useState('');
  const publishingRef=useRef(false);
@@ -44,8 +46,8 @@ export default function TrustFiveSocial(){
  // Supabase broadcasts SIGNED_OUT / SIGNED_IN across tabs. Revalidate with
  // getUser instead of trusting cached posts, bookmarks or private RSVP state.
  useEffect(()=>{
-  const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange((event)=>{
-   if(!socialNeedsAuthRecheck(event))return;
+  const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange((event,session)=>{
+   if(!socialNeedsAuthRecheck(event,currentUserIdRef.current,session?.user?.id||''))return;
    authEpoch.current++;
    setAuthRevision(value=>value+1);
   });
