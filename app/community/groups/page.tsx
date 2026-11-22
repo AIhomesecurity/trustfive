@@ -7,7 +7,7 @@ import {canPublishCommunityGroupPost} from '../../../lib/community-group-publish
 import {restoreGroupListFocus} from '../../../lib/community-group-focus';
 import {communityGroupActionLabel,communityGroupActionDisabled} from '../../../lib/community-group-actions';
 import {communityGroupLocationLabel} from '../../../lib/community-group-location';
-import {communityGroupDraftError} from '../../../lib/community-group-draft';
+import {communityGroupDraftError,communityGroupMeaningfulLength} from '../../../lib/community-group-draft';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -116,8 +116,10 @@ export default function CommunityGroups(){
      <label>Neighbourhood<select required value={area} onChange={e=>setArea(e.target.value)}>
       <option value="">Choose area</option>{areas.map(a=><option value={a.id} key={a.id}>{a.area_name}, {a.city}</option>)}
      </select></label>
-     <label>Group name<input required minLength={4} maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder="Community gardeners"/></label>
-     <label>What is this group about?<textarea required minLength={15} maxLength={1200} value={description} onChange={e=>setDescription(e.target.value)}/></label>
+     <label>Group name<input required minLength={4} maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder="Community gardeners" aria-describedby="group-name-guidance"/></label>
+     <p id="group-name-guidance" className="muted-note">{communityGroupMeaningfulLength(name)} of at least 4 non-whitespace characters for the group name.</p>
+     <label>What is this group about?<textarea required minLength={15} maxLength={1200} value={description} onChange={e=>setDescription(e.target.value)} aria-describedby="group-description-guidance"/></label>
+     <p id="group-description-guidance" className="muted-note">{communityGroupMeaningfulLength(description)} of at least 15 non-whitespace characters for the description.</p>
      <button className="btn" disabled={busy||areas.length===0} type="submit">Create community group</button>
     </form><p className="muted-note">Groups are publicly discoverable to signed-in members in this pilot. Address verification and private groups are not yet supported.</p>
    </div></section>
