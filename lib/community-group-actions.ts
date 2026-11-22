@@ -1,7 +1,10 @@
 /** Distinguish repeated group actions for assistive technology. */
-export function communityGroupActionLabel(action:'join'|'open',groupName:string):string{
+export function communityGroupActionLabel(action:'join'|'open'|'close'|'view',groupName:string):string{
  const name=groupName.trim()||'unnamed group';
- return action==='join'? `Join ${name}` : `Open posts for ${name}`;
+ if(action==='join')return `Join ${name}`;
+ if(action==='view')return `View group page for ${name}`;
+ if(action==='close')return `Close posts for ${name}`;
+ return `Open posts for ${name}`;
 }
 
 /** Disable actions while another group write is in progress. */
