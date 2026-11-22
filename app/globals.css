@@ -340,3 +340,17 @@
 .trade-quick-fieldset .muted-note{margin:9px 0 0}
 @media(max-width:680px){.trade-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:380px){.trade-quick-grid{grid-template-columns:1fr}}
+
+/* TrustFive Social foundation — no pretend professional status or fake posts. */
+.social-hub-shortcuts,.social-hub-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.social-hub-tabs{border-bottom:1px solid var(--border);padding-bottom:12px}
+.social-hub-tab{appearance:none;border:1px solid var(--border);border-radius:12px;padding:10px 14px;background:white;color:var(--dark);font-weight:750;min-height:44px;max-width:100%}
+.social-hub-tab.active{color:white;background:var(--green);border-color:var(--green)}
+.social-hub-tab:focus-visible{outline:3px solid #50ad7a;outline-offset:3px}
+.social-hub-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px;margin-bottom:16px}
+.social-hub-filters label{display:grid;gap:6px;min-width:0;font-size:14px;font-weight:700}
+.social-hub-filters .btn{align-self:end}
+.social-hub .card{min-width:0}
+.social-hub .list article p{overflow-wrap:anywhere}
+@media(max-width:390px){.social-hub-tabs{display:grid;grid-template-columns:1fr}.social-hub-shortcuts .btn{width:100%}}
+@media(prefers-reduced-motion:reduce){.social-hub *{animation:none!important;transition:none!important}}
