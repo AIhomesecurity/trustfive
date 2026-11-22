@@ -25,6 +25,11 @@ test.describe('private notification appointment destinations',()=>{
  test('canonicalises uppercase UUID hex without changing the route',()=>{
   expect(safeNotificationTarget('/schedule?booking='+booking.toUpperCase())).toBe('/schedule?booking='+booking);
  });
+ test('fails closed on malformed JSON destination values without throwing',()=>{
+  for(const value of [null,undefined,42,false,{},[],{path:'/jobs'},['/jobs']]){
+   expect(safeNotificationTarget(value),String(value)).toBeNull();
+  }
+ });
  test('rejects external origins, control characters and unsupported routes',()=>{
   for(const value of ['//evil.example/schedule?booking='+booking,'https://evil.example','/schedule?booking='+booking+'\\x00','/admin','/schedule']){
    expect(safeNotificationTarget(value),value).toBeNull();
