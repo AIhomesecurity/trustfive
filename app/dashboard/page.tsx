@@ -2,6 +2,9 @@
 
 import {useCallback,useEffect,useState} from 'react';
 import Link from 'next/link';
+import DashboardActionQueue from '../../components/dashboard-action-queue';
+import {buildDashboardActions} from '../../lib/dashboard-actions';
+import {safeNotificationTarget} from '../../lib/notification-target';
 import {supabaseBrowser} from '../../lib/supabase';
 
 type Profile={full_name:string|null;requested_role:string};
@@ -30,7 +33,6 @@ const communityLinks=[
  {icon:'📆',name:'Events',description:'Find neighbourhood activities',href:'/community/events'},
  {icon:'🛡️',name:'Trust and support',description:'Raise concerns or follow up on a booking',href:'/support/complaints'}
 ];
-const safeNotificationPaths=new Set(['/jobs','/bookings','/messages','/professional/apply','/notifications']);
 
 function readableStatus(status:string){
  const labels:Record<string,string>={open:'Open for quotes',draft:'Draft',booked:'Booked',completed:'Completed',cancelled:'Cancelled',awaiting_customer:'Waiting for customer confirmation',pending:'Awaiting review',under_review:'Under review',eligible:'Eligible',rejected:'Not approved',withdrawn:'Withdrawn'};
@@ -107,13 +109,12 @@ export default function Dashboard(){
  const bookedJobs=data.jobs.filter(j=>j.status==='booked').length;
  const activeBookings=currentBookings.filter(b=>b.status!=='completed'&&b.status!=='cancelled').length;
  const pendingApplications=data.applications.filter(a=>a.status==='pending'||a.status==='under_review').length;
- const incompleteBookings=customerBookings.filter(b=>b.status==='awaiting_customer').length;
- const quickAction=activeView==='professional'
-  ?data.applications.length===0?{title:'Get started as a TrustFive professional',body:'Apply for independent assessment. Paying never guarantees one of the five places.',href:'/professional/apply',cta:'Start an application'}
-  :{title:'Ready for your next customer?',body:'See qualifying job opportunities and manage quotes from your professional centre.',href:'/quotes',cta:'Explore matching leads'}
-  :incompleteBookings>0?{title:'A job needs your confirmation',body:'Review the professional’s completion update before confirming the work.',href:'/bookings',cta:'Review bookings'}
-  :openJobs>0?{title:'Your job is open for quotes',body:'Check any responses from approved professionals, or send a message.',href:'/jobs',cta:'Review quotes'}
-  :{title:'Need help with a job?',body:'Find trusted local professionals or describe the work to request quotes.',href:'/services',cta:'Find local help'};
+ const actions=buildDashboardActions({
+  view:activeView,userId,jobs:data.jobs,bookings:data.bookings,applications:data.applications
+ });
+ const actionsIncomplete=Boolean(loadError)||data.warnings.some(warning=>
+  warning.startsWith('Bookings ')||warning.startsWith(activeView==='customer'?'Jobs ':'Professional applications ')
+ );
 
  return <main className="container dashboard-page">
   <div className="page-heading dashboard-heading">
@@ -147,10 +148,7 @@ export default function Dashboard(){
       </>}
      </div>
     </section>
-    <section aria-labelledby="dashboard-next-step" className="dashboard-next-panel">
-     <div><span className="eyebrow">Suggested next step</span><h2 id="dashboard-next-step">{quickAction.title}</h2><p>{quickAction.body}</p></div>
-     <Link className="btn" href={quickAction.href}>{quickAction.cta} →</Link>
-    </section>
+    <DashboardActionQueue actions={actions} loading={loading} incomplete={actionsIncomplete}/>
     <div className="dashboard-columns">
      <section aria-labelledby="dashboard-activity"><div className="dashboard-section-heading"><h2 id="dashboard-activity">Recent activity</h2><Link href={activeView==='customer'?'/jobs':'/bookings'}>View all →</Link></div>
       <div className="dashboard-activity-list">
@@ -161,7 +159,7 @@ export default function Dashboard(){
      </section>
      <section aria-labelledby="dashboard-updates"><div className="dashboard-section-heading"><h2 id="dashboard-updates">Needs your attention</h2><Link href="/notifications">All notifications →</Link></div>
       <div className="dashboard-activity-list">
-       {data.notifications.slice(0,4).map(n=><Link key={n.id} className="dashboard-activity-row" href={safeNotificationPaths.has(n.target_path)?n.target_path:'/notifications'}><span aria-hidden="true">🔔</span><span><strong>{n.title}</strong><small>{formatDate(n.created_at)} · Unread</small></span><span className="dashboard-action-arrow" aria-hidden="true">→</span></Link>)}
+       {data.notifications.slice(0,4).map(n=><Link key={n.id} className="dashboard-activity-row" href={safeNotificationTarget(n.target_path)??'/notifications'}><span aria-hidden="true">🔔</span><span><strong>{n.title}</strong><small>{formatDate(n.created_at)} · Unread</small></span><span className="dashboard-action-arrow" aria-hidden="true">→</span></Link>)}
        {data.notifications.length===0&&<div className="card dashboard-empty"><p>No unread updates. New activity will appear here.</p><Link href="/notifications">Open notifications →</Link></div>}
       </div>
      </section>
