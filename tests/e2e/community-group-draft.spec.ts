@@ -19,3 +19,14 @@ test('validation leaves user input unchanged',()=>{
  expect(name).toBe('  CCTV neighbours  ');
  expect(description).toBe('  Sharing CCTV advice with neighbours.  ');
 });
+
+
+test('rejects internal whitespace padding and line breaks used to bypass minimums',()=>{
+ expect(communityGroupDraftError('a  b','Sharing practical CCTV advice with neighbours')).toMatch(/group name/);
+ expect(communityGroupDraftError('CCTV neighbours','a   b   c   d   e   f   g')).toMatch(/Describe/);
+ expect(communityGroupDraftError('CCTV neighbours','a\n\t b\n\t c\n\t d')).toMatch(/Describe/);
+});
+
+test('accepts minimum meaningful characters despite spacing',()=>{
+ expect(communityGroupDraftError('C C T V','One two three four five six')).toBeNull();
+});
