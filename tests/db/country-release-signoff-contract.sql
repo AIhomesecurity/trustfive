@@ -368,3 +368,29 @@ begin
   raise exception 'Private release audit identity sequence is owned by an API role';
  end if;
 end $release_sequence_owner$;
+
+
+-- Privileged release-review RPCs must not be owned by API roles. A client
+-- owning a SECURITY DEFINER function could replace its body and bypass the
+-- server-side human-approval checks even if its ordinary EXECUTE grants are
+-- restricted. Catalog-only: no release records or private addresses read.
+do $release_rpc_owners$
+declare v_rpc record;
+begin
+ for v_rpc in
+  select p.oid::regprocedure::text as signature,
+         pg_get_userbyid(p.proowner) as owner_name,
+         p.prosecdef as security_definer
+  from pg_proc p
+  where p.oid in (
+   'public.trustfive_admin_country_release_gate(text)'::regprocedure,
+   'public.record_country_release_signoff(text,text,boolean,text,text)'::regprocedure
+  )
+ loop
+  if v_rpc.owner_name is null
+     or v_rpc.owner_name in ('anon','authenticated')
+     or not v_rpc.security_definer then
+   raise exception 'Release RPC % lost privileged server ownership or SECURITY DEFINER',v_rpc.signature;
+  end if;
+ end loop;
+end $release_rpc_owners$;
