@@ -1,0 +1,21 @@
+import {test,expect} from '@playwright/test';
+import {filterLoadedCommunityGroups} from '../../lib/community-group-search';
+
+const groups=[
+ {id:'a',name:'Community Gardeners',description:'Share compost and planting advice',area_id:'north'},
+ {id:'b',name:'Neighbourhood Watch',description:'CCTV and alarm discussions',area_id:'south'},
+ {id:'c',name:'Weekend Walkers',description:'Meet for local walks',area_id:'north'}
+];
+const areas=[{id:'north',area_name:'North Quarter'},{id:'south',area_name:'South Quarter'}];
+
+test('searches the loaded authorised group list by name, description and neighbourhood',()=>{
+ expect(filterLoadedCommunityGroups(groups,areas,'garden').map(g=>g.id)).toEqual(['a']);
+ expect(filterLoadedCommunityGroups(groups,areas,'CCTV').map(g=>g.id)).toEqual(['b']);
+ expect(filterLoadedCommunityGroups(groups,areas,'north quarter').map(g=>g.id)).toEqual(['a','c']);
+ expect(filterLoadedCommunityGroups(groups,areas,'  ALARM  ').map(g=>g.id)).toEqual(['b']);
+});
+test('preserves source order and never invents or mutates groups',()=>{
+ expect(filterLoadedCommunityGroups(groups,areas,'')).toEqual(groups);
+ expect(filterLoadedCommunityGroups(groups,areas,'missing')).toEqual([]);
+ expect(groups).toHaveLength(3);
+});
