@@ -16,6 +16,7 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  const [notice,setNotice]=useState('');
  const [comments,setComments]=useState<SocialComment[]>([]);
  const [reaction,setReaction]=useState<SocialReactionSummary|null>(null);
+ const [saved,setSaved]=useState(false);
  const [reply,setReply]=useState('');
  const [busy,setBusy]=useState(false);
  const [reporting,setReporting]=useState(false);
@@ -28,13 +29,17 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
   setLoading(true);setError('');
   try{
    const s=supabaseBrowser();
-   const [commentResult,reactionResult]=await Promise.all([
+   const [commentResult,reactionResult,savedResult]=await Promise.all([
     s.from('community_comments').select('id,post_id,body,created_at')
      .eq('post_id',postId).order('created_at',{ascending:true}).limit(100),
-    s.rpc('community_reactions_for_posts',{p_post_ids:[postId]})
+    s.rpc('community_reactions_for_posts',{p_post_ids:[postId]}),
+    s.from('social_saved_posts').select('post_id')
+     .eq('post_id',postId).eq('user_id',userId).maybeSingle()
    ]);
    if(commentResult.error)throw commentResult.error;
    if(reactionResult.error)throw reactionResult.error;
+   if(savedResult.error)throw savedResult.error;
+   setSaved(Boolean(savedResult.data));
    setComments(commentResult.data||[]);
    const row=((reactionResult.data||[]) as SocialReactionSummary[]).find(item=>item.post_id===postId);
    setReaction(row||null);
@@ -90,6 +95,20 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
   }catch{setNotice('Could not update your reaction. Please retry.');}
   finally{inFlight.current=false;setBusy(false);}
  }
+ async function toggleSave(){
+  if(!userId||inFlight.current)return;
+  inFlight.current=true;setBusy(true);setNotice('');
+  try{
+   const result=saved
+    ?await supabaseBrowser().from('social_saved_posts').delete()
+      .eq('post_id',postId).eq('user_id',userId)
+    :await supabaseBrowser().from('social_saved_posts').insert({post_id:postId,user_id:userId});
+   if(result.error)throw result.error;
+   setSaved(!saved);
+   setNotice(saved?'Removed from your private saved posts.':'Saved privately to your account. This does not affect rankings or post popularity.');
+  }catch{setNotice('Could not update saved posts. Please refresh this discussion and retry.');}
+  finally{inFlight.current=false;setBusy(false);}
+ }
  async function report(event:FormEvent){
   event.preventDefault();
   const validation=socialReportError(reportCategory,reportDetails);
@@ -121,6 +140,8 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
      <button type="button" className="btn secondary" disabled={busy||reporting}
       aria-pressed={socialReactionIsActive(reaction?.my_reaction||null,'support')}
       onClick={()=>{void react('support');}}>Support ({reaction?.supports??0})</button>
+     <button type="button" className="btn secondary" disabled={busy||reporting}
+      aria-pressed={saved} onClick={()=>{void toggleSave();}}>{saved?'Remove saved post':'Save post privately'}</button>
      <button type="button" className="btn secondary" disabled={busy||reporting}
       aria-expanded={reportOpen} onClick={()=>{setReportOpen(v=>!v);setNotice('');}}>
       {reportOpen?'Cancel report':'Report post'}
