@@ -43,11 +43,11 @@ export default function SocialSavedPosts({userId}:{userId:string}){
   inFlight.current=true;setBusy(true);setNotice('');
   try{
    const result=await supabaseBrowser().from('social_saved_posts')
-    .delete().eq('user_id',userId).eq('post_id',postId);
+    .delete().eq('user_id',userId).eq('post_id',postId).select('post_id').maybeSingle();
    if(result.error)throw result.error;
    setPosts(current=>current.filter(item=>item.id!==postId));
    setSaved(current=>current.filter(item=>item.post_id!==postId));
-   setNotice('Removed from your private saved posts.');
+   setNotice(result.data?'Removed from your private saved posts.':'The bookmark was already removed.');
   }catch{setNotice('Could not remove the saved post. Refresh the list and retry.');}
   finally{inFlight.current=false;setBusy(false);}
  }
