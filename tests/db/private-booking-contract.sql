@@ -411,3 +411,25 @@ begin
   end if;
  end loop;
 end $private_site_owner$;
+
+
+-- The booked-address reader is SECURITY DEFINER and must not resolve
+-- unqualified objects through caller-writable schemas. A fixed empty
+-- search_path is required independently of its consent and identity checks.
+-- Catalog-only regression; no customer address or booking rows are read.
+do $booking_reader_search_path$
+declare v_proc oid; v_config text[];
+begin
+ v_proc := to_regprocedure('public.booking_job_site_address(uuid)')::oid;
+ if v_proc is null then
+  raise exception 'Privileged booking address reader missing';
+ end if;
+ select p.proconfig into v_config from pg_proc p where p.oid=v_proc;
+ if not (select p.prosecdef from pg_proc p where p.oid=v_proc) then
+  raise exception 'Booking address reader lost SECURITY DEFINER contract';
+ end if;
+ if not (coalesce('search_path=' = any(v_config),false)
+         or coalesce('search_path=""' = any(v_config),false)) then
+  raise exception 'Booking address reader must use an explicitly empty search_path';
+ end if;
+end $booking_reader_search_path$;
