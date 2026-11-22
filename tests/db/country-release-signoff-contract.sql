@@ -446,3 +446,27 @@ begin
   end loop;
  end loop;
 end $release_relation_owner_membership$;
+
+
+-- Audit sequence ownership can also be reached through inherited membership
+-- or SET ROLE, even if direct client sequence grants are revoked. A client
+-- with owner privileges could alter the audit identity sequence. Catalog only.
+do $release_sequence_owner_membership$
+declare v_sequence text; v_owner oid; v_role text;
+begin
+ v_sequence := pg_get_serial_sequence('public.country_release_signoff_events','id');
+ if v_sequence is null then
+  raise exception 'Private release audit identity sequence missing';
+ end if;
+ select c.relowner into v_owner
+ from pg_class c where c.oid=v_sequence::regclass and c.relkind='S';
+ if v_owner is null then
+  raise exception 'Private release audit identity sequence owner missing';
+ end if;
+ foreach v_role in array array['anon','authenticated'] loop
+  if pg_has_role(v_role,v_owner,'MEMBER')
+     or pg_has_role(v_role,v_owner,'USAGE') then
+   raise exception 'API role % can inherit or assume private release audit sequence owner',v_role;
+  end if;
+ end loop;
+end $release_sequence_owner_membership$;
