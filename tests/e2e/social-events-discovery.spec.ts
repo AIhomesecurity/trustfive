@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,type SocialEventSummary} from '../../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,type SocialEventSummary} from '../../lib/social-events';
 
 const event:SocialEventSummary={
  id:'event-1',area_id:'area-1',title:'Community repair café',
@@ -22,4 +22,15 @@ test('only genuine owner RSVP statuses are recognised',()=>{
 test('invalid event timestamps never render misleading dates',()=>{
  expect(socialEventDateLabel('not-a-date')).toBe('Date unavailable');
  expect(socialEventDateLabel('2026-12-01T12:00:00Z')).not.toBe('Date unavailable');
+});
+
+test('private RSVP lookup targets only the visible event page, never unrelated history',()=>{
+ const first={...event,id:'visible-1'};
+ const second={...event,id:'visible-2'};
+ expect(socialDisplayedEventIds([first,second])).toEqual(['visible-1','visible-2']);
+ expect(socialDisplayedEventIds([])).toEqual([]);
+ expect(socialDisplayedEventIds([first,first,second])).toEqual(['visible-1','visible-2']);
+ const many=Array.from({length:300},(_,i)=>({...event,id:'event-'+i}));
+ expect(socialDisplayedEventIds(many)).toHaveLength(60);
+ expect(socialDisplayedEventIds(many).at(-1)).toBe('event-59');
 });
