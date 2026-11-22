@@ -33,3 +33,20 @@ export function socialEventViewKey(userId:string,areaId:string,revision:number):
 export function socialEventViewReady(loadedKey:string,currentKey:string,loading:boolean):boolean{
  return !loading&&loadedKey===currentKey;
 }
+
+/** This filter only operates on events already authorised by Supabase RLS.
+ * It never looks up another person's attendance or discloses attendee lists.
+ */
+export type SocialEventAttendanceFilter='all'|'going'|'interested'|'saved';
+export function socialFilterEventsByOwnRsvp(
+ events:readonly SocialEventSummary[],
+ responses:readonly SocialEventRsvp[],
+ filter:SocialEventAttendanceFilter
+):SocialEventSummary[]{
+ if(filter==='all')return [...events];
+ const mine=new Map(responses.map(item=>[item.event_id,item.status]));
+ return events.filter(event=>{
+  const response=socialEventRsvpStatus(mine.get(event.id));
+  return filter==='saved'?response!==null:response===filter;
+ });
+}
