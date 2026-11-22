@@ -10,12 +10,15 @@ import SocialAdviceBoard from '../../../components/social-advice-board';
 import SocialGroupDiscovery from '../../../components/social-group-discovery';
 import SocialTradeCollaboration from '../../../components/social-trade-collaboration';
 import SocialSavedPosts from '../../../components/social-saved-posts';
+import SocialEventsDiscovery from '../../../components/social-events-discovery';
+import {socialNeedsAuthRecheck} from '../../../lib/social-auth-identity';
 
-type SocialTab='neighbourhood'|'trade'|'advice'|'saved';
+type SocialTab='neighbourhood'|'trade'|'advice'|'events'|'saved';
 const TABS:{id:SocialTab;label:string}[]=[
  {id:'neighbourhood',label:'Neighbourhood'},
  {id:'trade',label:'Trade Network'},
  {id:'advice',label:'Questions & Advice'},
+ {id:'events',label:'Events'},
  {id:'saved',label:'Saved'}
 ];
 
@@ -24,6 +27,8 @@ export default function TrustFiveSocial(){
  const [tab,setTab]=useState<SocialTab>('neighbourhood');
  const [areas,setAreas]=useState<SocialArea[]>([]);
  const [userId,setUserId]=useState('');
+ const currentUserIdRef=useRef('');
+ currentUserIdRef.current=userId;
  const [postingAreaId,setPostingAreaId]=useState(''),[postBody,setPostBody]=useState('');
  const [posting,setPosting]=useState(false),[postNotice,setPostNotice]=useState('');
  const publishingRef=useRef(false);
@@ -35,9 +40,25 @@ export default function TrustFiveSocial(){
  const [page,setPage]=useState(0),[hasMore,setHasMore]=useState(false);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[signedIn,setSignedIn]=useState(false),[accountLoading,setAccountLoading]=useState(true),[accountError,setAccountError]=useState('');
  const [refreshKey,setRefreshKey]=useState(0);
+ const [authRevision,setAuthRevision]=useState(0);
+ const authEpoch=useRef(0);
+
+ // Supabase broadcasts SIGNED_OUT / SIGNED_IN across tabs. Revalidate with
+ // getUser instead of trusting cached posts, bookmarks or private RSVP state.
+ useEffect(()=>{
+  const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange((event,session)=>{
+   if(!socialNeedsAuthRecheck(event,currentUserIdRef.current,session?.user?.id||''))return;
+   authEpoch.current++;
+   setAuthRevision(value=>value+1);
+  });
+  return()=>subscription.unsubscribe();
+ },[]);
 
  useEffect(()=>{
   let active=true;
+  setSignedIn(false);setUserId('');setAreas([]);setPosts([]);setHasMore(false);
+  setPostBody('');setPostingAreaId('');setPostNotice('');
+  setAccountLoading(true);setAccountError('');setLoading(true);
   (async()=>{
    try{
     const s=supabaseBrowser();
@@ -54,7 +75,7 @@ export default function TrustFiveSocial(){
    finally{if(active)setAccountLoading(false);}
   })();
   return()=>{active=false;};
- },[]);
+ },[authRevision]);
 
  useEffect(()=>{
   if(accountLoading||accountError||!signedIn){setLoading(false);return;}
@@ -95,16 +116,18 @@ export default function TrustFiveSocial(){
   const problem=socialPostValidationError({authorId:userId,areaId:postingAreaId,availableAreaIds:areas.map(item=>item.id),body:postBody});
   if(problem){setPostNotice(problem);return;}
   publishingRef.current=true;setPosting(true);setPostNotice('');
+  const currentAuthEpoch=authEpoch.current;
   try{
    const {error:publishError}=await supabaseBrowser().from('community_posts').insert({
     author_id:userId,area_id:postingAreaId,body:postBody.trim(),visibility:'published'
    });
    if(publishError)throw publishError;
+   if(authEpoch.current!==currentAuthEpoch)return;
    setPostBody('');
    setAreaId(postingAreaId);setQuery('');setSearch('');setPage(0);setOrder('recent');
    setRefreshKey(value=>value+1);
    setPostNotice('Your neighbourhood post was published. If it does not appear immediately, refresh the feed. Do not repost it.');
-  }catch{setPostNotice('Your post could not be published. Check your connection and permissions before trying again.');}
+  }catch{if(authEpoch.current===currentAuthEpoch)setPostNotice('Your post could not be published. Check your connection and permissions before trying again.');}
   finally{publishingRef.current=false;setPosting(false);}
  }
 
@@ -170,8 +193,9 @@ export default function TrustFiveSocial(){
     </>}
    </>}
   </section>}
-  {tab==='trade'&&<><SocialGroupDiscovery userId={userId} areas={areas}/><SocialTradeCollaboration userId={userId} areas={areas}/></>}
-  {tab==='advice'&&<SocialAdviceBoard userId={userId} areas={areas}/>}
-  {tab==='saved'&&<SocialSavedPosts userId={userId}/>}
+  {tab==='trade'&&<><SocialGroupDiscovery key={'groups-'+userId} userId={userId} areas={areas}/><SocialTradeCollaboration key={'collaboration-'+userId} userId={userId} areas={areas}/></>}
+  {tab==='advice'&&<SocialAdviceBoard key={'advice-'+userId} userId={userId} areas={areas}/>}
+  {tab==='events'&&<SocialEventsDiscovery key={'events-'+userId} userId={userId} areas={areas}/>}
+  {tab==='saved'&&<SocialSavedPosts key={'saved-'+userId} userId={userId}/>}
  </main>;
 }
