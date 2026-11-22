@@ -5,6 +5,7 @@ import {supabaseBrowser} from '../../../lib/supabase';
 import {filterLoadedCommunityGroups} from '../../../lib/community-group-search';
 import {canPublishCommunityGroupPost} from '../../../lib/community-group-publishing';
 import {restoreGroupListFocus} from '../../../lib/community-group-focus';
+import {communityGroupActionLabel,communityGroupActionDisabled} from '../../../lib/community-group-actions';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -129,8 +130,8 @@ export default function CommunityGroups(){
      <span className="pill">{areas.find(a=>a.id===g.area_id)?.area_name||'Neighbourhood'}</span>
      <h3 style={{marginTop:12}}>{g.name}</h3><p>{g.description}</p>
      <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}>
-      {member?<button type="button" className="btn secondary" aria-expanded={selected===g.id} aria-controls="selected-group-posts" aria-label={`Open posts for ${g.name}`} onClick={e=>choose(g.id,e.currentTarget)}>Open group</button>:
-       <button type="button" className="btn" disabled={busy} onClick={()=>join(g.id)}>Join group</button>}
+      {member?<button type="button" className="btn secondary" aria-expanded={selected===g.id} aria-controls="selected-group-posts" aria-label={communityGroupActionLabel('open',g.name)} disabled={communityGroupActionDisabled(busy,loading)} onClick={e=>choose(g.id,e.currentTarget)}>Open group</button>:
+       <button type="button" className="btn" disabled={communityGroupActionDisabled(busy,loading)} aria-label={communityGroupActionLabel('join',g.name)} onClick={()=>join(g.id)}>Join group</button>}
      </div>
     </article>})}
    </div></section>
