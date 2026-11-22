@@ -17,6 +17,12 @@ begin
  returning id into v_trade;
  perform set_config('trustfive.collab_area',v_area::text,true);
  perform set_config('trustfive.collab_trade',v_trade::text,true);
+ if has_column_privilege('authenticated','public.social_trade_requests','creator_id','UPDATE')
+  or has_column_privilege('authenticated','public.social_trade_requests','trade_id','UPDATE')
+  or has_column_privilege('authenticated','public.social_trade_requests','area_id','UPDATE')
+  or not has_column_privilege('authenticated','public.social_trade_requests','status','UPDATE') then
+  raise exception 'Trade collaboration scope or author can be rewritten by client';
+ end if;
  if has_table_privilege('anon','public.social_trade_requests','SELECT')
   or has_table_privilege('anon','public.social_trade_interests','SELECT') then
   raise exception 'Anonymous role may access professional collaboration tables';
