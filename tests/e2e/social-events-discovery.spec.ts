@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,type SocialEventSummary} from '../../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventIsUpcoming,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,socialEventSearchPattern,type SocialEventSummary} from '../../lib/social-events';
 
 const event:SocialEventSummary={
  id:'event-1',area_id:'area-1',title:'Community repair café',
@@ -62,4 +62,18 @@ test('my events uses only the current account RSVP records and preserves event o
  expect(socialFilterEventsByOwnRsvp(events,mine,'interested').map(x=>x.id)).toEqual(['d']);
  expect(socialFilterEventsByOwnRsvp(events,[],'saved')).toEqual([]);
  expect(socialFilterEventsByOwnRsvp([],mine,'going')).toEqual([]);
+});
+
+test('event title search treats percent, underscore and backslash as literal text',()=>{
+ expect(socialEventSearchPattern('  repair café  ')).toBe('%repair café%');
+ expect(socialEventSearchPattern('CCTV_100%\\')).toBe('%CCTV\\_100\\%\\\\%');
+ expect(socialEventSearchPattern('')).toBeNull();
+ expect(socialEventSearchPattern('  ')).toBeNull();
+ expect(socialEventSearchPattern('x'.repeat(400))?.length).toBe(122);
+});
+
+test('an event search cannot display a different search result set while stale RSVPs load',()=>{
+ const original=socialEventViewKey('user-a','area-1',5,'CCTV');
+ expect(socialEventViewReady(original,original,false)).toBe(true);
+ expect(socialEventViewReady(original,socialEventViewKey('user-a','area-1',5,'plumbing'),false)).toBe(false);
 });
