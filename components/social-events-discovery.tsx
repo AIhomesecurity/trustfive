@@ -3,7 +3,7 @@ import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
-import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,socialEventSearchPattern,type SocialEventAttendanceFilter,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
+import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,socialEventSearchPattern,socialRsvpKeepsEventVisible,type SocialEventAttendanceFilter,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
 
 /** Browse genuine upcoming events from existing authenticated community tables.
  * The dedicated /community/events page remains the only event publishing UI.
@@ -19,6 +19,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const [loadedViewKey,setLoadedViewKey]=useState('');
  const [changingId,setChangingId]=useState(''),[revision,setRevision]=useState(0);
  const actionInFlight=useRef(false);
+ const attendanceFilterRef=useRef<HTMLSelectElement>(null);
  const viewKey=socialEventViewKey(userId,areaId,revision,search);
  const currentViewRef=useRef(viewKey);
  currentViewRef.current=viewKey;
@@ -82,6 +83,10 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
    // An account or area switch may complete while the RPC is in flight.
    // Never copy the previous viewer's response into a newly loaded view.
    if(currentViewRef.current!==requestViewKey)return;
+   // RSVP changes can remove this card from a filtered list; don't leave
+   // keyboard focus stranded on a button that's about to be unmounted.
+   if(!socialRsvpKeepsEventVisible(attendanceFilter,status))
+    attendanceFilterRef.current?.focus();
    setResponses(old=>status==='none'
     ?old.filter(item=>item.event_id!==eventId)
     :[...old.filter(item=>item.event_id!==eventId),{event_id:eventId,status}]);
@@ -105,7 +110,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
      {areas.map(item=><option key={item.id} value={item.id}>{item.area_name}, {item.city}</option>)}
     </select></label>
     <label>My response
-     <select value={attendanceFilter} onChange={e=>setAttendanceFilter(e.target.value as SocialEventAttendanceFilter)}>
+     <select ref={attendanceFilterRef} value={attendanceFilter} onChange={e=>setAttendanceFilter(e.target.value as SocialEventAttendanceFilter)}>
       <option value="all">All upcoming events</option>
       <option value="saved">My plans (Going or Interested)</option>
       <option value="going">Going</option>
