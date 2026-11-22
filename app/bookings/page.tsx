@@ -5,6 +5,7 @@ import {supabaseBrowser} from '../../lib/supabase';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
 import {quoteMessagesHref,bookingScheduleHref,authorisedBookingSelection} from '../../lib/workflow-links';
 import {canConfirmCompletedBooking} from '../../lib/booking-completion-guard';
+import {createBookingConsentGate} from '../../lib/booking-consent-gate';
 type Booking={id:string;quote_id:string;job_id:string;customer_id:string;professional_id:string;status:string;created_at:string};
 type Review={booking_id:string};
 type JobSite={address_label:string;postcode:string|null;sharing_enabled:boolean};
@@ -17,6 +18,7 @@ export default function Bookings(){
  const [selected,setSelected]=useState<Booking|null>(null),[stars,setStars]=useState('5'),[body,setBody]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  const [completionConfirmationId,setCompletionConfirmationId]=useState<string|null>(null);
  const refreshRequest=useRef(0);
+ const consentGate=useRef(createBookingConsentGate());
  async function refresh(user:string){
   const currentRequest=++refreshRequest.current;
   // Never retain previously retrieved private job-site addresses while
@@ -75,11 +77,22 @@ export default function Bookings(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to update booking');}
   finally{setBusy(false);}
  }
- async function shareAddress(booking:Booking,enabled:boolean){if(busy||siteBusy)return;setSiteBusy(booking.id);setNotice('');
-  // Remove any cached address immediately. A failed change must not leave
-  // stale private address details displayed as though consent were current.
-  setSites({});setSiteUnavailableIds([]);
-  try{const {error}=await supabaseBrowser().rpc('set_booking_address_sharing',{p_booking:booking.id,p_allow:enabled});if(error)throw error;await refresh(userId);setNotice(enabled?'Your selected address is now available to this booked professional.':'Exact address sharing has been turned off for this booking.')}catch(e){setNotice(e instanceof Error?e.message:'Unable to update address sharing')}finally{setSiteBusy('')}}
+ async function shareAddress(booking:Booking,enabled:boolean){
+  if(busy||siteBusy||consentGate.current.isBusy(booking.id))return;
+  await consentGate.current.run(booking.id,async()=>{
+   setSiteBusy(booking.id);setNotice('');
+   // Clear private cached data before the mutation. The RPC remains the
+   // authority for booking ownership, consent and address disclosure.
+   setSites({});setSiteUnavailableIds([]);
+   try{
+    const {error}=await supabaseBrowser().rpc('set_booking_address_sharing',{p_booking:booking.id,p_allow:enabled});
+    if(error)throw error;
+    await refresh(userId);
+    setNotice(enabled?'Your selected address is now available to this booked professional.':'Exact address sharing has been turned off for this booking.');
+   }catch(e){setNotice(e instanceof Error?e.message:'Unable to update address sharing')}
+   finally{setSiteBusy('')}
+  });
+ }
  async function review(e:FormEvent){e.preventDefault();if(!selected||busy)return;setBusy(true);try{const rating=Number(stars);const {error}=await supabaseBrowser().from('booking_reviews').insert({booking_id:selected.id,author_id:userId,professional_id:selected.professional_id,stars:rating,body:body.trim()});if(error)throw error;await refresh(userId);setNotice('Review submitted for a confirmed completed booking.');setSelected(null);setBody('')}catch(e){setNotice(e instanceof Error?e.message:'Unable to submit review')}finally{setBusy(false)}}
  return <main className="container"><div className="page-heading"><span className="eyebrow">Bookings and quality</span><h1>My bookings</h1><p><Link className="btn secondary" href="/schedule">Manage appointment times</Link></p><p className="subtle">Professionals mark work ready; customers confirm completion. Reviews are linked to confirmed completed bookings.</p></div>{notice&&<p className="notice" role="status">{notice}</p>}
  {checkingAccount?<p className="notice" role="status" aria-live="polite">Checking your account and loading bookings…</p>:
