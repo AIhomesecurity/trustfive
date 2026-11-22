@@ -106,3 +106,6 @@ jobs:
 
       - name: Verify private saved-post RLS, anonymous denial and hidden-post privacy
         run: psql -v ON_ERROR_STOP=1 -f tests/db/social-saved-posts-rls-contract.sql
+
+      - name: Verify Social group membership, protected discussions and founder leave rules
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-group-conversations-rls-contract.sql
