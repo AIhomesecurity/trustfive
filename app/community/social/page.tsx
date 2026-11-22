@@ -5,6 +5,7 @@ import {supabaseBrowser} from '../../../lib/supabase';
 import {findSocialArea,readablePostDate,type SocialArea,type SocialPostSummary} from '../../../lib/social-discovery';
 import {socialPageBounds,socialPageRows,socialSearchPattern,type SocialFeedOrder} from '../../../lib/social-feed-paging';
 import {socialPostValidationError} from '../../../lib/social-post-composer';
+import SocialDiscussion from '../../../components/social-discussion';
 
 type SocialTab='neighbourhood'|'trade'|'advice';
 const TABS:{id:SocialTab;label:string}[]=[
@@ -153,7 +154,8 @@ export default function TrustFiveSocial(){
        <span className="pill">{findSocialArea(areas,post.area_id)?.area_name||'Community area'}</span>
        <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',marginTop:12}}>{post.body}</p>
        <p className="muted-note" style={{marginTop:12}}><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
-       <Link className="btn secondary" href="/community">View community conversations</Link>
+       <SocialDiscussion postId={post.id} userId={userId}/>
+       <Link className="btn secondary" href="/community">View full community</Link>
       </article>)}
      </div>
      <nav aria-label="Neighbourhood feed pages" className="social-hub-shortcuts">
