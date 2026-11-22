@@ -91,3 +91,6 @@ jobs:
 
       - name: Verify professional collaboration registration, private interests and closed-request RLS
         run: psql -v ON_ERROR_STOP=1 -f tests/db/social-trade-collaboration-contract.sql
+
+      - name: Verify private saved-post RLS, anonymous denial and hidden-post privacy
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-saved-posts-rls-contract.sql

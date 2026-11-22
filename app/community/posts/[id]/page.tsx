@@ -23,7 +23,7 @@ export default function SocialPostDetail(){
   if(!postId){setError('This discussion link is invalid.');setLoading(false);return;}
   let active=true;
   (async()=>{
-   setLoading(true);setError('');
+   setLoading(true);setError('');setAreaLabel('Community area');setPost(null);
    try{
     const s=supabaseBrowser();
     const user=await s.auth.getUser();
