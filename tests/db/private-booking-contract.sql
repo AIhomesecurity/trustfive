@@ -390,3 +390,24 @@ begin
   end if;
  end loop;
 end $booking_reader_owner_membership$;
+
+
+-- RLS and column grants cannot protect exact customer coordinates when a
+-- client API role owns the table: owners can alter grants and disable RLS.
+-- Catalog-only negative regression, never selects any private property data.
+do $private_site_owner$
+declare v_owner oid; v_role text;
+begin
+ select c.relowner into v_owner
+ from pg_class c
+ where c.oid='public.job_site_locations'::regclass;
+ if v_owner is null then
+  raise exception 'Private job-site locations table missing';
+ end if;
+ foreach v_role in array array['anon','authenticated'] loop
+  if pg_has_role(v_role,v_owner,'MEMBER')
+     or pg_has_role(v_role,v_owner,'USAGE') then
+   raise exception 'API role % can own or assume private job-site locations owner',v_role;
+  end if;
+ end loop;
+end $private_site_owner$;
