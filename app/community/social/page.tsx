@@ -156,7 +156,7 @@ export default function TrustFiveSocial(){
        <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',marginTop:12}}>{post.body}</p>
        <p className="muted-note" style={{marginTop:12}}><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
        <SocialDiscussion postId={post.id} userId={userId}/>
-       <Link className="btn secondary" href="/community">View full community</Link>
+       <Link className="btn secondary" href={`/community/posts/${post.id}`}>Open this discussion</Link>
       </article>)}
      </div>
      <nav aria-label="Neighbourhood feed pages" className="social-hub-shortcuts">
