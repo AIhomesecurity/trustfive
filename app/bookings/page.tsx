@@ -4,7 +4,7 @@ import {FormEvent,useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
-import {authorisedBookingSelection} from '../../lib/workflow-links';
+import {resolveLinkedBooking} from '../../lib/booking-lifecycle';
 import {canConfirmCompletedBooking} from '../../lib/booking-completion-guard';
 import BookingListItem from '../../components/booking-list-item';
 import SelectedBookingDetail from '../../components/selected-booking-detail';
@@ -135,7 +135,18 @@ export default function Bookings() {
       if (r.error) throw r.error;
       if (currentRequest !== refreshRequest.current) return;
 
-      const records = (b.data || []) as Booking[];
+      const recent = (b.data || []) as Booking[];
+      const requested = new URLSearchParams(window.location.search).getAll('booking');
+      const linked = await resolveLinkedBooking(requested, recent, user, async id => {
+        const {data, error} = await s.from('job_bookings')
+          .select('id,quote_id,job_id,customer_id,professional_id,status,created_at')
+          .or('customer_id.eq.' + user + ',professional_id.eq.' + user)
+          .eq('id', id).maybeSingle();
+        if (error) throw error;
+        return data as Booking | null;
+      });
+      if (currentRequest !== refreshRequest.current) return;
+      const records = linked.records;
       setBookings(records);
       setReviews((r.data || []) as Review[]);
       setInitialLoadError('');
@@ -148,13 +159,9 @@ export default function Bookings() {
       }
       setAppointments(apptMap);
 
-      const requested = new URLSearchParams(window.location.search).get('booking');
-      const authorised = authorisedBookingSelection(
-        requested,
-        records.map(item => item.id)
-      );
+      const authorised = linked.selectedId;
       setDeepLinkBookingId(authorised);
-      setUnavailableBooking(Boolean(requested && !records.some(item => item.id === requested)));
+      setUnavailableBooking(requested.length > 0 && !authorised);
       if (authorised) {
         setSelectedBookingId(prev => prev || authorised);
       }
@@ -692,7 +699,7 @@ export default function Bookings() {
 
           {unavailableBooking ? (
             <p role="alert" className="notice error" data-testid="unavailable-booking-alert">
-              That booking is not accessible to this account. Only your own bookings are listed below.
+              Could not open that booking. Check the link or refresh to try again. Your recent bookings are listed below.
             </p>
           ) : null}
 
