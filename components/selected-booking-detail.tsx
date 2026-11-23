@@ -12,6 +12,7 @@ import {
   resolveCustomerSiteConsentView,
   type BookingAppointmentLike,
   type BookingRecordLike,
+  type BookingReviewRecord,
   type BookingSiteLike,
 } from '../lib/booking-lifecycle';
 
@@ -28,6 +29,7 @@ export type SelectedBookingDetailProps = {
   siteInfo?: BookingSiteLike | null;
   siteUnavailable: boolean;
   hasReviewed: boolean;
+  submittedReview?: BookingReviewRecord | null;
   loadingBookings: boolean;
   busy: boolean;
   busyActionKey: string;
@@ -73,6 +75,7 @@ export default function SelectedBookingDetail({
   siteInfo,
   siteUnavailable,
   hasReviewed,
+  submittedReview,
   loadingBookings,
   busy,
   busyActionKey,
@@ -118,9 +121,65 @@ export default function SelectedBookingDetail({
   }, [shareConfirmOpen]);
 
   const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const abortCompletionRef = useRef<HTMLButtonElement>(null);
+  const completionTriggerRef = useRef<HTMLButtonElement>(null);
+  const reviewTriggerRef = useRef<HTMLButtonElement>(null);
+  const reviewSubmittedRef = useRef<HTMLDivElement>(null);
+  const pendingReviewUnlockFocus = useRef(false);
+  const prevCompletionStateRef = useRef({bookingId: booking.id, open: completionConfirmOpen});
+  const prevReviewStateRef = useRef({
+    bookingId: booking.id,
+    open: reviewOpen,
+    status: booking.status,
+    hasReviewed,
+  });
+
   useEffect(() => {
-    if (reviewOpen) reviewHeadingRef.current?.focus();
-  }, [booking.id, reviewOpen]);
+    const prev = prevCompletionStateRef.current;
+    const sameBooking = prev.bookingId === booking.id;
+    if (completionConfirmOpen) {
+      abortCompletionRef.current?.focus();
+    } else if (sameBooking && prev.open && booking.status === 'awaiting_customer') {
+      completionTriggerRef.current?.focus();
+    }
+    prevCompletionStateRef.current = {bookingId: booking.id, open: completionConfirmOpen};
+  }, [booking.id, booking.status, completionConfirmOpen]);
+
+  useEffect(() => {
+    const prev = prevReviewStateRef.current;
+    const sameBooking = prev.bookingId === booking.id;
+    if (!sameBooking) {
+      pendingReviewUnlockFocus.current = false;
+    } else if (prev.status === 'awaiting_customer' && booking.status === 'completed' && !hasReviewed) {
+      pendingReviewUnlockFocus.current = true;
+    }
+
+    if (reviewOpen) {
+      pendingReviewUnlockFocus.current = false;
+      reviewHeadingRef.current?.focus();
+    } else if (sameBooking && !prev.hasReviewed && hasReviewed) {
+      pendingReviewUnlockFocus.current = false;
+      reviewSubmittedRef.current?.focus();
+    } else if (sameBooking && prev.open && booking.status === 'completed' && !hasReviewed && !busy) {
+      pendingReviewUnlockFocus.current = false;
+      reviewTriggerRef.current?.focus();
+    } else if (
+      pendingReviewUnlockFocus.current &&
+      !busy &&
+      booking.status === 'completed' &&
+      !hasReviewed
+    ) {
+      pendingReviewUnlockFocus.current = false;
+      reviewTriggerRef.current?.focus();
+    }
+
+    prevReviewStateRef.current = {
+      bookingId: booking.id,
+      open: reviewOpen,
+      status: booking.status,
+      hasReviewed,
+    };
+  }, [booking.id, booking.status, busy, hasReviewed, reviewOpen]);
 
   const statusMeta = getBookingStatusMeta(booking.status);
 
@@ -645,6 +704,7 @@ export default function SelectedBookingDetail({
                     : 'Yes, work is completed'}
                 </button>
                 <button
+                  ref={abortCompletionRef}
                   type="button"
                   className="btn secondary"
                   disabled={busy}
@@ -663,6 +723,7 @@ export default function SelectedBookingDetail({
                 The professional marked this job ready. Inspect the work and confirm when satisfied.
               </p>
               <button
+                ref={completionTriggerRef}
                 type="button"
                 className="btn"
                 disabled={busy || loadingBookings}
@@ -754,8 +815,33 @@ export default function SelectedBookingDetail({
         {booking.status === 'completed' ? (
           isCustomer ? (
             hasReviewed ? (
-              <div className="notice" role="status" style={{margin: 0}} data-testid={`review-submitted-${booking.id}`}>
-                <strong>✓ Verified-booking review submitted.</strong> Thank you for sharing your genuine experience.
+              <div
+                ref={reviewSubmittedRef}
+                tabIndex={-1}
+                className="notice booking-submitted-review"
+                role="status"
+                style={{margin: 0}}
+                data-testid={`review-submitted-${booking.id}`}
+              >
+                <div className="booking-submitted-review-head">
+                  <strong>✓ Verified-booking review submitted.</strong>
+                  {typeof submittedReview?.stars === 'number' &&
+                  submittedReview.stars >= 1 &&
+                  submittedReview.stars <= 5 ? (
+                    <span className="booking-submitted-review-stars">
+                      {'★'.repeat(submittedReview.stars)} {submittedReview.stars}/5 stars
+                    </span>
+                  ) : null}
+                </div>
+                {submittedReview?.body ? (
+                  <blockquote className="booking-submitted-review-body">
+                    {submittedReview.body}
+                  </blockquote>
+                ) : (
+                  <p className="muted-note" style={{margin: 0}}>
+                    Thank you for sharing your genuine experience.
+                  </p>
+                )}
               </div>
             ) : reviewOpen ? (
               <div
@@ -807,7 +893,7 @@ export default function SelectedBookingDetail({
                   ) : null}
                   {sectionRetryError?.section === 'review' ? (
                     <p className="notice error" role="alert" style={{margin: 0}}>
-                      {sectionRetryError.message} — your draft is preserved below so you can retry safely.
+                      {sectionRetryError.message} — your draft is preserved above so you can retry safely.
                     </p>
                   ) : null}
                   <div className="job-confirm-actions">
@@ -833,6 +919,7 @@ export default function SelectedBookingDetail({
                   Work is confirmed completed. You can now leave a genuine verified-booking review.
                 </p>
                 <button
+                  ref={reviewTriggerRef}
                   type="button"
                   className="btn"
                   disabled={busy}
