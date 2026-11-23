@@ -1,3 +1,6 @@
+import {safeNotificationTarget} from './notification-target';
+import {bookingHistoryHref} from './workflow-links';
+
 /** Client-side quote confirmation guard. Database access and quote eligibility
  * remain authoritative and must be rechecked by accept_job_quote. */
 export type QuoteConfirmationCandidate = {
@@ -19,4 +22,8 @@ export function canConfirmJobQuote(
  if(!quoteId) return false;
  const selected = quotes.find(q=>q.quote_id===quoteId && q.status==='pending');
  return Boolean(selected && jobs.some(job=>job.id===selected.job_id && job.status==='open'));
+}
+
+export function acceptedQuoteBookingHref(bookingId: unknown): string {
+ return (typeof bookingId==='string' && safeNotificationTarget(bookingHistoryHref(bookingId))) || '/bookings';
 }
