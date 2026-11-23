@@ -692,6 +692,9 @@ export default function SelectedBookingDetail({
               <p className="muted-note">
                 If something is outstanding, message the professional or contact TrustFive support instead.
               </p>
+              {sectionRetryError?.section === 'completion' ? (
+                <p className="notice error" role="alert">{sectionRetryError.message} Try confirming again when ready.</p>
+              ) : null}
               <div className="booking-completion-actions">
                 <button
                   type="button"
@@ -797,7 +800,7 @@ export default function SelectedBookingDetail({
           </p>
         ) : null}
 
-        {sectionRetryError?.section === 'completion' ? (
+        {sectionRetryError?.section === 'completion' && !(isCustomer && completionConfirmOpen) ? (
           <div className="notice error" role="alert" style={{marginTop: 10}}>
             <p style={{margin: '0 0 8px'}}>{sectionRetryError.message}</p>
             <button
