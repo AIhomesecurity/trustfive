@@ -11,15 +11,20 @@ export default function Community(){
  const [posts,setPosts]=useState<Post[]>([]),[comments,setComments]=useState<Comment[]>([]),[replyTo,setReplyTo]=useState(''),[reply,setReply]=useState('');
  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[feedLoading,setFeedLoading]=useState(true),[feedError,setFeedError]=useState(''),[accountLoading,setAccountLoading]=useState(true),[accountError,setAccountError]=useState(false);
  const [reactions,setReactions]=useState<Record<string,Reaction>>({});
+ const feedRequest=useRef(0);
+ const currentArea=useRef('');
  const feedHeading=useRef<HTMLHeadingElement>(null);
  const [reportingPost,setReportingPost]=useState('');
  async function loadPosts(filter:string){
+  const request=++feedRequest.current;
   setFeedLoading(true);setFeedError('');setPosts([]);setComments([]);setReactions({});
   try{
   const s=supabaseBrowser();
   let query=s.from('community_posts').select('id,area_id,body,visibility,created_at').order('created_at',{ascending:false}).limit(30);
   if(filter)query=query.eq('area_id',filter);
-  const {data,error}=await query;if(error)throw error;
+  const {data,error}=await query;
+  if(request!==feedRequest.current)return;
+  if(error)throw error;
   const rows=(data||[]) as Post[];setPosts(rows);
   if(rows.length){
   const ids=rows.map(p=>p.id);
@@ -27,17 +32,18 @@ export default function Community(){
    s.from('community_comments').select('id,post_id,body,created_at').in('post_id',ids).order('created_at',{ascending:true}),
    s.rpc('community_reactions_for_posts',{p_post_ids:ids})
   ]);
+  if(request!==feedRequest.current)return;
   if(commentsResult.error)throw commentsResult.error;if(reactionResult.error)throw reactionResult.error;
   setComments(commentsResult.data||[]);
   setReactions(Object.fromEntries(((reactionResult.data||[]) as Reaction[]).map(r=>[r.post_id,r])));
  }else{setComments([]);setReactions({});}
-  }catch(e){setFeedError('Unable to load neighbourhood posts. Please try choosing an area again.');throw e;}
-  finally{setFeedLoading(false);}
+  }catch(e){if(request!==feedRequest.current)return;setFeedError('Unable to load neighbourhood posts. Please try choosing an area again.');throw e;}
+  finally{if(request===feedRequest.current)setFeedLoading(false);}
  }
  useEffect(()=>{(async()=>{try{const s=supabaseBrowser();const [authResult,areasResult]=await Promise.all([s.auth.getUser(),s.from('service_areas').select('id,area_name,city').order('city')]);if(authResult.error)throw authResult.error;const user=authResult.data.user;if(!user){setFeedLoading(false);setMessage('Sign in to participate in the neighbourhood community.');return}setUserId(user.id);if(areasResult.error)throw areasResult.error;setAreas(areasResult.data||[]);await loadPosts('').catch(()=>{})}catch{setFeedLoading(false);setAccountError(true);setMessage('Unable to check your account or load neighbourhoods. Please try again.')}finally{setAccountLoading(false)}})()},[]);
- async function changeArea(value:string){setArea(value);try{await loadPosts(value)}catch(e){setMessage(e instanceof Error?e.message:'Unable to load posts')}}
- async function submit(e:FormEvent){e.preventDefault();if(!userId||busy||!areas.some(a=>a.id===area)||body.trim().length<8)return;setBusy(true);setMessage('');try{const {error}=await supabaseBrowser().from('community_posts').insert({author_id:userId,area_id:area,body:body.trim(),visibility:'published'});if(error)throw error;setBody('');try{await loadPosts(area);setMessage('Your neighbourhood post is published to signed-in members.')}catch{setMessage('Your post was published, but the feed could not be refreshed. Retry loading posts to see it.')}}catch{setMessage('Could not publish your post. Please try again.')}finally{setBusy(false)}}
- async function addComment(e:FormEvent){e.preventDefault();if(!userId||!replyTo||busy||reply.trim().length<2)return;setBusy(true);setMessage('');try{const {error}=await supabaseBrowser().from('community_comments').insert({post_id:replyTo,author_id:userId,body:reply.trim()});if(error)throw error;setReply('');setReplyTo('');try{await loadPosts(area);setMessage('Your reply was published.')}catch{setMessage('Your reply was published, but the feed could not be refreshed. Retry loading posts to see it.')}}catch{setMessage('Could not add your reply. Please try again.')}finally{setBusy(false)}}
+ async function changeArea(value:string){currentArea.current=value;setArea(value);try{await loadPosts(value)}catch(e){setMessage(e instanceof Error?e.message:'Unable to load posts')}}
+ async function submit(e:FormEvent){e.preventDefault();if(!userId||busy||!areas.some(a=>a.id===area)||body.trim().length<8)return;setBusy(true);setMessage('');try{const {error}=await supabaseBrowser().from('community_posts').insert({author_id:userId,area_id:area,body:body.trim(),visibility:'published'});if(error)throw error;setBody('');try{await loadPosts(currentArea.current);setMessage('Your neighbourhood post is published to signed-in members.')}catch{setMessage('Your post was published, but the feed could not be refreshed. Retry loading posts to see it.')}}catch{setMessage('Could not publish your post. Please try again.')}finally{setBusy(false)}}
+ async function addComment(e:FormEvent){e.preventDefault();if(!userId||!replyTo||busy||reply.trim().length<2)return;setBusy(true);setMessage('');try{const {error}=await supabaseBrowser().from('community_comments').insert({post_id:replyTo,author_id:userId,body:reply.trim()});if(error)throw error;setReply('');setReplyTo('');try{await loadPosts(currentArea.current);setMessage('Your reply was published.')}catch{setMessage('Your reply was published, but the feed could not be refreshed. Retry loading posts to see it.')}}catch{setMessage('Could not add your reply. Please try again.')}finally{setBusy(false)}}
  async function react(postId:string,kind:'like'|'support'){
   if(!userId||busy)return;setBusy(true);
   try{
