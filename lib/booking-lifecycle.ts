@@ -31,6 +31,13 @@ export type BookingSiteLike = {
   sharing_enabled: boolean;
 };
 
+export type BookingReviewRecord = {
+  booking_id: string;
+  stars?: number | null;
+  body?: string | null;
+  created_at?: string | null;
+};
+
 export type BookingStatusFilter = 'needs_action' | 'active' | 'completed' | 'all';
 export type BookingStatusTone = 'booked' | 'awaiting' | 'completed' | 'cancelled' | 'other';
 
@@ -334,12 +341,19 @@ export function applyCommittedBookingStatus<T extends {id: string; status: strin
   return bookings.map(b => (b.id === bookingId ? {...b, status: nextStatus} : b));
 }
 
-export function applyCommittedReview(
-  reviews: readonly {booking_id: string}[],
-  bookingId: string
-): {booking_id: string}[] {
-  if (reviews.some(r => r.booking_id === bookingId)) return [...reviews];
-  return [...reviews, {booking_id: bookingId}];
+export function applyCommittedReview<T extends BookingReviewRecord>(
+  reviews: readonly T[],
+  bookingId: string,
+  submitted?: {stars?: number; body?: string; created_at?: string}
+): T[] {
+  const nextRecord = (submitted
+    ? {booking_id: bookingId, ...submitted}
+    : {booking_id: bookingId}) as T;
+  if (reviews.some(r => r.booking_id === bookingId)) {
+    if (!submitted) return [...reviews];
+    return reviews.map(r => (r.booking_id === bookingId ? {...r, ...submitted} : r));
+  }
+  return [...reviews, nextRecord];
 }
 
 export function applyCommittedAppointmentMap<T extends {booking_id: string; status: string}>(
