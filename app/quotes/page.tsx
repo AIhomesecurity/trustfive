@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useMemo,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {quoteMessagesHref,bookingHistoryHref,bookingScheduleHref} from '../../lib/workflow-links';
@@ -17,6 +17,7 @@ export default function Quotes(){
  const [quotes,setQuotes]=useState<Quote[]>([]);
  const [bookings,setBookings]=useState<Booking[]>([]);
  const [chosen,setChosen]=useState<Lead|null>(null);
+ const quoteHeading=useRef<HTMLHeadingElement>(null);
  const [amount,setAmount]=useState('');
  const [availability,setAvailability]=useState('');
  const [message,setMessage]=useState('');
@@ -60,6 +61,17 @@ export default function Quotes(){
   return()=>{mounted=false;};
  },[]);
 
+ useEffect(()=>{
+  if(chosen)quoteHeading.current?.focus();
+ },[chosen]);
+
+ function chooseLead(lead:Lead|null){
+  if(chosen?.job_id!==lead?.job_id||chosen?.allocation_id!==lead?.allocation_id){
+   setAmount('');setAvailability('');setMessage('');
+  }
+  setChosen(lead);
+ }
+
  const stats=professionalQuoteStats(leads,quotes);
  const filtered=useMemo(()=>{
   const search=filter.trim().toLowerCase();
@@ -70,9 +82,9 @@ export default function Quotes(){
 
  async function submit(e:FormEvent){
   e.preventDefault();
-  if(!chosen||busy)return;
+  if(!chosen||busy||refreshing)return;
   if(!canPrepareProfessionalQuote(chosen,leads,quotes)){
-   setChosen(null);setNotice('This opportunity is no longer available for a new quote. Refresh your leads.');return;
+   chooseLead(null);setNotice('This opportunity is no longer available for a new quote. Refresh your leads.');return;
   }
   const availError=validateQuoteAvailability(availability);
   if(availError){setNotice(availError);return;}
@@ -91,7 +103,7 @@ export default function Quotes(){
     status:'pending'
    });
    if(error)throw error;
-   setChosen(null);setAmount('');setAvailability('');setMessage('');
+   chooseLead(null);
    await refresh();setNotice('Quote submitted to the customer. No payment has been collected.');
   }catch(e){setNotice(e instanceof Error?e.message:'Quote failed');}
   finally{setBusy(false);}
@@ -162,7 +174,7 @@ export default function Quotes(){
          <div className="professional-lead-actions">
           {existing?<><span className="muted-note">Your {existing.status} quote is already recorded.</span>
             <Link className="btn secondary" href={quoteMessagesHref(existing.quote_id)}>Open conversation</Link></>:
-           <button type="button" className="btn" disabled={busy} onClick={()=>{setChosen(job);setNotice('');}}>Prepare a quote</button>}
+           <button type="button" className="btn" disabled={busy} onClick={()=>{chooseLead(job);setNotice('');}}>Prepare a quote</button>}
          </div>
         </article>;
        })}
@@ -170,7 +182,7 @@ export default function Quotes(){
      </section>
      <section aria-labelledby="submitted-quotes-heading">
       {chosen&&<div className="card" style={{marginBottom:22}}>
-       <h2>Quote for: {chosen.title}</h2>
+       <h2 ref={quoteHeading} tabIndex={-1}>Quote for: {chosen.title}</h2>
        <p className="muted-note">{chosen.trade_name} · {chosen.area_name}</p>
        {existingForChosen?<div className="notice">A quote has already been submitted for this job. <Link href={quoteMessagesHref(existingForChosen.quote_id)}>Open conversation</Link>.</div>:
        <form className="form" onSubmit={submit}>
@@ -179,7 +191,7 @@ export default function Quotes(){
         <label>Message and scope of work<textarea minLength={10} maxLength={3000} required value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe materials, timing, exclusions and assumptions"/></label>
         <p className="muted-note">Make sure the price, availability and scope are accurate. This sends a quote, not a payment request.</p>
         <div className="professional-lead-actions"><button type="submit" disabled={busy||refreshing} className="btn">{busy?'Sending…':'Send quote'}</button>
-         <button type="button" disabled={busy} className="btn secondary" onClick={()=>setChosen(null)}>Cancel</button>
+         <button type="button" disabled={busy} className="btn secondary" onClick={()=>chooseLead(null)}>Cancel</button>
         </div>
        </form>}
       </div>}
