@@ -17,7 +17,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
  test.setTimeout(60000);
  page.setDefaultTimeout(10000);
  let removes=0;
- let failAreas=false;
+ let areaFailuresRemaining=0;
  let failLoad=true;
  const fixture=createServer((request,response)=>{
   const url=new URL(request.url??'/',backend);
@@ -31,8 +31,8 @@ test('signed-in mobile saved discussions recover a load and local events recover
   if(request.method==='OPTIONS')return reply(204,null);
   if(request.headers.authorization!=='Bearer '+token)return reply(401,{message:'Synthetic session required'});
   if(url.pathname==='/auth/v1/user')return reply(200,user);
-  if(url.pathname==='/rest/v1/service_areas'&&failAreas){
-   failAreas=false;
+  if(url.pathname==='/rest/v1/service_areas'&&areaFailuresRemaining>0){
+   areaFailuresRemaining--;
    return reply(500,{message:'Synthetic neighbourhood outage'});
   }
   if(url.pathname==='/rest/v1/social_saved_posts'){
@@ -77,11 +77,14 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await expect(saved.getByRole('link',{name:'neighbourhood feed'})).toHaveAttribute('href','/community/social');
   expect(removes).toBe(1);
 
-  failAreas=true;
+  areaFailuresRemaining=2;
   await page.goto('/community/events');
-  await expect(page.getByRole('alert')).toContainText('We could not check your account or load neighbourhoods');
+  const retryEvents=page.getByRole('button',{name:'Retry loading local events'});
+  await expect(page.getByRole('alert').filter({has:retryEvents})).toContainText('We could not check your account or load neighbourhoods');
   await page.evaluate(()=>{document.documentElement.dataset.syntheticEventsDocument='initial';});
-  await page.getByRole('button',{name:'Retry loading local events'}).press('Enter');
+  await retryEvents.press('Enter');
+  await expect(retryEvents).toBeFocused();
+  await retryEvents.press('Enter');
   await expect(page.getByRole('heading',{name:'Local events'})).toBeFocused();
   await expect(page.getByRole('heading',{name:'Upcoming events'})).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-synthetic-events-document','initial');
