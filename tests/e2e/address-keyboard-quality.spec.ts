@@ -22,9 +22,15 @@ test('Enter never silently selects one of two matching properties',async({page})
  await expect(page.getByText('Choose your exact address from the suggestions below.')).toBeVisible();
  await expect(page.getByText('Searching near:')).toHaveCount(0);
  await expect(page.getByLabel('Sort results')).toHaveValue('quality');
- // A keyboard user can tab to the desired result and activate it.
- await options.nth(1).focus();
- await page.keyboard.press('Enter');
+ // The suggestions use arrow navigation and stay out of the tab sequence.
+ await input.press('Tab');
+ const findAddress=page.getByRole('button',{name:'Find address'});
+ await expect(findAddress).toBeFocused();
+ await findAddress.press('Tab');
+ await expect(page.getByLabel('Sort results')).toBeFocused();
+ await input.press('ArrowUp');
+ await expect(options.nth(1)).toHaveAttribute('aria-selected','true');
+ await input.press('Enter');
  await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('2 Example Street');
  await expect(page.getByLabel('Sort results')).toHaveValue('recommended');
  expect(page.url()).not.toContain('Example');
