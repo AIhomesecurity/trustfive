@@ -31,6 +31,9 @@ export default function BookingSchedule(){
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
  const [confirmCancelId,setConfirmCancelId]=useState<string|null>(null);
+ const [cancelError,setCancelError]=useState('');
+ const cancelErrorRef=useRef<HTMLParagraphElement>(null);
+ useEffect(()=>{if(cancelError)cancelErrorRef.current?.focus();},[cancelError]);
  const keepTimeRef=useRef<HTMLButtonElement>(null);
  const cancelTriggerRef=useRef<string|null>(null);
  const restoreCancelFocus=useRef(false);
@@ -42,6 +45,7 @@ export default function BookingSchedule(){
   }
  },[confirmCancelId]);
  function keepAppointment(){
+  setCancelError('');
   restoreCancelFocus.current=true;
   setConfirmCancelId(null);
  }
@@ -141,7 +145,7 @@ export default function BookingSchedule(){
 
  async function action(bookingId:string,kind:'confirm_booking_appointment'|'cancel_booking_appointment'){
   if(busy||inFlight.current||loadError)return;
-  inFlight.current=true;setBusy(true);setNotice('');
+  inFlight.current=true;setBusy(true);setNotice('');setCancelError('');
   try{
    const confirmed=kind==='confirm_booking_appointment';
    const result=await executeBookingAction({
@@ -153,7 +157,8 @@ export default function BookingSchedule(){
     refreshFailedMessage:(confirmed?'Appointment confirmed.':'Appointment time cancelled.')+' Reload the calendar to see the latest details.',
     fallbackErrorMessage:'Could not update appointment',
    });
-   showActionResult(result);
+   if(!confirmed&&result.outcome==='rpc_error')setCancelError(result.message);
+   else showActionResult(result);
   } finally{inFlight.current=false;setBusy(false);}
  }
 
@@ -231,13 +236,14 @@ export default function BookingSchedule(){
           confirmCancelId===b.id?
           <div className="notice" style={{marginTop:10}} role="group" aria-label={'Confirm cancelling appointment for booking '+b.id.slice(0,8)}
            onKeyDown={event=>{if(event.key==='Escape'&&!busy){event.preventDefault();keepAppointment();}}}>
+           {cancelError&&<p ref={cancelErrorRef} tabIndex={-1} role="alert" className="notice error">{cancelError}</p>}
            <p>Cancel this appointment time? The booking stays active so you can agree a new time.</p>
            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
             <button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} onClick={()=>void action(b.id,'cancel_booking_appointment')}>Confirm cancellation</button>
             <button type="button" className="btn secondary" ref={keepTimeRef} disabled={busy} onClick={keepAppointment}>Keep time</button>
            </div>
           </div>:
-          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} id={'cancel-appointment-'+b.id} onClick={()=>{cancelTriggerRef.current='cancel-appointment-'+b.id;setConfirmCancelId(b.id);}}>Cancel appointment time</button></p>
+          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} id={'cancel-appointment-'+b.id} onClick={()=>{cancelTriggerRef.current='cancel-appointment-'+b.id;setCancelError('');setConfirmCancelId(b.id);}}>Cancel appointment time</button></p>
          )}
         </>}
        </article>;
