@@ -131,3 +131,13 @@ export async function resolveAppointmentBooking<T extends {
  }
  return fallback;
 }
+
+export function retainAppointmentSelection(
+ selected:string,bookings:readonly {id:string;customer_id:string;professional_id:string;status:string}[],userId:string
+):string{
+ if(!selected||!userId)return '';
+ const matches=bookings.filter(booking=>booking.id===selected);
+ const booking=matches[0];
+ return matches.length===1&&(booking.customer_id===userId||booking.professional_id===userId)&&
+  (booking.status==='booked'||booking.status==='awaiting_customer')?selected:'';
+}

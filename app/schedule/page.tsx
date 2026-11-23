@@ -7,6 +7,7 @@ import {bookingHistoryHref} from '../../lib/workflow-links';
 import {
   formatAppointmentWindow,
   resolveAppointmentBooking,
+  retainAppointmentSelection,
   summarizeAppointments,
   validateAppointmentProposal,
   type ScheduledAppointment,
@@ -29,8 +30,10 @@ export default function BookingSchedule(){
  const [confirmCancelId,setConfirmCancelId]=useState<string|null>(null);
  const [unavailableBooking,setUnavailableBooking]=useState(false);
  const inFlight=useRef(false);
+ const hasLoaded=useRef(false);
 
  async function refresh(accountId:string){
+  const initial=!hasLoaded.current;
   const s=supabaseBrowser();
   const b=await s.from('job_bookings')
    .select('id,customer_id,professional_id,status')
@@ -61,7 +64,8 @@ export default function BookingSchedule(){
   setBookings(current);
   setLoadError('');
   setUnavailableBooking(requested.length>0&&!result.selectedId);
-  if(requested.length>0)setSelected(result.selectedId);
+  setSelected(previous=>initial?result.selectedId:retainAppointmentSelection(previous,current,accountId));
+  hasLoaded.current=true;
  }
 
  useEffect(()=>{
