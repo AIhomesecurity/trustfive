@@ -66,6 +66,20 @@ export default function Jobs(){
   setConfirmQuoteId(null);
  }
  const [confirmCancelJobId,setConfirmCancelJobId]=useState<string|null>(null);
+ const keepJobOpenRef=useRef<HTMLButtonElement>(null);
+ const dismissedCancelJob=useRef<string|null>(null);
+ useEffect(()=>{
+  if(confirmCancelJobId)keepJobOpenRef.current?.focus();
+  else if(dismissedCancelJob.current){
+   document.getElementById('cancel-job-'+dismissedCancelJob.current)?.focus();
+   dismissedCancelJob.current=null;
+  }
+ },[confirmCancelJobId]);
+ function keepJobOpen(jobId:string){
+  dismissedCancelJob.current=jobId;
+  setConfirmCancelJobId(null);
+  setCancelReason('');
+ }
  const [cancelReason,setCancelReason]=useState('');
  const [confirmReopenJobId,setConfirmReopenJobId]=useState<string|null>(null);
  const [activityJobId,setActivityJobId]=useState<string|null>(null);
@@ -433,7 +447,7 @@ export default function Jobs(){
          {activityOpen?'Hide job activity':'View job activity'}
         </button>
         {showCancel&&confirmCancelJobId!==j.id&&
-         <button type="button" className="btn secondary" disabled={busy} onClick={()=>{setConfirmCancelJobId(j.id);setConfirmReopenJobId(null);setCancelReason('');setMessage('');}}>
+         <button type="button" className="btn secondary" disabled={busy} id={'cancel-job-'+j.id} onClick={()=>{setConfirmCancelJobId(j.id);setConfirmReopenJobId(null);setCancelReason('');setMessage('');}}>
           Cancel job
          </button>}
         {showReopen&&confirmReopenJobId!==j.id&&
@@ -443,7 +457,8 @@ export default function Jobs(){
        </div>
 
        {showCancel&&confirmCancelJobId===j.id&&
-        <div className="notice" style={{marginTop:12}} role="group" aria-label={'Confirm cancelling job '+j.title}>
+        <div className="notice" style={{marginTop:12}} role="group" aria-label={'Confirm cancelling job '+j.title}
+         onKeyDown={event=>{if(event.key==='Escape'&&!busy){event.preventDefault();keepJobOpen(j.id);}}}>
          <h4>Cancel “{j.title}”?</h4>
          <p className="muted-note">Cancelling closes this unbooked request and stops pending quotes from being accepted. You can reopen it later if no booking exists.</p>
          <label style={{marginTop:10}}>Optional note (max 240 chars)
@@ -451,7 +466,7 @@ export default function Jobs(){
          </label>
          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:10}}>
           <button type="button" className="btn" disabled={busy} onClick={()=>void cancelJob(j)}>{busy?'Cancelling…':'Confirm cancel job'}</button>
-          <button type="button" className="btn secondary" disabled={busy} onClick={()=>{setConfirmCancelJobId(null);setCancelReason('');}}>Keep job open</button>
+          <button type="button" className="btn secondary" ref={keepJobOpenRef} disabled={busy} onClick={()=>keepJobOpen(j.id)}>Keep job open</button>
          </div>
         </div>}
 

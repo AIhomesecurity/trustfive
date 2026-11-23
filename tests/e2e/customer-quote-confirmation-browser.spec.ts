@@ -86,6 +86,12 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   await page.context().addCookies([{name:'sb-127-auth-token',
    value:'base64-'+Buffer.from(JSON.stringify(session)).toString('base64url'),url:app}]);
   await page.goto('/jobs');
+  const cancelJob=page.getByRole('button',{name:'Cancel job',exact:true});
+  await cancelJob.press('Enter');
+  await expect(page.getByRole('button',{name:'Keep job open'})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(cancelJob).toBeFocused();
+  await expect(page.getByRole('button',{name:'Confirm cancel job'})).toHaveCount(0);
   await page.getByRole('button',{name:'View job activity'}).press('Enter');
   const activityRetry=page.getByRole('button',{name:'Retry activity load'});
   await expect(activityRetry).toBeVisible();
