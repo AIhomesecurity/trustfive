@@ -21,6 +21,7 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
  let failRefresh=false;
  let appointmentLookups=0;
  const consentChanges:boolean[]=[];
+ let activityUnavailable=true;
  const fixture=createServer(async(request,response)=>{
   const path=new URL(request.url??'/',backend).pathname;
   const reply=(status:number,data:unknown)=>{
@@ -33,6 +34,7 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   if(request.method==='OPTIONS')return reply(204,null);
   if(request.headers.authorization!=='Bearer '+token)return reply(401,{message:'Synthetic session required'});
   switch(path){
+   case '/rest/v1/rpc/customer_job_activity':return activityUnavailable?reply(400,{message:'Synthetic activity error'}):reply(200,[]);
    case '/auth/v1/user':return reply(200,user);
    case '/rest/v1/jobs':
     if(failRefresh){failRefresh=false;return reply(500,{message:'Synthetic refresh failure'});}
@@ -84,6 +86,13 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   await page.context().addCookies([{name:'sb-127-auth-token',
    value:'base64-'+Buffer.from(JSON.stringify(session)).toString('base64url'),url:app}]);
   await page.goto('/jobs');
+  await page.getByRole('button',{name:'View job activity'}).press('Enter');
+  const activityRetry=page.getByRole('button',{name:'Retry activity load'});
+  await expect(activityRetry).toBeVisible();
+  activityUnavailable=false;
+  await activityRetry.press('Enter');
+  await expect(page.getByText('No lifecycle events recorded yet.')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Job activity history'})).toBeFocused();
   const review=page.getByRole('button',{name:'Review and accept quote'});
   const confirmation=page.getByRole('group',{name:'Confirm quote from Synthetic trade business'});
   await review.press('Enter');

@@ -15,6 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
+health=""
 for attempt in {1..30}; do
   if health=$(curl --silent --fail --max-time 2 "$base_url/api/health"); then
     break
@@ -22,6 +23,10 @@ for attempt in {1..30}; do
   kill -0 "$worker_pid"
   sleep 1
 done
+if [[ -z "$health" ]]; then
+  echo "Cloudflare Worker health endpoint did not return a successful response: $base_url/api/health" >&2
+  exit 1
+fi
 HEALTH_RESPONSE="$health" node --input-type=module <<'JS'
 import assert from 'node:assert/strict';
 const response = JSON.parse(process.env.HEALTH_RESPONSE);

@@ -125,6 +125,10 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await expect(page.getByRole('button',{name:'Hide discussion'})).toBeFocused();
   await expect(page.getByRole('button',{name:'Refresh discussion'})).toBeVisible();
 
+  await page.route('**/rest/v1/service_areas?*',route=>route.fulfill({json:[
+   {id:'older-area',area_name:'Older area',city:'Synthetic city'},
+   {id:'latest-area',area_name:'Latest area',city:'Synthetic city'},
+  ]}));
   failFeed=true;
   await page.goto('/community');
   const retryFeed=page.getByRole('button',{name:'Try loading posts again'});
@@ -133,6 +137,27 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await retryFeed.press('Enter');
   await expect(page.getByRole('heading',{name:'Neighbourhood feed'})).toBeFocused();
   await expect(page.getByText('Synthetic published saved post',{exact:true})).toBeVisible();
+  let releaseOlder=()=>{};
+  const olderHeld=new Promise<void>(resolve=>{releaseOlder=resolve;});
+  await page.route('**/rest/v1/community_posts?*',async route=>{
+   const area=new URL(route.request().url()).searchParams.get('area_id');
+   if(area==='eq.older-area')await olderHeld;
+   await route.fulfill({json:[{id:published,area_id:area?.slice(3),body:area==='eq.older-area'?'Late older feed':'Current neighbourhood feed',visibility:'published',created_at:created}]});
+  });
+  try{
+   const filter=page.getByLabel('Show posts from');
+   const olderStarted=page.waitForRequest(r=>r.url().includes('area_id=eq.older-area'));
+   await filter.selectOption('older-area');
+   await olderStarted;
+   await filter.selectOption('latest-area');
+   await expect(page.getByText('Current neighbourhood feed',{exact:true})).toBeVisible();
+   const olderResponse=page.waitForResponse(r=>r.url().includes('area_id=eq.older-area'));
+   releaseOlder();
+   await (await olderResponse).finished();
+   await expect(page.getByText('Current neighbourhood feed',{exact:true})).toBeVisible();
+   await expect(page.getByText('Late older feed',{exact:true})).toHaveCount(0);
+  }finally{releaseOlder();}
+
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());
