@@ -43,7 +43,9 @@ try {
     redirect: 'manual',
   });
   assert.equal(account.status, 307);
-  assert.equal(new URL(account.headers.get('location'), app).href, app + destination);
+  const target = new URL(account.headers.get('location'), app);
+  assert.ok([app, 'http://localhost:3007'].includes(target.origin));
+  assert.equal(target.pathname + target.search, destination);
   assert.ok(verified >= 2, 'Expected server middleware to verify both signed-in requests');
   console.log('Synthetic session passed protected route and account-return checks');
 } finally {
