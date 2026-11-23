@@ -51,6 +51,8 @@ jobs:
             !($1 in seen) { seen[$1] = $2 }
             END { exit failed }
           '
+      - name: Check migration version uniqueness
+        run: bash scripts/db/check-migration-versions.sh
       - name: Bootstrap Supabase auth compatibility
         run: psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql
       - name: Apply TrustFive migrations
