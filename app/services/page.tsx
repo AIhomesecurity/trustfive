@@ -228,7 +228,7 @@ export default function Services(){
       </div>
      </article>)}</div>}
     {resultsReady&&visible.length===0&&
-     <DirectoryEmptyState context={{locationPrecision:location?.precision??null,hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={clearFilters}
+     <DirectoryEmptyState context={{locationPrecision:location?.precision??null,hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={()=>{resultsHeading.current?.focus();clearFilters();}}
       onChangeLocation={()=>{
        const input=document.getElementById('directory-address');
        if(input instanceof HTMLInputElement){input.focus();input.select();}
