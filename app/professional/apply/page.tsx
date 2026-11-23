@@ -36,6 +36,8 @@ export default function Apply() {
   const [years, setYears] = useState('0');
   const [auth, setAuth] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -85,6 +87,7 @@ export default function Apply() {
           s.from('service_areas').select('id,area_name,city').order('city'),
         ]);
         if (!active) return;
+        if (u.error) throw u.error;
         if (!u.data.user) {
           setMessage('Sign in to apply and track your professional verification status.');
           return;
@@ -95,8 +98,8 @@ export default function Apply() {
         setTrades(t.data || []);
         setAreas(a.data || []);
         await refresh();
-      } catch (e) {
-        if (active) setMessage(e instanceof Error ? e.message : 'Unable to load professional onboarding details');
+      } catch {
+        if (active) setLoadFailed(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -104,7 +107,7 @@ export default function Apply() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -316,6 +319,15 @@ export default function Apply() {
         <p role="status" className="notice">
           Loading your professional onboarding status…
         </p>
+      ) : loadFailed ? (
+        <div role="alert" className="notice error">
+          <p>Could not load your professional onboarding status.</p>
+          <button type="button" className="btn secondary" onClick={() => {
+            setLoadFailed(false);
+            setLoading(true);
+            setLoadAttempt(attempt => attempt + 1);
+          }}>Retry loading onboarding</button>
+        </div>
       ) : !auth ? (
         <Link className="btn" href="/account?next=%2Fprofessional%2Fapply">
           Sign in to apply

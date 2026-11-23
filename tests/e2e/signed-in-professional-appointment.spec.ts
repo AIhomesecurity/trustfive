@@ -20,6 +20,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  let leadOutage=true;
  let writes=0;
  let initialBusinessOutage=true;
+ let onboardingOutage=true;
  let draftInserts=0;
  let draftUpdates=0;
  let reviewSubmissions=0;
@@ -86,6 +87,9 @@ test('signed-in professional retries eligible leads, submits a quote and propose
     reviewSubmissions++;
     return reply(200,null);
    }
+   case '/rest/v1/rpc/my_professional_onboarding_status':
+    if(onboardingOutage){onboardingOutage=false;return reply(500,{message:'Synthetic onboarding outage'});}
+    return reply(200,[]);
    case '/rest/v1/professional_applications':
     return reply(200,[{id:draftApplication,business_name:'Synthetic CCTV business',status:'submitted'}]);
    case '/rest/v1/professional_business_pages':
@@ -110,6 +114,14 @@ test('signed-in professional retries eligible leads, submits a quote and propose
    expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user:professional};
   await page.context().addCookies([{name:'sb-127-auth-token',
    value:'base64-'+Buffer.from(JSON.stringify(session)).toString('base64url'),url:app}]);
+  await page.goto('/professional/apply');
+  const retryOnboarding=page.getByRole('button',{name:'Retry loading onboarding'});
+  await expect(retryOnboarding).toBeVisible();
+  const applyHeading=page.getByRole('heading',{name:'Apply for a trade & service area'});
+  await expect(applyHeading).toHaveCount(0);
+  await retryOnboarding.press('Enter');
+  await expect(applyHeading).toBeVisible();
+
   await page.goto('/quotes');
   await expect(page.getByRole('heading',{name:'Leads and quotes need to reload'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'No matching open jobs'})).toHaveCount(0);
