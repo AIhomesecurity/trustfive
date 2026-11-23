@@ -8,7 +8,7 @@ import DirectoryEmptyState from '../../components/directory-empty-state';
 
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
-type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number;distance_km?:number|null};
+type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number;distance_km?:number|null;status?:string|null};
 type Sort='recommended'|'nearby'|'quality'|'reviews'|'name';
 
 const aliases:Record<string,string>={
@@ -29,7 +29,7 @@ const aliases:Record<string,string>={
  'security camera installation':'cctv-installation','video surveillance':'cctv-installation',
  'home surveillance':'cctv-installation',surveillance:'cctv-installation',
  'ring doorbell':'cctv-installation','video doorbell':'cctv-installation','doorbell camera':'cctv-installation','ip camera':'cctv-installation','ip cameras':'cctv-installation',
- 'alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
+ 'alarm system':'home-security','alarm installation':'home-security',alarm:'home-security',alarms:'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
 };
 
 function resolveTrade(input:string,trades:Trade[]):Trade|undefined{
@@ -124,7 +124,7 @@ export default function Services(){
  },[shortlistIds,shortlistReady]);
 
  const visible=useMemo(()=>{
-  const list=[...pros];
+  const list=pros.filter(p=>p.status!=='waiting'&&p.status!=='waitlisted'&&!(typeof p.slot==='number'&&(p.slot<1||p.slot>5)));
   if(sort==='recommended'&&location)return list;
   if(sort==='nearby'&&location)list.sort((a,b)=>(a.distance_km??Infinity)-(b.distance_km??Infinity)||b.quality_score-a.quality_score);
   else if(sort==='reviews')list.sort((a,b)=>b.review_count-a.review_count||b.quality_score-a.quality_score);
@@ -155,7 +155,7 @@ export default function Services(){
   </div>
   <div className="directory-intro">
    <div><strong>Up to five approved professionals</strong><span> per trade, per defined local area — only when they qualify.</span></div>
-   <Link href="/jobs" className="btn">Describe your job →</Link>
+   <Link href={jobHref} className="btn">Describe your job →</Link>
   </div>
   <FairSelectionNotice />
   <div className="directory-layout">
@@ -184,6 +184,7 @@ export default function Services(){
     </div>
     {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
     {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
+     resultsError?null:
      <p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
 
     {shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}
