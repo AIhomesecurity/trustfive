@@ -23,13 +23,13 @@ const aliases:Record<string,string>={
  removals:'moving',removal:'moving',movers:'moving',
  locksmith:'home-security',locks:'home-security',
  landscaper:'landscaping',paving:'landscaping',patio:'landscaping',
- cctv:'cctv-installation',camera:'cctv-installation',cameras:'cctv-installation',
+ 'c c t v':'cctv-installation','cctv installers':'cctv-installation',cctv:'cctv-installation',camera:'cctv-installation',cameras:'cctv-installation',
  'security camera':'cctv-installation','security cameras':'cctv-installation',
  'cctv installer':'cctv-installation','cctv installation':'cctv-installation',
  'security camera installation':'cctv-installation','video surveillance':'cctv-installation',
  'home surveillance':'cctv-installation',surveillance:'cctv-installation',
  'ring doorbell':'cctv-installation','video doorbell':'cctv-installation','doorbell camera':'cctv-installation','ip camera':'cctv-installation','ip cameras':'cctv-installation',
- 'alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
+ alarm:'home-security','alarm installer':'home-security','alarm installers':'home-security','intruder alarms':'home-security','alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
 };
 
 function resolveTrade(input:string,trades:Trade[]):Trade|undefined{
