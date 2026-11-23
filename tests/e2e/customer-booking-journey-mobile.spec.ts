@@ -429,6 +429,8 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
     await expect(page.getByTestId(`customer-address-${bookingId}`)).toHaveCount(0);
     expect(consentChanges).toEqual([]);
     await page.getByRole('button', {name: 'Recheck address status'}).press('Enter');
+    await expect(shareButton).toBeVisible();
+    await expect(page.getByRole('heading', {name: '2. Private address sharing'})).toBeFocused();
     await shareButton.press('Enter');
     await page.getByRole('button', {name: 'Confirm share address'}).click();
     await expect(page.getByText('Sharing is active', {exact: true})).toBeVisible();

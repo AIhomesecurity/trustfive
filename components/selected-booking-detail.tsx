@@ -111,6 +111,7 @@ export default function SelectedBookingDetail({
 }: SelectedBookingDetailProps) {
   const title = bookingDisplayTitle(booking.id, jobTitle);
   const keepPrivateRef = useRef<HTMLButtonElement>(null);
+  const addressHeadingRef = useRef<HTMLHeadingElement>(null);
   const shareAddressTriggerRef = useRef<HTMLButtonElement>(null);
   const wasShareConfirmationOpen = useRef(false);
 
@@ -491,7 +492,7 @@ export default function SelectedBookingDetail({
         data-testid="booking-section-address"
       >
         <div className="booking-section-head">
-          <h3 id="section-address-heading">2. Private address sharing</h3>
+          <h3 id="section-address-heading" ref={addressHeadingRef} tabIndex={-1}>2. Private address sharing</h3>
           <span
             className={`booking-status-pill is-${consentPill.tone}`}
             data-testid={`address-consent-badge-${booking.id}`}
@@ -521,7 +522,10 @@ export default function SelectedBookingDetail({
                 type="button"
                 className="btn secondary"
                 disabled={Boolean(loadingBookings || busy || siteBusy)}
-                onClick={onRecheckAddress}
+                onClick={() => {
+                  addressHeadingRef.current?.focus();
+                  onRecheckAddress();
+                }}
               >
                 {loadingBookings ? 'Rechecking…' : 'Recheck address status'}
               </button>

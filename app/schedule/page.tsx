@@ -31,6 +31,21 @@ export default function BookingSchedule(){
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
  const [confirmCancelId,setConfirmCancelId]=useState<string|null>(null);
+ const keepTimeRef=useRef<HTMLButtonElement>(null);
+ const cancelTriggerRef=useRef<string|null>(null);
+ const restoreCancelFocus=useRef(false);
+ useEffect(()=>{
+  if(confirmCancelId)keepTimeRef.current?.focus();
+  else if(restoreCancelFocus.current){
+   restoreCancelFocus.current=false;
+   if(cancelTriggerRef.current)document.getElementById(cancelTriggerRef.current)?.focus();
+  }
+ },[confirmCancelId]);
+ function keepAppointment(){
+  restoreCancelFocus.current=true;
+  setConfirmCancelId(null);
+ }
+
  const [unavailableBooking,setUnavailableBooking]=useState(false);
  const inFlight=useRef(false);
  const hasLoaded=useRef(false);
@@ -214,14 +229,15 @@ export default function BookingSchedule(){
          {a.status==='proposed'&&a.proposed_by===userId&&<p className="muted-note" style={{marginTop:8}}>Awaiting the other participant's confirmation.</p>}
          {(a.status==='confirmed'||a.status==='proposed')&&(
           confirmCancelId===b.id?
-          <div className="notice" style={{marginTop:10}} role="group" aria-label={'Confirm cancelling appointment for booking '+b.id.slice(0,8)}>
+          <div className="notice" style={{marginTop:10}} role="group" aria-label={'Confirm cancelling appointment for booking '+b.id.slice(0,8)}
+           onKeyDown={event=>{if(event.key==='Escape'&&!busy){event.preventDefault();keepAppointment();}}}>
            <p>Cancel this appointment time? The booking stays active so you can agree a new time.</p>
            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
             <button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} onClick={()=>void action(b.id,'cancel_booking_appointment')}>Confirm cancellation</button>
-            <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmCancelId(null)}>Keep time</button>
+            <button type="button" className="btn secondary" ref={keepTimeRef} disabled={busy} onClick={keepAppointment}>Keep time</button>
            </div>
           </div>:
-          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} onClick={()=>setConfirmCancelId(b.id)}>Cancel appointment time</button></p>
+          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} id={'cancel-appointment-'+b.id} onClick={()=>{cancelTriggerRef.current='cancel-appointment-'+b.id;setConfirmCancelId(b.id);}}>Cancel appointment time</button></p>
          )}
         </>}
        </article>;
