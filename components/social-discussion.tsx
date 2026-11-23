@@ -23,6 +23,7 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  const [reportOpen,setReportOpen]=useState(false);
  const [reportCategory,setReportCategory]=useState<SocialReportCategory>('spam');
  const [reportDetails,setReportDetails]=useState('');
+ const discussionToggle=useRef<HTMLButtonElement>(null);
  const inFlight=useRef(false);
 
  async function readDiscussion(){
@@ -133,11 +134,11 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  }
  return <section aria-label="Post discussion" style={{marginTop:12}}>
   <button type="button" className="btn secondary" aria-expanded={expanded}
-    aria-controls={'discussion-'+postId} onClick={()=>{void toggle();}}>
+    ref={discussionToggle} aria-controls={'discussion-'+postId} onClick={()=>{void toggle();}}>
    {expanded?'Hide discussion':'Read and reply'}
   </button>
   {expanded&&<div id={'discussion-'+postId} style={{marginTop:12}}>
-   {loading?<p role="status">Loading discussion…</p>:error?<div role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>{void readDiscussion();}}>Retry discussion</button></div>:<>
+   {loading?<p role="status">Loading discussion…</p>:error?<div role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>{discussionToggle.current?.focus();void readDiscussion();}}>Retry discussion</button></div>:<>
     <div className="social-hub-shortcuts" aria-label="Post reactions">
      <button type="button" className="btn secondary" disabled={busy||reporting}
       aria-pressed={socialReactionIsActive(reaction?.my_reaction||null,'like')}

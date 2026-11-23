@@ -19,6 +19,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
  let removes=0;
  let areaFailuresRemaining=0;
  let failDiscovery=false;
+ let failComments=true;
  let failLoad=true;
  const fixture=createServer((request,response)=>{
   const url=new URL(request.url??'/',backend);
@@ -40,6 +41,10 @@ test('signed-in mobile saved discussions recover a load and local events recover
    failDiscovery=false;
    return reply(500,{message:'Synthetic event discovery outage'});
   }
+  if(url.pathname==='/rest/v1/community_comments'&&failComments){
+   failComments=false;
+   return reply(500,{message:'Synthetic discussion read outage'});
+  }
   if(url.pathname==='/rest/v1/social_saved_posts'){
    if(url.searchParams.get('user_id')!=='eq.'+user.id)return reply(403,{message:'Unexpected account'});
    if(request.method==='DELETE'){
@@ -47,8 +52,12 @@ test('signed-in mobile saved discussions recover a load and local events recover
     removes++;
     return reply(200,{post_id:published});
    }
+   if(url.searchParams.get('post_id')==='eq.'+published)return reply(200,[]);
    if(failLoad){failLoad=false;return reply(500,{message:'Synthetic bookmark load failure'});}
    return reply(200,[...(removes?[]:[{post_id:published,saved_at:created}]),{post_id:hidden,saved_at:created}]);
+  }
+  if(url.pathname==='/rest/v1/community_posts'&&url.searchParams.get('id')==='eq.'+published){
+   return reply(200,[{id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created}]);
   }
   if(url.pathname==='/rest/v1/community_posts')return reply(200,[
    {id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created},
@@ -100,6 +109,14 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await discovery.getByRole('button',{name:'Retry events'}).press('Enter');
   await expect(discovery.getByRole('button',{name:'Refresh events'})).toBeFocused();
   await expect(discovery.getByText('0 matching upcoming events',{exact:false})).toBeVisible();
+
+  await page.goto('/community/posts/'+published);
+  await page.getByRole('button',{name:'Read and reply'}).press('Enter');
+  const retryDiscussion=page.getByRole('button',{name:'Retry discussion'});
+  await expect(retryDiscussion).toBeVisible();
+  await retryDiscussion.press('Enter');
+  await expect(page.getByRole('button',{name:'Hide discussion'})).toBeFocused();
+  await expect(page.getByRole('button',{name:'Refresh discussion'})).toBeVisible();
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());
