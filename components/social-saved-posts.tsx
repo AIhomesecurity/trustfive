@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {readablePostDate,type SocialPostSummary} from '../lib/social-discovery';
+import {socialSectionHref} from '../lib/social-sections';
 import {socialVisibleSavedPosts,type SocialSavedRecord} from '../lib/social-saved-posts';
 
 export default function SocialSavedPosts({userId}:{userId:string}){
@@ -11,6 +12,18 @@ export default function SocialSavedPosts({userId}:{userId:string}){
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [retry,setRetry]=useState(0),[busy,setBusy]=useState(false);
  const inFlight=useRef(false);
+ const noticeRef=useRef<HTMLParagraphElement>(null);
+
+ useEffect(()=>{
+  if(notice)noticeRef.current?.focus();
+ },[notice]);
+
+ function refresh(){
+  if(inFlight.current||loading)return;
+  setNotice('');
+  setLoading(true);
+  setRetry(v=>v+1);
+ }
  useEffect(()=>{
   if(!userId){setLoading(false);return;}
   let active=true;
@@ -38,7 +51,7 @@ export default function SocialSavedPosts({userId}:{userId:string}){
   return()=>{active=false;};
  },[userId,retry]);
  async function remove(postId:string){
-  if(inFlight.current||!userId)return;
+  if(inFlight.current||loading||!userId)return;
   inFlight.current=true;setBusy(true);setNotice('');
   try{
    const result=await supabaseBrowser().from('social_saved_posts')
@@ -55,14 +68,14 @@ export default function SocialSavedPosts({userId}:{userId:string}){
   <p className="subtle">These bookmarks are private to your account and do not affect professional approval, quality ranking or post popularity. Only currently published posts appear below.</p>
   {!userId?<div className="card" role="status">Sign in to see private saved discussions.</div>:<>
    <button type="button" className="btn secondary" style={{marginBottom:14}}
-    disabled={busy} onClick={()=>setRetry(v=>v+1)}>Refresh saved discussions</button>
-   {notice&&<p role="status" className="notice">{notice}</p>}
+    disabled={busy||loading} onClick={refresh}>Refresh saved discussions</button>
+   {notice&&<p ref={noticeRef} tabIndex={-1} role="status" className="notice">{notice}</p>}
    {loading?<div className="card" role="status">Loading your private saved discussions…</div>
-   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={()=>setRetry(v=>v+1)}>Retry loading bookmarks</button></div>
+   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={refresh}>Retry loading bookmarks</button></div>
    :<>
     <p role="status" className="muted-note">{posts.length} published {posts.length===1?'discussion':'discussions'} from your most recent {saved.length} saved {saved.length===1?'record':'records'} (up to 100 loaded).</p>
     <div className="list">
-     {posts.length===0&&<p className="card">No published discussions are currently saved to this account. Find useful conversations in your neighbourhood feed.</p>}
+     {posts.length===0&&<p className="card">No published discussions are currently saved to this account. Find useful conversations in your <Link href={socialSectionHref('neighbourhood')}>neighbourhood feed</Link>.</p>}
      {posts.map(post=><article className="card" key={post.id}>
       <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{post.body}</p>
       <p className="muted-note"><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
