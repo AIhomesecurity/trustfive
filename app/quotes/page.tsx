@@ -100,7 +100,7 @@ export default function Quotes(){
 
  async function reload(){
   await mutationLock.current.run(async()=>{
-   try{await refresh();}
+   try{await refresh();if(requiresReload)setNotice('Leads and quotes refreshed.');}
    catch(e){setNotice(e instanceof Error?e.message:'Unable to refresh leads');}
   });
  }
