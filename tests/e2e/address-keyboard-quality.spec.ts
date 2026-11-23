@@ -56,13 +56,13 @@ test('mobile combobox can dismiss and choose an explicit property with the keybo
   await input.fill('Example Street London');
   await expect(input).toHaveAttribute('aria-expanded','true');
   await input.press('ArrowDown');
-  await expect(page.getByRole('option',{selected:true})).toContainText('1 Example Street');
+  await expect(page.getByRole('listbox',{name:'Matching addresses'}).getByRole('option',{selected:true})).toContainText('1 Example Street');
   await input.press('Escape');
   await expect(input).toHaveAttribute('aria-expanded','false');
   await expect(input).toBeFocused();
   await expect(page.getByText('Searching near:')).toHaveCount(0);
   await input.press('ArrowUp');
-  await expect(page.getByRole('option',{selected:true})).toContainText('2 Example Street');
+  await expect(page.getByRole('listbox',{name:'Matching addresses'}).getByRole('option',{selected:true})).toContainText('2 Example Street');
   await input.press('Enter');
   await expect(input).toBeFocused();
   await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('2 Example Street');
