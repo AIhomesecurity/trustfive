@@ -79,6 +79,7 @@ export default function Jobs(){
 
  const actionInFlight=useRef(false);
  const activityRequest=useRef(0);
+ const activityHeading=useRef<HTMLHeadingElement>(null);
 
  const publishBlocker=jobPublishBlocker({title,description,trade,site,manualProperty,area,budget,busy,territoryChecking,checkedSite,territoryVerified,manualFallbackAllowed});
  const step1Done=meaningfulJobTextLength(title)>=5&&meaningfulJobTextLength(description)>=15&&Boolean(trade);
@@ -466,9 +467,9 @@ export default function Jobs(){
 
        {activityOpen&&
         <div className="notice" style={{marginTop:12}} aria-live="polite" aria-busy={activityLoading}>
-         <h4>Job activity history</h4>
+         <h4 ref={activityHeading} tabIndex={-1}>Job activity history</h4>
          {activityLoading?<p className="muted-note">Loading genuine job activity…</p>:
-          activityError?<><p>{activityError}</p><button type="button" className="btn secondary" onClick={()=>void loadJobActivity(j.id)}>Retry activity load</button></>:
+          activityError?<><p>{activityError}</p><button type="button" className="btn secondary" onClick={()=>{activityHeading.current?.focus();void loadJobActivity(j.id);}}>Retry activity load</button></>:
           activityEvents.length===0?<p className="muted-note">No lifecycle events recorded yet.</p>:
           <ol style={{paddingLeft:18,margin:'8px 0 0'}}>
            {activityEvents.map(ev=><li key={ev.event_id} style={{marginBottom:4}}>
