@@ -12,11 +12,12 @@ const hidden='bbbbbbbb-0000-4000-8000-000000000011';
 const created='2026-11-23T00:00:00Z';
 
 test.use({viewport:{width:360,height:740},isMobile:true,hasTouch:true});
-test('signed-in mobile saved discussions recover a load and keep focus after removing a bookmark',async({page})=>{
+test('signed-in mobile saved discussions recover a load and local events recover without a reload',async({page})=>{
  test.skip(process.env.NEXT_PUBLIC_SUPABASE_URL!==backend,'Requires the isolated loopback application build.');
  test.setTimeout(60000);
  page.setDefaultTimeout(10000);
  let removes=0;
+ let areaFailuresRemaining=0;
  let failLoad=true;
  const fixture=createServer((request,response)=>{
   const url=new URL(request.url??'/',backend);
@@ -30,6 +31,10 @@ test('signed-in mobile saved discussions recover a load and keep focus after rem
   if(request.method==='OPTIONS')return reply(204,null);
   if(request.headers.authorization!=='Bearer '+token)return reply(401,{message:'Synthetic session required'});
   if(url.pathname==='/auth/v1/user')return reply(200,user);
+  if(url.pathname==='/rest/v1/service_areas'&&areaFailuresRemaining>0){
+   areaFailuresRemaining--;
+   return reply(500,{message:'Synthetic neighbourhood outage'});
+  }
   if(url.pathname==='/rest/v1/social_saved_posts'){
    if(url.searchParams.get('user_id')!=='eq.'+user.id)return reply(403,{message:'Unexpected account'});
    if(request.method==='DELETE'){
@@ -71,6 +76,18 @@ test('signed-in mobile saved discussions recover a load and keep focus after rem
   await expect(saved.getByText('Synthetic published saved post')).toHaveCount(0);
   await expect(saved.getByRole('link',{name:'neighbourhood feed'})).toHaveAttribute('href','/community/social');
   expect(removes).toBe(1);
+
+  areaFailuresRemaining=2;
+  await page.goto('/community/events');
+  const retryEvents=page.getByRole('button',{name:'Retry loading local events'});
+  await expect(page.getByRole('alert').filter({has:retryEvents})).toContainText('We could not check your account or load neighbourhoods');
+  await page.evaluate(()=>{document.documentElement.dataset.syntheticEventsDocument='initial';});
+  await retryEvents.press('Enter');
+  await expect(retryEvents).toBeFocused();
+  await retryEvents.press('Enter');
+  await expect(page.getByRole('heading',{name:'Local events'})).toBeFocused();
+  await expect(page.getByRole('heading',{name:'Upcoming events'})).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-synthetic-events-document','initial');
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());

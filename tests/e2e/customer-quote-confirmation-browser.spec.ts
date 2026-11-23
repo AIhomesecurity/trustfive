@@ -12,13 +12,14 @@ const bookingId='dddddddd-0000-4000-8000-000000000001';
 const token='synthetic-quote-confirmation-token';
 
 test.use({viewport:{width:360,height:740},isMobile:true,hasTouch:true});
-test('signed-in customer can cancel and confirm a quote by keyboard after a reload failure and retry booking appointments',async({page})=>{
+test('signed-in customer can cancel and confirm a quote by keyboard after a reload failure and manage private address consent after booking recovery',async({page})=>{
  test.skip(process.env.NEXT_PUBLIC_SUPABASE_URL!==backend,'Requires the isolated loopback application build.');
  test.setTimeout(60000);
  page.setDefaultTimeout(10000);
  let accepted=0;
  let failRefresh=false;
  let appointmentLookups=0;
+ const consentChanges:boolean[]=[];
  const fixture=createServer(async(request,response)=>{
   const path=new URL(request.url??'/',backend).pathname;
   const reply=(status:number,data:unknown)=>{
@@ -48,11 +49,21 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
    }
    case '/rest/v1/job_bookings':
     return reply(200,accepted?[{id:bookingId,job_id:jobId,quote_id:quoteId,customer_id:user.id,
-     professional_id:'eeeeeeee-0000-4000-8000-000000000001',status:'confirmed',created_at:'2026-11-23T00:00:00Z'}]:[]);
+     professional_id:'eeeeeeee-0000-4000-8000-000000000001',status:'booked',created_at:'2026-11-23T00:00:00Z'}]:[]);
    case '/rest/v1/booking_appointments':
     appointmentLookups++;
     if(appointmentLookups<=2)return reply(500,{message:'Synthetic appointment outage'});
     return reply(200,[]);
+   case '/rest/v1/rpc/booking_job_site_address':
+    return reply(200,[{address_label:'Synthetic private address',postcode:'SW1A 1AA',sharing_enabled:consentChanges.at(-1)??false}]);
+   case '/rest/v1/rpc/set_booking_address_sharing':{
+    let raw='';
+    for await(const chunk of request)raw+=chunk;
+    const {p_booking,p_allow}=JSON.parse(raw);
+    if(p_booking!==bookingId||typeof p_allow!=='boolean')return reply(400,{message:'Unexpected synthetic consent'});
+    consentChanges.push(p_allow);
+    return reply(200,null);
+   }
    default:return reply(200,[]);
   }
  });
@@ -102,6 +113,19 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   await expect(page.getByTestId('count-active')).toBeVisible();
   await expect(page).toHaveURL(/booking=dddddddd-0000-4000-8000-000000000001$/);
   expect(appointmentLookups).toBe(3);
+
+  const share=page.getByRole('button',{name:'Share exact address with booked professional'});
+  await share.press('Enter');
+  await expect(page.getByRole('button',{name:'Keep private'})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(share).toBeFocused();
+  expect(consentChanges).toEqual([]);
+  await share.press('Enter');
+  await page.getByRole('button',{name:'Confirm share address'}).click();
+  await expect(page.getByText('Sharing is active',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Turn off exact address sharing'}).click();
+  await expect(share).toBeVisible();
+  expect(consentChanges).toEqual([true,false]);
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());

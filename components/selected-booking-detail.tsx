@@ -107,6 +107,16 @@ export default function SelectedBookingDetail({
   onSubmitReview,
 }: SelectedBookingDetailProps) {
   const title = bookingDisplayTitle(booking.id, jobTitle);
+  const keepPrivateRef = useRef<HTMLButtonElement>(null);
+  const shareAddressTriggerRef = useRef<HTMLButtonElement>(null);
+  const wasShareConfirmationOpen = useRef(false);
+
+  useEffect(() => {
+    if (shareConfirmOpen) keepPrivateRef.current?.focus();
+    else if (wasShareConfirmationOpen.current) shareAddressTriggerRef.current?.focus();
+    wasShareConfirmationOpen.current = shareConfirmOpen;
+  }, [shareConfirmOpen]);
+
   const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (reviewOpen) reviewHeadingRef.current?.focus();
@@ -506,6 +516,7 @@ export default function SelectedBookingDetail({
                           type="button"
                           className="btn secondary"
                           disabled={Boolean(siteBusy)}
+                          ref={keepPrivateRef}
                           onClick={onAbortShareConfirm}
                         >
                           Keep private
@@ -517,6 +528,7 @@ export default function SelectedBookingDetail({
                       type="button"
                       className="btn secondary"
                       disabled={Boolean(siteBusy || busy)}
+                      ref={shareAddressTriggerRef}
                       onClick={onOpenShareConfirm}
                     >
                       Share exact address with booked professional

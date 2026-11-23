@@ -19,6 +19,9 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  page.setDefaultTimeout(10000);
  let leadOutage=true;
  let writes=0;
+ let draftInserts=0;
+ let draftUpdates=0;
+ const draftApplication="ffffffff-0000-4000-8000-000000000020";
  let calendarOutage=true;
  let proposal: {booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string}|null=null;
  const fixture=createServer(async(request,response)=>{
@@ -26,7 +29,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   const reply=(status:number,data:unknown)=>{
    response.writeHead(status,{
     'access-control-allow-origin':'*','access-control-allow-headers':'*',
-    'access-control-allow-methods':'GET,POST,OPTIONS','content-type':'application/json',
+    'access-control-allow-methods':'GET,POST,PATCH,OPTIONS','content-type':'application/json',
    });
    response.end(status===204?'':JSON.stringify(data));
   };
@@ -72,6 +75,13 @@ test('signed-in professional retries eligible leads, submits a quote and propose
      timezone_name:p_timezone,status:'proposed'};
     return reply(200,null);
    }
+   case '/rest/v1/professional_applications':
+    return reply(200,[{id:draftApplication,business_name:'Synthetic CCTV business',status:'submitted'}]);
+   case '/rest/v1/professional_business_pages':
+    if(request.method==='POST'){draftInserts++;return reply(201,null);}
+    if(request.method==='PATCH'){draftUpdates++;return reply(204,null);}
+    if(draftInserts)return reply(500,{message:'Synthetic draft read outage'});
+    return reply(200,[]);
    default:return reply(200,[]);
   }
  });
@@ -118,6 +128,18 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await expect(page.getByText('Appointment time proposed in Europe/London.',{exact:false})).toBeVisible();
   await expect(page.getByText('Appointment: proposed')).toBeVisible();
   expect(writes).toBe(1);
+
+  await page.goto('/professional/business');
+  await page.getByLabel('My professional application').selectOption(draftApplication);
+  await page.getByLabel('Public description').fill('Synthetic CCTV installation and maintenance services.');
+  await page.getByRole('button',{name:'Save private draft'}).click();
+  const saved=page.getByText('Draft saved privately. The business page list could not refresh.');
+  await expect(saved).toBeVisible();
+  await page.getByLabel('Public description').fill('Updated synthetic CCTV installation and maintenance services.');
+  await page.getByRole('button',{name:'Save private draft'}).click();
+  await expect(saved).toBeVisible();
+  expect(draftInserts).toBe(1);
+  expect(draftUpdates).toBe(1);
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());

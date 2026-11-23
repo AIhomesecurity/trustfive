@@ -42,7 +42,14 @@ export default function BusinessPageEditor(){
      application_id:selected,owner_id:userId,status:'draft',...data
     });
    if(result.error)throw result.error;
-   await refresh();setNotice('Draft saved privately. Submit it for independent review when ready.');
+   const savedDraft:Page={application_id:selected,status:'draft',review_note:current?.review_note??null,...data};
+   setPages(previous=>[...previous.filter(page=>page.application_id!==selected),savedDraft]);
+   try{
+    await refresh();
+    setNotice('Draft saved privately. Submit it for independent review when ready.');
+   }catch{
+    setNotice('Draft saved privately. The business page list could not refresh.');
+   }
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to save business draft');}
   finally{setBusy(false);}
  }
