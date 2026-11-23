@@ -155,7 +155,7 @@ export default function Services(){
   </div>
   <div className="directory-intro">
    <div><strong>Up to five approved professionals</strong><span> per trade, per defined local area — only when they qualify.</span></div>
-   <Link href="/jobs" className="btn">Describe your job →</Link>
+   <Link href={jobHref} className="btn">Describe your job →</Link>
   </div>
   <FairSelectionNotice />
   <div className="directory-layout">
