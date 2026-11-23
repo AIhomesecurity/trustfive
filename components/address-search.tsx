@@ -49,7 +49,7 @@ export default function AddressSearch({onSelect}:Props){
  }
  function onInputKeyDown(e:KeyboardEvent<HTMLInputElement>){
   if(e.nativeEvent.isComposing)return;
-  if(e.key==='Escape'&&expanded){
+  if(e.key==='Escape'&&(expanded||loading)){
    e.preventDefault();setDismissed(true);setActive(-1);setError('');return;
   }
   if((e.key==='ArrowDown'||e.key==='ArrowUp')&&suggestions.length){

@@ -119,3 +119,28 @@ test('mobile mixed suggestions describe postcode precision without implying an e
  await expect(page.getByText('Distance uses an approximate postcode or district centre', {exact:false})).toBeVisible();
  await expect(page).toHaveURL(/\/services\?q=CCTV$/);
 });
+
+test('Escape keeps an in-flight mobile address lookup dismissed until reopened',async({page})=>{
+ await page.setViewportSize({width:360,height:740});
+ let release=()=>{};
+ const pending=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/address/search',async route=>{
+  await pending;
+  await route.fulfill({json:{suggestions:[property(2)]}});
+ });
+ try{
+  await page.goto('/services');
+  const input=page.getByRole('combobox',{name:'Your postcode or street address'});
+  await input.fill('Example Street');
+  await expect(page.getByRole('button',{name:'Finding…'})).toBeVisible();
+  await input.press('Escape');
+  release();
+  await expect(page.getByRole('button',{name:'Find address'})).toBeEnabled();
+  await expect(input).toHaveAttribute('aria-expanded','false');
+  await input.press('ArrowDown');
+  await expect(page.getByRole('option',{selected:true,name:/2 Example Street/})).toBeVisible();
+  await input.press('Enter');
+  await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('2 Example Street');
+  await expect(page).toHaveURL(/\/services$/);
+ }finally{release();}
+});
