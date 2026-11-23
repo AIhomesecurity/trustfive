@@ -34,6 +34,7 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   if(request.method==='OPTIONS')return reply(204,null);
   if(request.headers.authorization!=='Bearer '+token)return reply(401,{message:'Synthetic session required'});
   switch(path){
+   case '/rest/v1/rpc/cancel_customer_job':return reply(400,{message:'Synthetic cancellation failure'});
    case '/rest/v1/rpc/customer_job_activity':return activityUnavailable?reply(400,{message:'Synthetic activity error'}):reply(200,[]);
    case '/auth/v1/user':return reply(200,user);
    case '/rest/v1/jobs':
@@ -91,6 +92,13 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   await expect(page.getByRole('button',{name:'Keep job open'})).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(cancelJob).toBeFocused();
+  await cancelJob.press('Enter');
+  const reason=page.getByLabel('Optional note (max 240 chars)');
+  await reason.fill('Synthetic cancellation note');
+  await page.getByRole('button',{name:'Confirm cancel job'}).press('Enter');
+  await expect(page.getByRole('alert').filter({hasText:'Unable to cancel job. Try again.'})).toBeFocused();
+  await expect(reason).toHaveValue('Synthetic cancellation note');
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('button',{name:'Confirm cancel job'})).toHaveCount(0);
   await page.getByRole('button',{name:'View job activity'}).press('Enter');
   const activityRetry=page.getByRole('button',{name:'Retry activity load'});
