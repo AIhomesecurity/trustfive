@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 
 const backend = 'http://127.0.0.1:54321';
-const app = 'http://127.0.0.1:3007';
+const port = process.argv[2] ?? '3007';
+assert.ok(['3007', '3008'].includes(port), 'Expected the local Next.js or Worker fixture port');
+const app = 'http://127.0.0.1:' + port;
 assert.equal(process.env.NEXT_PUBLIC_SUPABASE_URL, backend);
 
 const user = {id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', aud: 'authenticated'};
@@ -44,7 +46,7 @@ try {
   });
   assert.equal(account.status, 307);
   const target = new URL(account.headers.get('location'), app);
-  assert.ok([app, 'http://localhost:3007'].includes(target.origin));
+  assert.ok([app, 'http://localhost:' + port].includes(target.origin));
   assert.equal(target.pathname + target.search, destination);
   assert.ok(verified >= 2, 'Expected server middleware to verify both signed-in requests');
   console.log('Synthetic session passed protected route and account-return checks');
