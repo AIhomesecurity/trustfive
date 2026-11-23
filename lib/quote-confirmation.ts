@@ -27,3 +27,21 @@ export function canConfirmJobQuote(
 export function acceptedQuoteBookingHref(bookingId: unknown): string {
  return (typeof bookingId==='string' && safeNotificationTarget(bookingHistoryHref(bookingId))) || '/bookings';
 }
+
+export function customerJobBookingLinks(
+ jobIds:readonly string[],
+ customerId:string,
+ bookings:readonly {id:string;job_id:string;customer_id:string}[]
+):Map<string,string>{
+ const visibleJobs=new Set(jobIds);
+ const links=new Map<string,string>();
+ const seen=new Set<string>();
+ for(const booking of bookings){
+  if(!customerId||booking.customer_id!==customerId||!visibleJobs.has(booking.job_id))continue;
+  const href=acceptedQuoteBookingHref(booking.id);
+  if(seen.has(booking.job_id))links.delete(booking.job_id);
+  else if(href!=='/bookings')links.set(booking.job_id,href);
+  seen.add(booking.job_id);
+ }
+ return links;
+}

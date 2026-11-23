@@ -5,6 +5,9 @@ test('saved professional IDs are never presented as current approval without liv
  await page.addInitScript(id=>{
   window.localStorage.setItem('trustfive-shortlist-v1',JSON.stringify([id]));
  },staleId);
+ await page.route('**/rest/v1/trades?*',route=>route.fulfill({json:[]}));
+ await page.route('**/rest/v1/service_areas?*',route=>route.fulfill({json:[]}));
+ await page.route('**/rest/v1/rpc/find_trustfive_professionals_with_reviews',route=>route.fulfill({json:[]}));
  await page.goto('/services');
  await expect(page.getByRole('heading',{name:'Compare approved professionals'})).toBeVisible();
  await expect(page.getByText('Your saved selections are not in these current verified search results.')).toBeVisible();

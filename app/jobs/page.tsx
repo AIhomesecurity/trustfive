@@ -8,7 +8,7 @@ import {parseJobBudgetPence} from '../../lib/job-budget';
 import {meaningfulJobTextLength} from '../../lib/job-text';
 import {jobPublishBlocker} from '../../lib/job-publish-readiness';
 import TradeQuickPick from '../../components/trade-quick-pick';
-import {acceptedQuoteBookingHref,canConfirmJobQuote} from '../../lib/quote-confirmation';
+import {acceptedQuoteBookingHref,canConfirmJobQuote,customerJobBookingLinks} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
 import {
   CONTACT_PREFERENCE_OPTIONS,
@@ -41,6 +41,7 @@ export default function Jobs(){
  const [contactPreference,setContactPreference]=useState<ContactPreference>('in_app_messages');
  const [quoteSort,setQuoteSort]=useState<QuoteSortMode>('lowest_price');
  const [userId,setUserId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[initialLoading,setInitialLoading]=useState(true);
+ const [jobBookingLinks,setJobBookingLinks]=useState<Map<string,string>>(()=>new Map());
  const [confirmedBookingHref,setConfirmedBookingHref]=useState('');
  const [confirmQuoteId,setConfirmQuoteId]=useState<string|null>(null);
  const [confirmCancelJobId,setConfirmCancelJobId]=useState<string|null>(null);
@@ -74,6 +75,28 @@ export default function Jobs(){
   setJobs((j.data||[]) as Job[]);
   setQuotes((q.data||[]) as Quote[]);
  }
+
+ useEffect(()=>{
+  setJobBookingLinks(new Map());
+  const bookedJobs=jobs.filter(job=>job.status==='booked').map(job=>job.id);
+  if(!userId||!bookedJobs.length)return;
+  let active=true;
+  void (async()=>{
+   try{
+    const {data,error}=await supabaseBrowser().from('job_bookings')
+     .select('id,job_id,customer_id')
+     .eq('customer_id',userId)
+     .in('job_id',bookedJobs)
+     .limit(201);
+    if(active&&!error&&data&&data.length<201){
+     setJobBookingLinks(customerJobBookingLinks(bookedJobs,userId,data));
+    }
+   }catch{
+    // The generic bookings link remains available if enrichment fails.
+   }
+  })();
+  return()=>{active=false;};
+ },[jobs,userId]);
 
  async function loadJobActivity(jobId:string){
   const reqId=++activityRequest.current;
@@ -444,7 +467,7 @@ export default function Jobs(){
          <button type="button" disabled={busy} className="btn" onClick={()=>{setConfirmQuoteId(q.quote_id);setMessage('');}}>Review and accept quote</button>
         )}
        </div>)}
-       {j.status==='booked'&&<p style={{marginTop:12}}><Link href="/bookings">Manage confirmed booking →</Link></p>}
+       {j.status==='booked'&&<p style={{marginTop:12}}><Link href={jobBookingLinks.get(j.id)??'/bookings'}>Manage confirmed booking →</Link></p>}
       </article>;
      })}
     </div>

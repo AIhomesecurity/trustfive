@@ -26,6 +26,12 @@ export default function GroupPostReport({postId,userId}:{postId:string;userId:st
   else triggerRef.current?.focus();
  },[open,submitted]);
 
+ function toggleForm(){
+  focusRequested.current=true;
+  setOpen(value=>!value);
+  setNotice('');
+ }
+
  async function submit(event:FormEvent){
   event.preventDefault();
   if(inFlight.current||submitted||!userId||socialReportError(category,explanation))return;
@@ -47,8 +53,10 @@ export default function GroupPostReport({postId,userId}:{postId:string;userId:st
 
  return <div>
   {!submitted&&<button ref={triggerRef} type="button" className="btn secondary" aria-expanded={open} aria-controls={formId}
-   disabled={busy} onClick={()=>{focusRequested.current=true;setOpen(value=>!value);setNotice('');}}>{open?'Cancel report':'Report group post'}</button>}
-  <div id={formId} hidden={!open}>{open&&<form className="form" aria-label="Report this group post" onSubmit={submit}>
+   disabled={busy} onClick={toggleForm}>{open?'Cancel report':'Report group post'}</button>}
+  <div id={formId} hidden={!open}>{open&&<form className="form" aria-label="Report this group post" onSubmit={submit} onKeyDown={event=>{
+   if(event.key==='Escape'&&!busy){event.preventDefault();toggleForm();}
+  }}>
    <p className="muted-note">TrustFive moderators can review this post. Please avoid repeating private information in your report.</p>
    <label>Reason<select ref={reasonRef} required value={category} disabled={busy} onChange={event=>setCategory(event.target.value)}>
     <option value="">Choose a reason</option>

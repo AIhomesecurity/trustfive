@@ -9,6 +9,8 @@ import DirectoryEmptyState from '../../components/directory-empty-state';
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
 type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number;distance_km?:number|null};
+type SearchRequest={trade:string;area:string;location:SelectedLocation|null;retry:number};
+type SearchResponse={request:SearchRequest;pros:Professional[];error:string};
 type Sort='recommended'|'nearby'|'quality'|'reviews'|'name';
 
 const aliases:Record<string,string>={
@@ -54,12 +56,11 @@ export default function Services(){
  const [sort,setSort]=useState<Sort>('quality');
  const [location,setLocation]=useState<SelectedLocation|null>(null);
  const [addressVersion,setAddressVersion]=useState(0);
- const [pros,setPros]=useState<Professional[]>([]);
+ const [response,setResponse]=useState<SearchResponse|null>(null);
  const [catalogLoading,setCatalogLoading]=useState(true);
- const [resultsLoading,setResultsLoading]=useState(true);
+ const [catalogRetry,setCatalogRetry]=useState(0);
  const [retryVersion,setRetryVersion]=useState(0);
  const [catalogError,setCatalogError]=useState('');
- const [resultsError,setResultsError]=useState('');
  const [searchHint,setSearchHint]=useState('');
  const [shortlistIds,setShortlistIds]=useState<string[]>([]);
  const [shortlistReady,setShortlistReady]=useState(false);
@@ -67,6 +68,7 @@ export default function Services(){
 
  useEffect(()=>{
   let active=true;
+  setCatalogLoading(true);setCatalogError('');
   (async()=>{
    try{
     const s=supabaseBrowser();
@@ -91,11 +93,18 @@ export default function Services(){
    }finally{if(active)setCatalogLoading(false);}
   })();
   return()=>{active=false};
- },[]);
+ },[catalogRetry]);
+
+ const request=useMemo<SearchRequest>(()=>({trade,area,location,retry:retryVersion}),[trade,area,location,retryVersion]);
+ const current=response?.request===request?response:null;
+ const resultsLoading=catalogLoading||(!catalogError&&!current);
+ const resultsError=current?.error??'';
+ const resultsReady=!catalogLoading&&!catalogError&&Boolean(current)&&!resultsError;
 
  useEffect(()=>{
+  if(catalogLoading||catalogError)return;
   let active=true;
-  setResultsLoading(true);setResultsError('');
+  const {trade,area,location}=request;
   (async()=>{
    try{
     const query=location?
@@ -103,13 +112,13 @@ export default function Services(){
      supabaseBrowser().rpc('find_trustfive_professionals_with_reviews',{p_trade:trade||null,p_area:area||null});
     const {data,error}=await query;
     if(error)throw error;
-    if(active)setPros(data||[]);
+    if(active)setResponse({request,pros:data||[],error:''});
    }catch(e){
-    if(active){setPros([]);setResultsError(e instanceof Error?e.message:'Directory search is temporarily unavailable');}
-   }finally{if(active)setResultsLoading(false);}
+    if(active)setResponse({request,pros:[],error:e instanceof Error?e.message:'Directory search is temporarily unavailable'});
+   }
   })();
   return()=>{active=false};
- },[trade,area,location,retryVersion]);
+ },[catalogLoading,catalogError,request]);
 
  useEffect(()=>{
   try{
@@ -124,14 +133,14 @@ export default function Services(){
  },[shortlistIds,shortlistReady]);
 
  const visible=useMemo(()=>{
-  const list=[...pros];
+  const list=resultsReady&&current?[...current.pros]:[];
   if(sort==='recommended'&&location)return list;
   if(sort==='nearby'&&location)list.sort((a,b)=>(a.distance_km??Infinity)-(b.distance_km??Infinity)||b.quality_score-a.quality_score);
   else if(sort==='reviews')list.sort((a,b)=>b.review_count-a.review_count||b.quality_score-a.quality_score);
   else if(sort==='name')list.sort((a,b)=>a.business_name.localeCompare(b.business_name));
   else list.sort((a,b)=>b.quality_score-a.quality_score||b.review_count-a.review_count);
   return list;
- },[pros,sort,location]);
+ },[current,resultsReady,sort,location]);
  const compareVisible=visible.filter(p=>shortlistIds.includes(p.application_id));
  function toggleShortlist(id:string){
   if(shortlistIds.includes(id)){setShortlistIds(current=>current.filter(item=>item!==id));setShortlistNotice('Removed from your comparison.');return;}
@@ -171,7 +180,7 @@ export default function Services(){
    </aside>
    <section className="directory-results" aria-label="Approved professional results">
     {catalogLoading&&<p role="status">Loading service categories…</p>}
-    {catalogError&&<p role="alert" className="notice error">Could not load service filters. {catalogError}</p>}
+    {catalogError&&<div role="alert" className="notice error"><p>Could not load service filters. {catalogError}</p><button type="button" className="btn secondary" onClick={()=>{setCatalogLoading(true);setRetryVersion(v=>v+1);setCatalogRetry(v=>v+1);}}>Retry service filters</button></div>}
     {searchHint&&<p role="status" className="notice">{searchHint}</p>}
     <div className="directory-results-heading">
      <div><span className="eyebrow">Your local directory</span><h2>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
@@ -184,12 +193,12 @@ export default function Services(){
     </div>
     {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
     {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
-     <p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
+     resultsReady&&<p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
 
     {shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}
     {shortlistIds.length>0&&<section className="directory-compare" aria-labelledby="directory-compare-title">
      <div className="directory-compare-heading"><div><h3 id="directory-compare-title">Compare approved professionals</h3><p className="muted-note">{shortlistIds.length} saved on this browser · Maximum 3 · Only currently eligible matching results are shown</p></div><button type="button" className="btn secondary" onClick={()=>{setShortlistIds([]);setShortlistNotice('Comparison cleared.');}}>Clear comparison</button></div>
-     {compareVisible.length===0?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
+     {!resultsReady?<p className="muted-note">{resultsLoading?'Checking which saved professionals match this search…':'Current eligibility could not be checked.'}</p>:compareVisible.length===0?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
      <div className="directory-compare-grid">{compareVisible.map(p=><article className="directory-compare-card" key={p.application_id}>
       <h4>{p.business_name}</h4><span className="pill">Currently approved in these results</span>
       <p>{p.trade_name} · {p.area_name}</p>
@@ -198,7 +207,7 @@ export default function Services(){
       <button type="button" className="directory-compare-remove" onClick={()=>toggleShortlist(p.application_id)}>Remove from comparison</button>
      </article>)}</div>}
     </section>}
-    {!resultsLoading&&!resultsError&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
+    {resultsReady&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
      <article className="directory-pro" key={p.application_id}>
       <div className="directory-pro-avatar" aria-hidden="true">{p.business_name.trim().charAt(0).toUpperCase()||'T'}</div>
       <div className="directory-pro-body">
@@ -213,7 +222,7 @@ export default function Services(){
        <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={jobHref}>Post a job →</Link></div>
       </div>
      </article>)}</div>}
-    {!resultsLoading&&!resultsError&&visible.length===0&&
+    {resultsReady&&visible.length===0&&
      <DirectoryEmptyState context={{locationPrecision:location?.precision??null,hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={clearFilters}
       onChangeLocation={()=>{
        const input=document.getElementById('directory-address');
