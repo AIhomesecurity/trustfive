@@ -149,10 +149,14 @@ export default function Services(){
  }
  const tradeEntry=trades.find(t=>t.id===trade);
  const areaEntry=areas.find(a=>a.id===area);
- const jobParams=new URLSearchParams();
- if(tradeEntry)jobParams.set('trade',tradeEntry.slug);
- if(areaEntry)jobParams.set('area',areaEntry.id);
- const jobHref='/jobs'+(jobParams.size?'?'+jobParams.toString():'');
+ function postJobHref(resultTradeName?:string){
+  const params=new URLSearchParams();
+  const selectedTrade=tradeEntry??trades.find(entry=>entry.name===resultTradeName);
+  if(selectedTrade)params.set('trade',selectedTrade.slug);
+  if(areaEntry)params.set('area',areaEntry.id);
+  return '/jobs'+(params.size?'?'+params.toString():'');
+ }
+ const jobHref=postJobHref();
  function clearFilters(){setTrade('');setArea('');setLocation(null);setAddressVersion(v=>v+1);setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
  function updateTrade(value:string){setTrade(value);setSearchHint('');const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
  function updateArea(value:string){setArea(value);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
@@ -219,7 +223,7 @@ export default function Services(){
         <span><strong>{p.quality_score}/100</strong> independent quality score</span>
         <span>{p.review_count>0?<><strong>★ {Number(p.average_stars).toFixed(1)}/5</strong> · {p.review_count} completed-booking review{p.review_count===1?'':'s'}</>:'No completed-booking reviews yet'}</span>
        </div>
-       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={jobHref}>Post a job →</Link></div>
+       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={postJobHref(p.trade_name)}>Post a job →</Link></div>
       </div>
      </article>)}</div>}
     {resultsReady&&visible.length===0&&

@@ -48,3 +48,19 @@ test('mobile comparison hides stale approval and distinguishes a failed search f
   await expect(page.getByRole('link',{name:'Post your job'})).toHaveAttribute('href','/jobs?trade=home-security');
  }finally{finishFailure();}
 });
+
+test('mobile result job links use the listed trade when browsing all services',async({page})=>{
+ await page.route('**/rest/v1/trades?*',route=>route.fulfill({json:[
+  {id:'fixture-cctv',name:'CCTV installation',slug:'cctv-installation'},
+ ]}));
+ await page.route('**/rest/v1/service_areas?*',route=>route.fulfill({json:[]}));
+ await page.route('**/rest/v1/rpc/find_trustfive_professionals_with_reviews',route=>route.fulfill({json:[{
+  application_id:'00000000-0000-4000-8000-000000000011',
+  business_name:'Synthetic camera installer',trade_name:'CCTV installation',
+  area_name:'Synthetic area',city:'Synthetic city',quality_score:90,slot:1,review_count:0,average_stars:0,
+ }]}));
+ await page.goto('/services');
+ const result=page.getByRole('article').filter({hasText:'Synthetic camera installer'});
+ await expect(result.getByRole('link',{name:'Post a job'})).toHaveAttribute('href','/jobs?trade=cctv-installation');
+ await expect(page.getByRole('link',{name:'Describe your job'})).toHaveAttribute('href','/jobs');
+});
