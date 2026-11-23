@@ -28,6 +28,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  const draftApplication="ffffffff-0000-4000-8000-000000000020";
  let calendarOutage=true;
  let proposalOutage=true;
+ let cancellationAttempts=0;
  let proposal: {booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string}|null=null;
  const fixture=createServer(async(request,response)=>{
   const path=new URL(request.url??'/',backend).pathname;
@@ -82,8 +83,14 @@ test('signed-in professional retries eligible leads, submits a quote and propose
      timezone_name:p_timezone,status:'proposed'};
     return reply(200,null);
    }
-   case '/rest/v1/rpc/cancel_booking_appointment':
-    return reply(400,{message:'Synthetic cancellation failure'});
+   case '/rest/v1/rpc/cancel_booking_appointment':{
+    let raw='';
+    for await(const chunk of request)raw+=chunk;
+    if(JSON.parse(raw).p_booking!==bookingId||proposal?.status!=='proposed')return reply(400,{message:'Unexpected cancellation'});
+    if(++cancellationAttempts===1)return reply(400,{message:'Synthetic cancellation failure'});
+    proposal={...proposal,status:'cancelled'};
+    return reply(200,null);
+   }
    case '/rest/v1/rpc/submit_business_page':{
     let raw='';
     for await(const chunk of request)raw+=chunk;
@@ -182,6 +189,11 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await expect(cancelTime).toBeFocused();
   await expect(page.getByText('Appointment: proposed')).toBeVisible();
   expect(writes).toBe(1);
+  await cancelTime.press('Enter');
+  await page.getByRole('button',{name:'Confirm cancellation'}).press('Enter');
+  await expect(page.getByText('Appointment time cancelled; the booking itself remains active',{exact:false})).toBeFocused();
+  await expect(page.getByText('Appointment: cancelled')).toBeVisible();
+  expect(cancellationAttempts).toBe(2);
 
   await page.goto('/professional/business');
   const retryBusiness=page.getByRole('button',{name:'Retry loading business pages'});

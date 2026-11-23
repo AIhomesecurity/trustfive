@@ -31,6 +31,13 @@ export default function BookingSchedule(){
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
  const [confirmCancelId,setConfirmCancelId]=useState<string|null>(null);
+ const cancellationNoticeRef=useRef<HTMLParagraphElement>(null);
+ const focusCancellationNotice=useRef(false);
+ useEffect(()=>{
+  if(!notice||!focusCancellationNotice.current)return;
+  focusCancellationNotice.current=false;
+  cancellationNoticeRef.current?.focus();
+ },[notice]);
  const [cancelError,setCancelError]=useState('');
  const cancelErrorRef=useRef<HTMLParagraphElement>(null);
  useEffect(()=>{if(cancelError)cancelErrorRef.current?.focus();},[cancelError]);
@@ -158,7 +165,10 @@ export default function BookingSchedule(){
     fallbackErrorMessage:'Could not update appointment',
    });
    if(!confirmed&&result.outcome==='rpc_error')setCancelError(result.message);
-   else showActionResult(result);
+   else{
+    if(!confirmed)focusCancellationNotice.current=true;
+    showActionResult(result);
+   }
   } finally{inFlight.current=false;setBusy(false);}
  }
 
@@ -188,7 +198,7 @@ export default function BookingSchedule(){
    <h1>Booking appointments</h1>
    <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments preserve their exact IANA time zone and cannot overlap for the same professional.</p>
   </div>
-  {notice&&<p role="status" className="notice">{notice}</p>}
+  {notice&&<p ref={cancellationNoticeRef} tabIndex={-1} role="status" className="notice">{notice}</p>}
   {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryCalendar()}>Retry loading appointments</button></div>}
   {unavailableBooking&&<p role="alert" className="notice">That appointment is not available to your account, or the booking is no longer active. Choose an eligible booking below.</p>}
   {loading?<p role="status" className="notice">Loading your booking appointments…</p>:
