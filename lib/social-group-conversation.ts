@@ -36,8 +36,11 @@ export function socialGroupPostPage(page:number):{from:number;to:number}{
  const bounded=Number.isFinite(page)?Math.min(100,Math.max(0,Math.floor(page))):0;
  return {from:bounded*20,to:bounded*20+20};
 }
-export function socialGroupVisiblePage<T>(items:readonly T[]):{posts:T[];hasMore:boolean}{
- return {posts:items.slice(0,20),hasMore:items.length>20};
+export function socialGroupVisiblePage<T extends Pick<GroupConversationPost,'group_id'|'visibility'>>(
+ items:readonly T[],groupId:string
+):{posts:T[];hasMore:boolean}{
+ const posts=items.filter(post=>post.group_id===groupId&&post.visibility==='published');
+ return {posts:posts.slice(0,20),hasMore:posts.length>20};
 }
 
 /** Membership controls disappear after a successful action. Focus must move

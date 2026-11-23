@@ -8,7 +8,7 @@ import {parseJobBudgetPence} from '../../lib/job-budget';
 import {meaningfulJobTextLength} from '../../lib/job-text';
 import {jobPublishBlocker} from '../../lib/job-publish-readiness';
 import TradeQuickPick from '../../components/trade-quick-pick';
-import {canConfirmJobQuote} from '../../lib/quote-confirmation';
+import {acceptedQuoteBookingHref,canConfirmJobQuote} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
 import {
   CONTACT_PREFERENCE_OPTIONS,
@@ -41,6 +41,7 @@ export default function Jobs(){
  const [contactPreference,setContactPreference]=useState<ContactPreference>('in_app_messages');
  const [quoteSort,setQuoteSort]=useState<QuoteSortMode>('lowest_price');
  const [userId,setUserId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[initialLoading,setInitialLoading]=useState(true);
+ const [confirmedBookingHref,setConfirmedBookingHref]=useState('');
  const [confirmQuoteId,setConfirmQuoteId]=useState<string|null>(null);
  const [confirmCancelJobId,setConfirmCancelJobId]=useState<string|null>(null);
  const [cancelReason,setCancelReason]=useState('');
@@ -207,14 +208,19 @@ export default function Jobs(){
   if(!canConfirmJobQuote(quoteId,quotes,jobs)){setConfirmQuoteId(null);setMessage('This quote can no longer be accepted. Refresh your jobs and try again.');return;}
   actionInFlight.current=true;setBusy(true);setMessage('');
   try{
-   const {error}=await supabaseBrowser().rpc('accept_job_quote',{p_quote:quoteId});
+   const {data,error}=await supabaseBrowser().rpc('accept_job_quote',{p_quote:quoteId});
    if(error)throw error;
+   const acceptedJobId=quotes.find(quote=>quote.quote_id===quoteId)?.job_id;
+   setConfirmedBookingHref(acceptedQuoteBookingHref(data));
    setConfirmQuoteId(null);
+   setJobs(current=>current.map(job=>job.id===acceptedJobId?{...job,status:'booked'}:job));
+   setQuotes(current=>current.map(quote=>quote.job_id===acceptedJobId&&quote.status==='pending'
+    ?{...quote,status:quote.quote_id===quoteId?'accepted':'rejected'}:quote));
    try{
     await refresh();
     setMessage('Quote accepted and booking recorded. No payment has been taken. Agree appointment and address-sharing details through your booking and messages.');
    }catch{
-    setMessage('Booking recorded successfully, but the list could not be refreshed. Reload your bookings before attempting another confirmation. No payment has been taken.');
+    setMessage('Booking recorded successfully. The jobs list could not be refreshed. Open the booking to continue. No payment has been taken.');
    }
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to accept quote')}
   finally{actionInFlight.current=false;setBusy(false)}
@@ -280,6 +286,7 @@ export default function Jobs(){
    <p className="subtle">Post a job step-by-step, manage open or cancelled requests, inspect genuine activity history, and compare quotations from independently approved local professionals.</p>
   </div>
   {message&&<p className="notice" role="status">{message}</p>}
+  {confirmedBookingHref&&userId&&<p><Link className="btn" href={confirmedBookingHref}>Open your confirmed booking →</Link></p>}
   {initialLoading?<p className="notice" role="status" aria-live="polite">Checking your account and loading jobs…</p>:
   !userId?<Link className="btn" href={'/account?next='+encodeURIComponent(typeof window==='undefined'?'/jobs':window.location.pathname+window.location.search)}>Sign in / create account</Link>:
   <div className="two-col">

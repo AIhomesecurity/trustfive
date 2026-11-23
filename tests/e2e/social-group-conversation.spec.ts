@@ -53,10 +53,11 @@ test('group conversation pages are bounded with one lookahead record',()=>{
  expect(socialGroupPostPage(-1)).toEqual({from:0,to:20});
  expect(socialGroupPostPage(Infinity)).toEqual({from:0,to:20});
  expect(socialGroupPostPage(99999)).toEqual({from:2000,to:2020});
- const visible=socialGroupVisiblePage(Array.from({length:21},(_,id)=>id));
+ const published=Array.from({length:21},(_,id)=>({id,group_id:'group-a',visibility:'published'}));
+ const visible=socialGroupVisiblePage(published,'group-a');
  expect(visible.posts).toHaveLength(20);
  expect(visible.hasMore).toBe(true);
- expect(socialGroupVisiblePage([1,2]).hasMore).toBe(false);
+ expect(socialGroupVisiblePage(published.slice(0,2),'group-a').hasMore).toBe(false);
 });
 
 test.describe('real group discussions anonymous security boundary',()=>{
@@ -77,4 +78,13 @@ test.describe('real group discussions anonymous security boundary',()=>{
 test('membership controls restore focus after their buttons unmount',()=>{
  expect(socialGroupFocusTarget('joined')).toBe('composer');
  expect(socialGroupFocusTarget('left')).toBe('join');
+});
+
+
+test('hidden and cross-group posts cannot appear or drive the next-page control',()=>{
+ const remaining={id:'remaining',group_id:'group-a',visibility:'published'};
+ const hidden={id:'hidden',group_id:'group-a',visibility:'hidden'};
+ const other={id:'other',group_id:'group-b',visibility:'published'};
+ expect(socialGroupVisiblePage([remaining,hidden,...Array(20).fill(other)],'group-a'))
+  .toEqual({posts:[remaining],hasMore:false});
 });

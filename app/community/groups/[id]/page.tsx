@@ -106,7 +106,7 @@ export default function SocialGroupConversation(){
      .range(bounds.from,bounds.to);
     if(result.error)throw result.error;
     if(!active||epoch!==postLoadEpoch.current)return;
-    const selection=socialGroupVisiblePage((result.data||[]) as GroupConversationPost[]);
+    const selection=socialGroupVisiblePage((result.data||[]) as GroupConversationPost[],groupId);
     setPosts(selection.posts);setHasMore(selection.hasMore);
    }catch{
     if(active&&epoch===postLoadEpoch.current)
@@ -213,6 +213,10 @@ export default function SocialGroupConversation(){
      </section>
      <section aria-labelledby="group-discussions-title">
       <h2 id="group-discussions-title">Member discussions</h2>
+      <button type="button" className="btn secondary" aria-disabled={postsLoading||busy}
+       onClick={()=>{if(!postsLoading&&!busy)setPostsRevision(v=>v+1);}}>
+       {postsLoading?'Refreshing discussions…':'Refresh discussions'}
+      </button>
       {postsLoading?<p className="card" role="status">Loading real group posts…</p>
        :postsError?<div className="card" role="alert"><p>{postsError}</p><button type="button" className="btn secondary" onClick={()=>setPostsRevision(v=>v+1)}>Retry posts</button></div>
        :<>
