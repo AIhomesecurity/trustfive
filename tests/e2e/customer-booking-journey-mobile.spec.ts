@@ -248,6 +248,7 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
           return reply(400, {message: 'Booking is not awaiting completion confirmation'});
         }
         completionConfirmCalls += 1;
+        if (completionConfirmCalls === 1) return reply(503, {message: 'Synthetic completion outage'});
         bookingStatus = 'completed';
         return reply(200, null);
       }
@@ -441,13 +442,19 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
 
     await reviewCompletionBtn.press('Enter');
     await page.getByRole('button', {name: 'Yes, work is completed'}).click();
+    const completionPanel = page.getByTestId(`confirm-completion-panel-${bookingId}`);
+    await expect(completionPanel.getByRole('alert')).toContainText('Synthetic completion outage');
+    await expect(completionSection.getByRole('button', {name: 'Retry completion action'})).toHaveCount(0);
+    await expect(completionSection.getByRole('button', {name: 'Leave verified-booking review'})).toHaveCount(0);
     expect(completionConfirmCalls).toBe(1);
+    await completionPanel.getByRole('button', {name: 'Yes, work is completed'}).press('Enter');
 
     const leaveReviewBtn = completionSection.getByRole('button', {
       name: 'Leave verified-booking review',
     });
     await expect(leaveReviewBtn).toBeVisible();
     await expect(leaveReviewBtn).toBeFocused();
+    expect(completionConfirmCalls).toBe(2);
 
     // 6. Verified review: Escape focus return -> failed submit preserves draft -> retry succeeds -> reload shows once
     await leaveReviewBtn.press('Enter');

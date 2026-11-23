@@ -19,6 +19,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  page.setDefaultTimeout(10000);
  let leadOutage=true;
  let writes=0;
+ let quoteOutage=true;
  let initialBusinessOutage=true;
  let onboardingOutage=true;
  let draftInserts=0;
@@ -54,6 +55,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
      quote.availability_note!=='Tuesday morning'||quote.status!=='pending'){
      return reply(400,{message:'Unexpected synthetic quote'});
     }
+    if(quoteOutage){quoteOutage=false;return reply(503,{message:'Synthetic quote outage'});}
     writes++;
     return reply(201,null);
    }
@@ -132,6 +134,12 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await page.getByLabel('Earliest availability and timeframe (optional)').fill('Tuesday morning');
   await page.getByLabel('Message and scope of work').fill('Install the synthetic camera.');
   await page.getByRole('button',{name:'Send quote'}).click();
+  const quoteError=page.getByText('Synthetic quote outage',{exact:true});
+  await expect(quoteError).toBeFocused();
+  await expect(page.getByLabel('Your quote (£)')).toHaveValue('225');
+  await expect(page.getByLabel('Message and scope of work')).toHaveValue('Install the synthetic camera.');
+  expect(writes).toBe(0);
+  await page.getByRole('button',{name:'Send quote'}).press('Enter');
   await expect(page.getByText('Quote submitted to the customer.',{exact:false})).toBeVisible();
   const appointment=page.getByRole('link',{name:'Appointments'});
   await expect(appointment).toHaveAttribute('href','/schedule?booking='+bookingId);
