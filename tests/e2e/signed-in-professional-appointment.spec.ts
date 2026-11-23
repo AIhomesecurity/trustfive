@@ -19,6 +19,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  page.setDefaultTimeout(10000);
  let leadOutage=true;
  let writes=0;
+ let proposals=0;
  let quoteOutage=true;
  let initialBusinessOutage=true;
  let onboardingOutage=true;
@@ -79,6 +80,8 @@ test('signed-in professional retries eligible leads, submits a quote and propose
      return reply(400,{message:'Unexpected appointment proposal'});
     }
     if(proposalOutage){proposalOutage=false;return reply(503,{message:'Synthetic proposal outage'});}
+    proposals++;
+    calendarOutage=true;
     proposal={booking_id:p_booking,proposed_by:professional.id,starts_at:p_start,ends_at:p_end,
      timezone_name:p_timezone,status:'proposed'};
     return reply(200,null);
@@ -174,7 +177,11 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await expect(page.getByLabel('IANA time zone')).toHaveValue('Europe/London');
   expect(proposal).toBeNull();
   await page.getByRole('button',{name:'Propose appointment'}).press('Enter');
-  await expect(page.getByText('Appointment time proposed in Europe/London.',{exact:false})).toBeVisible();
+  await expect(page.getByText('Appointment time proposed. Reload the calendar to see the latest details.')).toBeVisible();
+  await expect(retry).toBeFocused();
+  await expect(page.getByRole('button',{name:'Propose appointment'})).toBeDisabled();
+  await retry.press('Enter');
+  await expect(retry).toHaveCount(0);
   await expect(page.getByText('Appointment: proposed')).toBeVisible();
   const cancelTime=page.getByRole('button',{name:'Cancel appointment time'});
   await cancelTime.press('Enter');
@@ -189,6 +196,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await expect(cancelTime).toBeFocused();
   await expect(page.getByText('Appointment: proposed')).toBeVisible();
   expect(writes).toBe(1);
+  expect(proposals).toBe(1);
   await cancelTime.press('Enter');
   await page.getByRole('button',{name:'Confirm cancellation'}).press('Enter');
   await expect(page.getByText('Appointment time cancelled; the booking itself remains active',{exact:false})).toBeFocused();
