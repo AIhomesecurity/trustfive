@@ -51,7 +51,7 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
      professional_id:'eeeeeeee-0000-4000-8000-000000000001',status:'confirmed',created_at:'2026-11-23T00:00:00Z'}]:[]);
    case '/rest/v1/booking_appointments':
     appointmentLookups++;
-    if(appointmentLookups<=2)return reply(503,{message:'Synthetic appointment outage'});
+    if(appointmentLookups<=2)return reply(500,{message:'Synthetic appointment outage'});
     return reply(200,[]);
    default:return reply(200,[]);
   }
