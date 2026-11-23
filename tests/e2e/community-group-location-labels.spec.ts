@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {communityGroupLocationLabel} from '../lib/community-group-location';
+import {communityGroupLocationLabel} from '../../lib/community-group-location';
 
 test.describe('community group location labels',()=>{
  test('shows neighbourhood and city without claiming territory verification',()=>{

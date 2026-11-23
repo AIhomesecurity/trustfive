@@ -38,6 +38,19 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client
           fi
+      - name: Check migration versions are unique
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            filename=${migration##*/}
+            printf '%s %s\n' "${filename%%_*}" "$filename"
+          done | awk '
+            $1 in seen {
+              printf "Duplicate migration version %s: %s and %s\n", $1, seen[$1], $2
+              failed = 1
+            }
+            !($1 in seen) { seen[$1] = $2 }
+            END { exit failed }
+          '
       - name: Bootstrap Supabase auth compatibility
         run: psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql
       - name: Apply TrustFive migrations
@@ -88,3 +101,24 @@ jobs:
 
       - name: Enforce nationwide pending-area interest privacy and no self-approval
         run: psql -v ON_ERROR_STOP=1 -f tests/db/uk-area-interest-contract.sql
+
+      - name: Verify job contact preferences, quote availability, withdrawal and privacy contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/job-quote-booking-workflow-contract.sql
+
+      - name: Verify marketplace job lifecycle, security and abuse-prevention contract (Phase 7)
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/marketplace-security-abuse-contract.sql
+
+      - name: Verify professional onboarding, verification RLS, suspension and five-slot waiting list
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/professional-onboarding-five-slot-contract.sql
+
+      - name: Verify targeted marketplace FK indexes and EXPLAIN plans (Issue #13)
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/query-plan-indexes-contract.sql
+
+      - name: Verify professional collaboration registration, private interests and closed-request RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-trade-collaboration-contract.sql
+
+      - name: Verify private saved-post RLS, anonymous denial and hidden-post privacy
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-saved-posts-rls-contract.sql
+
+      - name: Verify Social group membership, protected discussions and founder leave rules
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-group-conversations-rls-contract.sql

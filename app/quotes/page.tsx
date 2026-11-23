@@ -4,9 +4,10 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {quoteMessagesHref,bookingHistoryHref,bookingScheduleHref} from '../../lib/workflow-links';
 import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
+import {validateQuoteAvailability} from '../../lib/quote-comparison';
 
 type Lead={job_id:string;title:string;description:string;budget_pence:number|null;trade_name:string;area_name:string;allocation_id:string;created_at:string};
-type Quote={quote_id:string;job_id:string;job_title:string;amount_pence:number;message:string;status:string;created_at:string};
+type Quote={quote_id:string;job_id:string;job_title:string;amount_pence:number;message:string;availability_note?:string|null;status:string;created_at:string};
 type Booking={id:string;quote_id:string;status:string};
 
 const money=(pence:number)=>'£'+(pence/100).toFixed(2);
@@ -17,6 +18,7 @@ export default function Quotes(){
  const [bookings,setBookings]=useState<Booking[]>([]);
  const [chosen,setChosen]=useState<Lead|null>(null);
  const [amount,setAmount]=useState('');
+ const [availability,setAvailability]=useState('');
  const [message,setMessage]=useState('');
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
@@ -24,6 +26,7 @@ export default function Quotes(){
  const [refreshing,setRefreshing]=useState(false);
  const [filter,setFilter]=useState('');
  const [view,setView]=useState<'all'|'unquoted'>('unquoted');
+ const [confirmWithdrawId,setConfirmWithdrawId]=useState<string|null>(null);
 
  async function refresh(){
   setRefreshing(true);
@@ -37,7 +40,9 @@ export default function Quotes(){
    if(l.error)throw l.error;
    if(q.error)throw q.error;
    if(b.error)throw b.error;
-   setLeads(l.data||[]);setQuotes(q.data||[]);setBookings(b.data||[]);
+   setLeads((l.data||[]) as Lead[]);
+   setQuotes((q.data||[]) as Quote[]);
+   setBookings((b.data||[]) as Booking[]);
   }finally{setRefreshing(false);}
  }
  useEffect(()=>{
@@ -69,21 +74,42 @@ export default function Quotes(){
   if(!canPrepareProfessionalQuote(chosen,leads,quotes)){
    setChosen(null);setNotice('This opportunity is no longer available for a new quote. Refresh your leads.');return;
   }
+  const availError=validateQuoteAvailability(availability);
+  if(availError){setNotice(availError);return;}
   setBusy(true);setNotice('');
   try{
    const pence=Math.round(Number(amount)*100);
    if(!Number.isSafeInteger(pence)||pence<100||pence>1000000000)throw Error('Quote must be between £1 and £10 million');
    if(message.trim().length<10)throw Error('Describe the scope of work in at least 10 non-whitespace characters');
    const {error}=await supabaseBrowser().from('job_quotes').insert({
-    job_id:chosen.job_id,professional_allocation_id:chosen.allocation_id,
-    professional_id:userId,amount_pence:pence,message:message.trim(),status:'pending'
+    job_id:chosen.job_id,
+    professional_allocation_id:chosen.allocation_id,
+    professional_id:userId,
+    amount_pence:pence,
+    message:message.trim(),
+    availability_note:availability.trim()||null,
+    status:'pending'
    });
    if(error)throw error;
-   setChosen(null);setAmount('');setMessage('');
+   setChosen(null);setAmount('');setAvailability('');setMessage('');
    await refresh();setNotice('Quote submitted to the customer. No payment has been collected.');
   }catch(e){setNotice(e instanceof Error?e.message:'Quote failed');}
   finally{setBusy(false);}
  }
+
+ async function withdraw(quoteId:string){
+  if(busy)return;
+  setBusy(true);setNotice('');
+  try{
+   const {error}=await supabaseBrowser().rpc('withdraw_job_quote',{p_quote:quoteId});
+   if(error)throw error;
+   setConfirmWithdrawId(null);
+   await refresh();
+   setNotice('Pending quote withdrawn.');
+  }catch(e){setNotice(e instanceof Error?e.message:'Unable to withdraw quote');}
+  finally{setBusy(false);}
+ }
+
  async function ready(id:string){
   if(busy)return;
   setBusy(true);setNotice('');
@@ -95,6 +121,7 @@ export default function Quotes(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to update booking');}
   finally{setBusy(false);}
  }
+
  return <main className="container">
   <div className="page-heading"><span className="eyebrow">Approved professional workspace</span>
    <h1>Leads, quotes and work</h1>
@@ -148,8 +175,9 @@ export default function Quotes(){
        {existingForChosen?<div className="notice">A quote has already been submitted for this job. <Link href={quoteMessagesHref(existingForChosen.quote_id)}>Open conversation</Link>.</div>:
        <form className="form" onSubmit={submit}>
         <label>Your quote (£)<input type="number" min="1" max="10000000" step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)}/></label>
+        <label>Earliest availability and timeframe (optional)<input maxLength={240} value={availability} onChange={e=>setAvailability(e.target.value)} placeholder="e.g. Available from Tuesday morning; approx. 1 day"/></label>
         <label>Message and scope of work<textarea minLength={10} maxLength={3000} required value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe materials, timing, exclusions and assumptions"/></label>
-        <p className="muted-note">Make sure the price and scope are accurate. This sends a quote, not a payment request.</p>
+        <p className="muted-note">Make sure the price, availability and scope are accurate. This sends a quote, not a payment request.</p>
         <div className="professional-lead-actions"><button type="submit" disabled={busy||refreshing} className="btn">{busy?'Sending…':'Send quote'}</button>
          <button type="button" disabled={busy} className="btn secondary" onClick={()=>setChosen(null)}>Cancel</button>
         </div>
@@ -161,8 +189,21 @@ export default function Quotes(){
        quotes.map(q=><article className="card" key={q.quote_id}>
         <span className="pill">{q.status}</span>
         <h3 style={{marginTop:10}}>{q.job_title}</h3>
-        <p><strong>{money(q.amount_pence)}</strong></p><p style={{whiteSpace:'pre-wrap'}}>{q.message}</p>
+        <p><strong>{money(q.amount_pence)}</strong></p>
+        {q.availability_note&&<p className="muted-note" style={{marginTop:4}}><strong>Availability:</strong> {q.availability_note}</p>}
+        <p style={{whiteSpace:'pre-wrap',marginTop:6}}>{q.message}</p>
         <p style={{marginTop:12}}><Link href={quoteMessagesHref(q.quote_id)}>Open exact message thread →</Link></p>
+        {q.status==='pending'&&(
+         confirmWithdrawId===q.quote_id?
+         <div className="notice" style={{marginTop:10}}>
+          <p>Withdraw this pending quote? The customer will no longer be able to accept it.</p>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
+           <button type="button" className="btn secondary" disabled={busy} onClick={()=>void withdraw(q.quote_id)}>Confirm withdrawal</button>
+           <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmWithdrawId(null)}>Keep quote</button>
+          </div>
+         </div>:
+         <p style={{marginTop:8}}><button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmWithdrawId(q.quote_id)}>Withdraw pending quote</button></p>
+        )}
         {bookings.filter(b=>b.quote_id===q.quote_id).map(b=><div className="professional-booking-actions" key={b.id}>
          <p><strong>Booking status:</strong> {b.status}</p>
          <Link href={bookingHistoryHref(b.id)}>View booking</Link><Link href={bookingScheduleHref(b.id)}>Appointments</Link>

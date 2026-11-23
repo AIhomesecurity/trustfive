@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {filterLoadedCommunityGroups} from '../lib/community-group-search';
+import {filterLoadedCommunityGroups} from '../../lib/community-group-search';
 
 const areas=[
  {id:'manchester',area_name:'Northern Quarter',city:'Manchester'},
