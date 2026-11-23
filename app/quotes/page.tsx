@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {quoteMessagesHref,bookingHistoryHref,bookingScheduleHref} from '../../lib/workflow-links';
 import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
+import {createSingleFlightLock,executeBookingAction} from '../../lib/booking-lifecycle';
 import {validateQuoteAvailability} from '../../lib/quote-comparison';
 
 type Lead={job_id:string;title:string;description:string;budget_pence:number|null;trade_name:string;area_name:string;allocation_id:string;created_at:string};
@@ -23,6 +24,8 @@ export default function Quotes(){
  const [message,setMessage]=useState('');
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
+ const [requiresReload,setRequiresReload]=useState(false);
+ const mutationLock=useRef(createSingleFlightLock());
  const [loading,setLoading]=useState(true);
  const [refreshing,setRefreshing]=useState(false);
  const [filter,setFilter]=useState('');
@@ -44,6 +47,7 @@ export default function Quotes(){
    setLeads((l.data||[]) as Lead[]);
    setQuotes((q.data||[]) as Quote[]);
    setBookings((b.data||[]) as Booking[]);
+   setRequiresReload(false);
   }finally{setRefreshing(false);}
  }
  useEffect(()=>{
@@ -80,20 +84,44 @@ export default function Quotes(){
  },[leads,quotes,filter,view]);
  const existingForChosen=chosen?quotes.find(q=>q.job_id===chosen.job_id):undefined;
 
+ const mutationsDisabled=busy||refreshing||requiresReload;
+
+ async function runMutation(options:Parameters<typeof executeBookingAction>[0]){
+  if(mutationsDisabled)return;
+  await mutationLock.current.run(async()=>{
+   setBusy(true);setNotice('');
+   try{
+    const result=await executeBookingAction(options);
+    if(result.outcome==='committed_refresh_failed')setRequiresReload(true);
+    setNotice(result.message);
+   }finally{setBusy(false);}
+  });
+ }
+
+ async function reload(){
+  await mutationLock.current.run(async()=>{
+   try{await refresh();}
+   catch(e){setNotice(e instanceof Error?e.message:'Unable to refresh leads');}
+  });
+ }
+
  async function submit(e:FormEvent){
   e.preventDefault();
-  if(!chosen||busy||refreshing)return;
+  if(!chosen||mutationsDisabled)return;
   if(!canPrepareProfessionalQuote(chosen,leads,quotes)){
    chooseLead(null);setNotice('This opportunity is no longer available for a new quote. Refresh your leads.');return;
   }
   const availError=validateQuoteAvailability(availability);
   if(availError){setNotice(availError);return;}
-  setBusy(true);setNotice('');
-  try{
-   const pence=Math.round(Number(amount)*100);
-   if(!Number.isSafeInteger(pence)||pence<100||pence>1000000000)throw Error('Quote must be between £1 and £10 million');
-   if(message.trim().length<10)throw Error('Describe the scope of work in at least 10 non-whitespace characters');
-   const {error}=await supabaseBrowser().from('job_quotes').insert({
+  const pence=Math.round(Number(amount)*100);
+  if(!Number.isSafeInteger(pence)||pence<100||pence>1000000000){
+   setNotice('Quote must be between £1 and £10 million');return;
+  }
+  if(message.trim().length<10){
+   setNotice('Describe the scope of work in at least 10 non-whitespace characters');return;
+  }
+  await runMutation({
+   runRpc:async()=>supabaseBrowser().from('job_quotes').insert({
     job_id:chosen.job_id,
     professional_allocation_id:chosen.allocation_id,
     professional_id:userId,
@@ -101,37 +129,35 @@ export default function Quotes(){
     message:message.trim(),
     availability_note:availability.trim()||null,
     status:'pending'
-   });
-   if(error)throw error;
-   chooseLead(null);
-   await refresh();setNotice('Quote submitted to the customer. No payment has been collected.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Quote failed');}
-  finally{setBusy(false);}
+   }),
+   onCommittedLocalUpdate:()=>chooseLead(null),
+   runRefresh:refresh,
+   successMessage:'Quote submitted to the customer. No payment has been collected.',
+   refreshFailedMessage:'Quote submitted to the customer. Refresh your leads to see it before making another change.',
+   fallbackErrorMessage:'Unable to submit quote',
+  });
  }
 
  async function withdraw(quoteId:string){
-  if(busy)return;
-  setBusy(true);setNotice('');
-  try{
-   const {error}=await supabaseBrowser().rpc('withdraw_job_quote',{p_quote:quoteId});
-   if(error)throw error;
-   setConfirmWithdrawId(null);
-   await refresh();
-   setNotice('Pending quote withdrawn.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to withdraw quote');}
-  finally{setBusy(false);}
+  await runMutation({
+   runRpc:async()=>supabaseBrowser().rpc('withdraw_job_quote',{p_quote:quoteId}),
+   onCommittedLocalUpdate:()=>setConfirmWithdrawId(null),
+   runRefresh:refresh,
+   successMessage:'Pending quote withdrawn.',
+   refreshFailedMessage:'Quote withdrawn. Refresh your leads to see the latest status.',
+   fallbackErrorMessage:'Unable to withdraw quote',
+  });
  }
 
  async function ready(id:string){
-  if(busy)return;
-  setBusy(true);setNotice('');
-  try{
-   const {error}=await supabaseBrowser().rpc('mark_job_ready_for_confirmation',{p_booking:id});
-   if(error)throw error;
-   await refresh();
-   setNotice('The customer can now confirm completion in their booking. Automatic email/push notifications are not enabled yet.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to update booking');}
-  finally{setBusy(false);}
+  await runMutation({
+   runRpc:async()=>supabaseBrowser().rpc('mark_job_ready_for_confirmation',{p_booking:id}),
+   onCommittedLocalUpdate:()=>{},
+   runRefresh:refresh,
+   successMessage:'The customer can now confirm completion in their booking. Automatic email/push notifications are not enabled yet.',
+   refreshFailedMessage:'Work marked ready for customer confirmation. Refresh your leads to see the latest status.',
+   fallbackErrorMessage:'Unable to update booking',
+  });
  }
 
  return <main className="container">
@@ -140,6 +166,7 @@ export default function Quotes(){
    <p className="subtle">Only active, independently approved professionals can access matching customer job requests for their verified service areas.</p>
   </div>
   {notice&&<p role="status" className="notice">{notice}</p>}
+  {requiresReload&&<p className="muted-note">Quote and booking changes are paused until the workspace refreshes.</p>}
   {loading?<p role="status" className="notice">Checking your professional account and leads…</p>:
    !userId?<Link className="btn" href="/account?next=%2Fquotes">Sign in to access leads</Link>:
    <>
@@ -151,7 +178,7 @@ export default function Quotes(){
     <div className="professional-lead-layout">
      <section aria-labelledby="lead-list-heading">
       <div className="professional-section-heading"><h2 id="lead-list-heading">Matching customer jobs</h2>
-       <button type="button" className="btn secondary" disabled={refreshing||busy} onClick={()=>void refresh().catch(e=>setNotice(e instanceof Error?e.message:'Unable to refresh leads'))}>{refreshing?'Refreshing…':'Refresh leads'}</button>
+       <button type="button" className="btn secondary" disabled={refreshing||busy} onClick={()=>void reload()}>{refreshing?'Refreshing…':'Refresh leads'}</button>
       </div>
       <div className="professional-lead-filters">
        <label>Find a job<input type="search" value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Trade, area or job description"/></label>
@@ -174,7 +201,7 @@ export default function Quotes(){
          <div className="professional-lead-actions">
           {existing?<><span className="muted-note">Your {existing.status} quote is already recorded.</span>
             <Link className="btn secondary" href={quoteMessagesHref(existing.quote_id)}>Open conversation</Link></>:
-           <button type="button" className="btn" disabled={busy} onClick={()=>{chooseLead(job);setNotice('');}}>Prepare a quote</button>}
+           <button type="button" className="btn" disabled={mutationsDisabled} onClick={()=>{chooseLead(job);setNotice('');}}>Prepare a quote</button>}
          </div>
         </article>;
        })}
@@ -190,7 +217,7 @@ export default function Quotes(){
         <label>Earliest availability and timeframe (optional)<input maxLength={240} value={availability} onChange={e=>setAvailability(e.target.value)} placeholder="e.g. Available from Tuesday morning; approx. 1 day"/></label>
         <label>Message and scope of work<textarea minLength={10} maxLength={3000} required value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe materials, timing, exclusions and assumptions"/></label>
         <p className="muted-note">Make sure the price, availability and scope are accurate. This sends a quote, not a payment request.</p>
-        <div className="professional-lead-actions"><button type="submit" disabled={busy||refreshing} className="btn">{busy?'Sending…':'Send quote'}</button>
+        <div className="professional-lead-actions"><button type="submit" disabled={mutationsDisabled} className="btn">{busy?'Sending…':'Send quote'}</button>
          <button type="button" disabled={busy} className="btn secondary" onClick={()=>chooseLead(null)}>Cancel</button>
         </div>
        </form>}
@@ -210,16 +237,16 @@ export default function Quotes(){
          <div className="notice" style={{marginTop:10}}>
           <p>Withdraw this pending quote? The customer will no longer be able to accept it.</p>
           <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
-           <button type="button" className="btn secondary" disabled={busy} onClick={()=>void withdraw(q.quote_id)}>Confirm withdrawal</button>
+           <button type="button" className="btn secondary" disabled={mutationsDisabled} onClick={()=>void withdraw(q.quote_id)}>Confirm withdrawal</button>
            <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmWithdrawId(null)}>Keep quote</button>
           </div>
          </div>:
-         <p style={{marginTop:8}}><button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmWithdrawId(q.quote_id)}>Withdraw pending quote</button></p>
+         <p style={{marginTop:8}}><button type="button" className="btn secondary" disabled={mutationsDisabled} onClick={()=>setConfirmWithdrawId(q.quote_id)}>Withdraw pending quote</button></p>
         )}
         {bookings.filter(b=>b.quote_id===q.quote_id).map(b=><div className="professional-booking-actions" key={b.id}>
          <p><strong>Booking status:</strong> {b.status}</p>
          <Link href={bookingHistoryHref(b.id)}>View booking</Link><Link href={bookingScheduleHref(b.id)}>Appointments</Link>
-         {b.status==='booked'&&<button type="button" className="btn secondary" disabled={busy} onClick={()=>void ready(b.id)}>{busy?'Saving…':'Mark work ready'}</button>}
+         {b.status==='booked'&&<button type="button" className="btn secondary" disabled={mutationsDisabled} onClick={()=>void ready(b.id)}>{busy?'Saving…':'Mark work ready'}</button>}
         </div>)}
        </article>)}
       </div>
