@@ -22,13 +22,19 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Test official boundary inspection (never auto-approve geography)
         run: node --test tests/geo/inspect-boundary-geojson.test.mjs
+      - name: Test protected preview verification
+        run: node --test tests/release/*.test.mjs
       - name: Check types
         run: npx tsc --noEmit
       - name: Build application
         run: npm run build
       - name: Compile Cloudflare Worker without publishing
+        env:
+          TRUSTFIVE_BUILD_SHA: ${{ github.sha }}
         run: npm run build:vinext
       - name: Smoke test the Cloudflare Worker build locally
+        env:
+          EXPECTED_WORKER_SHA: ${{ github.sha }}
         run: bash tests/release/cloudflare-worker-smoke.sh
       - name: Smoke test web server and basic HTTP routes
         run: |
