@@ -71,3 +71,33 @@ test('mobile combobox can dismiss and choose an explicit property with the keybo
   await context.close();
  }
 });
+
+test('mobile keyboard retries an outage and reopens a dismissed result before choosing it',async({page})=>{
+ await page.setViewportSize({width:360,height:740});
+ let calls=0;
+ await page.route('**/api/address/search',route=>{
+  calls++;
+  return route.fulfill(calls===1
+   ?{status:503,json:{suggestions:[property(9)],message:'Synthetic address outage'}}
+   :{json:{suggestions:[property(3)]}});
+ });
+ await page.goto('/services?q=CCTV');
+ const input=page.getByRole('combobox',{name:'Your postcode or street address'});
+ const options=page.getByRole('listbox',{name:'Matching addresses'});
+ await input.fill('Example Street London');
+ await expect(page.getByText('Synthetic address outage')).toBeVisible();
+ await expect(options).toHaveCount(0);
+ await expect(page.getByText('Searching near:')).toHaveCount(0);
+ await page.getByRole('button',{name:'Retry address lookup'}).press('Enter');
+ await expect(options.getByRole('option')).toContainText('3 Example Street');
+
+ await input.press('Escape');
+ await expect(options).toHaveCount(0);
+ await input.press('Enter');
+ await expect(options.getByRole('option')).toContainText('3 Example Street');
+ await expect(page.getByText('Searching near:')).toHaveCount(0);
+ await input.press('Enter');
+ await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('3 Example Street');
+ await expect(page).toHaveURL(/\/services\?q=CCTV$/);
+ expect(calls).toBe(2);
+});
