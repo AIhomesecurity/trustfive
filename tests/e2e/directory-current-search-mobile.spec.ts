@@ -77,10 +77,10 @@ test('mobile result job links use the listed trade when browsing all services',a
 });
 
 test('mobile catalog retry preserves keyboard focus and resolves an alarm search',async({page})=>{
- let attempts=0;
+ let catalogUnavailable=true;
  const searchedTrades:string[]=[];
  await page.route('**/rest/v1/trades?*',route=>{
-  if(++attempts===1)return route.fulfill({status:503,json:{message:'Synthetic catalog outage'}});
+  if(catalogUnavailable)return route.fulfill({status:400,json:{message:'Synthetic catalog read failure'}});
   return route.fulfill({json:[{id:'fixture-security',name:'Home security',slug:'home-security'}]});
  });
  await page.route('**/rest/v1/service_areas?*',route=>route.fulfill({json:[]}));
@@ -93,6 +93,7 @@ test('mobile catalog retry preserves keyboard focus and resolves an alarm search
  const retry=page.getByRole('button',{name:'Retry service filters'});
  await expect(retry).toBeVisible();
  expect(searchedTrades).toEqual([]);
+ catalogUnavailable=false;
  await retry.press('Enter');
  await expect(page.getByRole('heading',{name:'Home security',exact:true})).toBeFocused();
  await expect(page.getByRole('link',{name:'Post your job'})).toHaveAttribute('href','/jobs?trade=home-security');
