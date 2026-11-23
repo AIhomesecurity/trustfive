@@ -63,4 +63,14 @@ test('mobile result job links use the listed trade when browsing all services',a
  const result=page.getByRole('article').filter({hasText:'Synthetic camera installer'});
  await expect(result.getByRole('link',{name:'Post a job'})).toHaveAttribute('href','/jobs?trade=cctv-installation');
  await expect(page.getByRole('link',{name:'Describe your job'})).toHaveAttribute('href','/jobs');
+
+ const compare=result.getByRole('button',{name:/Compare|In comparison/i});
+ await compare.press('Enter');
+ await page.getByRole('button',{name:'Remove from comparison'}).press('Enter');
+ await expect(compare).toBeFocused();
+ await expect(compare).toHaveAttribute('aria-pressed','false');
+ await compare.press('Enter');
+ await page.getByRole('button',{name:'Clear comparison'}).press('Enter');
+ await expect(page.getByLabel('Sort results')).toBeFocused();
+ await expect(page.getByRole('region',{name:'Compare approved professionals'})).toHaveCount(0);
 });
