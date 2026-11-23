@@ -3,6 +3,7 @@
 -- 2. Professional quote availability_note is validated and surfaced in customer_quotes() and professional_quotes().
 -- 3. Professional withdraw_job_quote works only on owning pending quotes, never accepted quotes or other pros' quotes.
 -- 4. Private job-site address remains inaccessible to unauthorised professionals.
+-- 5. An eligible professional can advance an accepted quote to a confirmed appointment.
 -- Strictly rollback-only; leaves zero persistent fixture data.
 
 begin;
@@ -98,6 +99,10 @@ begin
 
   -- Approved Pro submits a quote with availability_note, then withdraws it safely
   perform set_config('request.jwt.claim.sub', '50000000-0000-0000-0000-000000000003', true);
+  if not exists(select 1 from public.open_jobs_for_professional()
+    where job_id = v_job and allocation_id = v_alloc) then
+    raise exception 'Eligible lead did not return the active allocation for this quote';
+  end if;
   insert into public.job_quotes(job_id, professional_allocation_id, professional_id, amount_pence, message, availability_note, status)
   values (
     v_job, v_alloc, '50000000-0000-0000-0000-000000000003',
@@ -134,6 +139,21 @@ begin
     perform public.withdraw_job_quote(v_quote);
     raise exception 'Accepted quote was withdrawn after booking';
   exception when insufficient_privilege then null; end;
+
+  perform public.propose_booking_appointment(
+    v_booking, now() + interval '2 days', now() + interval '2 days 2 hours', 'Europe/London'
+  );
+  perform set_config('request.jwt.claim.sub', '50000000-0000-0000-0000-000000000004', true);
+  if exists(select 1 from public.booking_appointments where booking_id = v_booking) then
+    raise exception 'Unrelated professional could see the appointment';
+  end if;
+  perform set_config('request.jwt.claim.sub', '50000000-0000-0000-0000-000000000002', true);
+  perform public.confirm_booking_appointment(v_booking);
+  perform set_config('request.jwt.claim.sub', '50000000-0000-0000-0000-000000000003', true);
+  if not exists(select 1 from public.booking_appointments
+    where booking_id = v_booking and status = 'confirmed' and timezone_name = 'Europe/London') then
+    raise exception 'Professional could not see the confirmed appointment for the accepted quote';
+  end if;
 
   -- Create a second open job + quote specifically to test valid pending withdrawal
   perform set_config('request.jwt.claim.sub', '50000000-0000-0000-0000-000000000002', true);
