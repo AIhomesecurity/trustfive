@@ -20,7 +20,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
  let areaFailuresRemaining=0;
  let failDiscovery=false;
  let failComments=true;
- let failLoad=true;
+ let bookmarkFailures=2;
  const fixture=createServer((request,response)=>{
   const url=new URL(request.url??'/',backend);
   const reply=(status:number,data:unknown)=>{
@@ -53,7 +53,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
     return reply(200,{post_id:published});
    }
    if(url.searchParams.get('post_id')==='eq.'+published)return reply(200,[]);
-   if(failLoad){failLoad=false;return reply(500,{message:'Synthetic bookmark load failure'});}
+   if(bookmarkFailures>0){bookmarkFailures--;return reply(500,{message:'Synthetic bookmark load failure'});}
    return reply(200,[...(removes?[]:[{post_id:published,saved_at:created}]),{post_id:hidden,saved_at:created}]);
   }
   if(url.pathname==='/rest/v1/community_posts'&&url.searchParams.get('id')==='eq.'+published){
@@ -81,7 +81,10 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await page.goto('/community/social?tab=saved');
   const saved=page.getByRole('region',{name:'My saved discussions'});
   await expect(saved.getByRole('alert')).toContainText('Could not load your saved discussions');
-  await saved.getByRole('button',{name:'Retry loading bookmarks'}).press('Enter');
+  const retryBookmarks=saved.getByRole('button',{name:'Retry loading bookmarks'});
+  await retryBookmarks.press('Enter');
+  await expect(retryBookmarks).toBeFocused();
+  await retryBookmarks.press('Enter');
   await expect(saved.getByText('Synthetic published saved post')).toBeVisible();
   await expect(saved.getByRole('button',{name:'Refresh saved discussions'})).toBeFocused();
   await expect(saved.getByText('Synthetic hidden saved post')).toHaveCount(0);

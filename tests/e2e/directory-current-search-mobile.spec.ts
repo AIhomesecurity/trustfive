@@ -42,7 +42,8 @@ test('mobile comparison hides stale approval and distinguishes a failed search f
   await expect(page.getByText('0 approved professionals matching your filters')).toHaveCount(0);
   await expect(comparison.getByText('Current eligibility could not be checked.')).toBeVisible();
 
-  await page.getByRole('button',{name:'Try searching again'}).click();
+  await page.getByRole('button',{name:'Try searching again'}).press('Enter');
+  await expect(page.getByRole('heading',{name:'Home security',exact:true})).toBeFocused();
   await expect(page.getByText('0 approved professionals matching your filters')).toBeVisible();
   await expect(page.getByRole('heading',{name:'No approved professionals for this trade yet'})).toBeVisible();
   await expect(page.getByRole('link',{name:'Post your job'})).toHaveAttribute('href','/jobs?trade=home-security');
