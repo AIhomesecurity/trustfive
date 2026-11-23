@@ -24,3 +24,17 @@ test('postcode zero coverage explains precision and keeps the selected trade whe
  await expect(page.getByLabel('Trade or service')).toHaveValue('fixture-cctv');
  await expect(page).toHaveURL(/\/services\?trade=cctv-installation$/);
 });
+
+test('keyboard reset from zero coverage keeps focus in the directory',async({page})=>{
+ await page.route('**/rest/v1/trades?*',route=>route.fulfill({json:[
+  {id:'fixture-alarm',name:'Home security',slug:'home-security'}
+ ]}));
+ await page.route('**/rest/v1/service_areas?*',route=>route.fulfill({json:[]}));
+ await page.route('**/rest/v1/rpc/find_trustfive_professionals_with_reviews',route=>route.fulfill({json:[]}));
+ await page.goto('/services?q=burglar+alarm');
+ await page.getByRole('button',{name:'Explore other trades'}).press('Enter');
+ await expect(page.getByRole('heading',{name:'All approved professionals'})).toBeFocused();
+ await expect(page.getByLabel('Trade or service')).toHaveValue('');
+ await expect(page).toHaveURL(/\/services$/);
+ await expect(page.getByRole('link',{name:'Post your job'})).toHaveAttribute('href','/jobs');
+});

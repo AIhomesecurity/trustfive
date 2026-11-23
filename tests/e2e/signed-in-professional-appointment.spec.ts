@@ -82,6 +82,8 @@ test('signed-in professional retries eligible leads, submits a quote and propose
      timezone_name:p_timezone,status:'proposed'};
     return reply(200,null);
    }
+   case '/rest/v1/rpc/cancel_booking_appointment':
+    return reply(400,{message:'Synthetic cancellation failure'});
    case '/rest/v1/rpc/submit_business_page':{
     let raw='';
     for await(const chunk of request)raw+=chunk;
@@ -170,6 +172,12 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   const cancelTime=page.getByRole('button',{name:'Cancel appointment time'});
   await cancelTime.press('Enter');
   await expect(page.getByRole('button',{name:'Keep time'})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(cancelTime).toBeFocused();
+  await cancelTime.press('Enter');
+  await page.getByRole('button',{name:'Confirm cancellation'}).press('Enter');
+  await expect(page.getByRole('alert').filter({hasText:'Synthetic cancellation failure'})).toBeFocused();
+  await expect(page.getByRole('button',{name:'Confirm cancellation'})).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(cancelTime).toBeFocused();
   await expect(page.getByText('Appointment: proposed')).toBeVisible();
