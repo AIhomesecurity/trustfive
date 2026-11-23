@@ -66,6 +66,9 @@ export default function Jobs(){
   setConfirmQuoteId(null);
  }
  const [confirmCancelJobId,setConfirmCancelJobId]=useState<string|null>(null);
+ const [cancelError,setCancelError]=useState('');
+ const cancelErrorRef=useRef<HTMLParagraphElement>(null);
+ useEffect(()=>{if(cancelError)cancelErrorRef.current?.focus();},[cancelError]);
  const keepJobOpenRef=useRef<HTMLButtonElement>(null);
  const dismissedCancelJob=useRef<string|null>(null);
  useEffect(()=>{
@@ -76,6 +79,7 @@ export default function Jobs(){
   }
  },[confirmCancelJobId]);
  function keepJobOpen(jobId:string){
+  setCancelError('');
   dismissedCancelJob.current=jobId;
   setConfirmCancelJobId(null);
   setCancelReason('');
@@ -300,7 +304,8 @@ export default function Jobs(){
    return;
   }
   const reasonError=validateCancelReason(cancelReason);
-  if(reasonError){setMessage(reasonError);return;}
+  if(reasonError){setCancelError(reasonError);cancelErrorRef.current?.focus();return;}
+  setCancelError('');
   actionInFlight.current=true;setBusy(true);setMessage('');
   try{
    const {error}=await supabaseBrowser().rpc('cancel_customer_job',{
@@ -318,7 +323,7 @@ export default function Jobs(){
    }catch{
     setMessage('Job cancelled successfully, but your job list could not be refreshed. Reload this page to confirm the updated status.');
    }
-  }catch(e){setMessage(e instanceof Error?e.message:'Unable to cancel job');}
+  }catch(e){setCancelError(e instanceof Error?e.message:'Unable to cancel job. Try again.');}
   finally{actionInFlight.current=false;setBusy(false);}
  }
 
@@ -447,7 +452,7 @@ export default function Jobs(){
          {activityOpen?'Hide job activity':'View job activity'}
         </button>
         {showCancel&&confirmCancelJobId!==j.id&&
-         <button type="button" className="btn secondary" disabled={busy} id={'cancel-job-'+j.id} onClick={()=>{setConfirmCancelJobId(j.id);setConfirmReopenJobId(null);setCancelReason('');setMessage('');}}>
+         <button type="button" className="btn secondary" disabled={busy} id={'cancel-job-'+j.id} onClick={()=>{setCancelError('');setConfirmCancelJobId(j.id);setConfirmReopenJobId(null);setCancelReason('');setMessage('');}}>
           Cancel job
          </button>}
         {showReopen&&confirmReopenJobId!==j.id&&
@@ -460,6 +465,7 @@ export default function Jobs(){
         <div className="notice" style={{marginTop:12}} role="group" aria-label={'Confirm cancelling job '+j.title}
          onKeyDown={event=>{if(event.key==='Escape'&&!busy){event.preventDefault();keepJobOpen(j.id);}}}>
          <h4>Cancel “{j.title}”?</h4>
+         {cancelError&&<p ref={cancelErrorRef} tabIndex={-1} role="alert">{cancelError}</p>}
          <p className="muted-note">Cancelling closes this unbooked request and stops pending quotes from being accepted. You can reopen it later if no booking exists.</p>
          <label style={{marginTop:10}}>Optional note (max 240 chars)
           <input maxLength={240} value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="e.g. Postponing work until next month"/>
