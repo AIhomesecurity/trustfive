@@ -221,22 +221,25 @@ export default function Jobs(){
     p_lat:site.latitude,p_lon:site.longitude,p_precision:site.precision
    });
    if(error)throw error;
+   let contactWarning='';
    if(createdJobId&&contactPreference!=='in_app_messages'){
-    const prefRes=await s.rpc('set_job_contact_preference',{
-     p_job:createdJobId,
-     p_preference:contactPreference
-    });
-    if(prefRes.error){
-     setMessage('Job published, but contact preference stayed on TrustFive messages. You can review your job below.');
+    try{
+     const {error:preferenceError}=await s.rpc('set_job_contact_preference',{
+      p_job:createdJobId,
+      p_preference:contactPreference
+     });
+     if(preferenceError)throw preferenceError;
+    }catch{
+     contactWarning=' We could not confirm your contact preference. Use TrustFive messages until it can be checked.';
     }
    }
    setTitle('');setDescription('');setBudget('');setContactPreference('in_app_messages');
    setSite(null);setCheckedSite(null);setManualProperty('');setTerritoryVerified(false);setAddressVersion(v=>v+1);
    try{
     await refresh();
-    setMessage('Job published. Your selected address is stored privately and is not shown in public job descriptions. Only eligible approved professionals covering your service territory can view the brief.');
+    setMessage('Job published. Your selected address is stored privately and is not shown in public job descriptions. Only eligible approved professionals covering your service territory can view the brief.'+contactWarning);
    }catch{
-    setMessage('Job published successfully, but your job list could not be refreshed. Reload this page to see it before posting again.');
+    setMessage('Job published successfully, but your job list could not be refreshed. Reload this page to see it before posting again.'+contactWarning);
    }
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to save')}
   finally{actionInFlight.current=false;setBusy(false)}

@@ -21,6 +21,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  let writes=0;
  let draftInserts=0;
  let draftUpdates=0;
+ let reviewSubmissions=0;
  const draftApplication="ffffffff-0000-4000-8000-000000000020";
  let calendarOutage=true;
  let proposal: {booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string}|null=null;
@@ -73,6 +74,15 @@ test('signed-in professional retries eligible leads, submits a quote and propose
     }
     proposal={booking_id:p_booking,proposed_by:professional.id,starts_at:p_start,ends_at:p_end,
      timezone_name:p_timezone,status:'proposed'};
+    return reply(200,null);
+   }
+   case '/rest/v1/rpc/submit_business_page':{
+    let raw='';
+    for await(const chunk of request)raw+=chunk;
+    if(reviewSubmissions||JSON.parse(raw).p_application!==draftApplication){
+     return reply(400,{message:'Unexpected business page review submission'});
+    }
+    reviewSubmissions++;
     return reply(200,null);
    }
    case '/rest/v1/professional_applications':
@@ -140,6 +150,11 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await expect(saved).toBeVisible();
   expect(draftInserts).toBe(1);
   expect(draftUpdates).toBe(1);
+  await page.getByRole('button',{name:'Submit for review'}).press('Enter');
+  await expect(page.getByText('Business page submitted for independent moderation. It is not public yet. The business page list could not refresh.',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Submit for review'})).toHaveCount(0);
+  await expect(page.getByRole('link',{name:'View public business page'})).toHaveCount(0);
+  expect(reviewSubmissions).toBe(1);
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());

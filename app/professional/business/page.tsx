@@ -53,11 +53,18 @@ export default function BusinessPageEditor(){
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to save business draft');}
   finally{setBusy(false);}
  }
- async function submit(){if(!selected||busy)return;setBusy(true);setNotice('');
+ async function submit(){if(!selected||busy||current?.status!=='draft')return;setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().rpc('submit_business_page',{p_application:selected});
-   if(error)throw error;await refresh();
-   setNotice('Business page submitted for independent moderation. It is not public yet.');
+   if(error)throw error;
+   setPages(previous=>previous.map(page=>page.application_id===selected?{...page,status:'submitted'}:page));
+   const submitted='Business page submitted for independent moderation. It is not public yet.';
+   try{
+    await refresh();
+    setNotice(submitted);
+   }catch{
+    setNotice(submitted+' The business page list could not refresh.');
+   }
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to submit page');}
   finally{setBusy(false);}
  }
