@@ -1,6 +1,7 @@
 'use client';
 
 import {FormEvent,useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import {bookingReviewDraft, updateBookingReviewDraft, type BookingReviewDrafts} from '../../lib/booking-review-draft';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {loadBookingSiteBatch} from '../../lib/booking-site-batch';
@@ -82,8 +83,7 @@ export default function Bookings() {
   const [readyConfirmationId, setReadyConfirmationId] = useState<string | null>(null);
   const [reviewOpenId, setReviewOpenId] = useState<string | null>(null);
 
-  const [stars, setStars] = useState('5');
-  const [reviewBody, setReviewBody] = useState('');
+  const [reviewDrafts, setReviewDrafts] = useState<BookingReviewDrafts>(() => new Map());
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   const refreshRequest = useRef(0);
@@ -343,6 +343,8 @@ export default function Bookings() {
     [visibleBookings, effectiveSelectedId]
   );
 
+  const selectedReviewDraft = bookingReviewDraft(reviewDrafts, selectedBooking?.id ?? '');
+
   function handleSelectBooking(bookingId: string) {
     if (bookingId !== selectedBookingId) {
       resetBookingDrawers();
@@ -507,7 +509,9 @@ export default function Bookings() {
 
   async function handleSubmitReview(e: FormEvent, booking: Booking) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || loadingBookings || reviewOpenId !== booking.id || booking.customer_id !== userIdRef.current ||
+        booking.status !== 'completed' || reviewedBookingIds.has(booking.id)) return;
+    const {stars, body: reviewBody} = bookingReviewDraft(reviewDrafts, booking.id);
     const validationError = validateBookingReviewInput(stars, reviewBody);
     if (validationError) {
       setReviewError(validationError);
@@ -534,9 +538,8 @@ export default function Bookings() {
             }),
           onCommittedLocalUpdate: () => {
             setReviews(prev => applyCommittedReview(prev, booking.id));
-            setReviewOpenId(null);
-            setReviewBody('');
-            setStars('5');
+            setReviewOpenId(current => current === booking.id ? null : current);
+            setReviewDrafts(current => updateBookingReviewDraft(current, booking.id, null));
           },
           runRefresh: () => refresh(userIdRef.current, {preserveNotice: true}),
           successMessage: 'Verified-booking review submitted. Thank you for sharing your experience.',
@@ -814,8 +817,8 @@ export default function Bookings() {
                     completionConfirmOpen={completionConfirmationId === selectedBooking.id}
                     readyConfirmOpen={readyConfirmationId === selectedBooking.id}
                     reviewOpen={reviewOpenId === selectedBooking.id}
-                    stars={stars}
-                    reviewBody={reviewBody}
+                    stars={selectedReviewDraft.stars}
+                    reviewBody={selectedReviewDraft.body}
                     reviewError={reviewError}
                     sectionRetryError={sectionRetryError}
                     onBackToList={handleBackToList}
@@ -855,9 +858,9 @@ export default function Bookings() {
                       setReviewOpenId(null);
                       setReviewError(null);
                     }}
-                    onStarsChange={setStars}
+                    onStarsChange={stars => setReviewDrafts(current => updateBookingReviewDraft(current, selectedBooking.id, {stars}))}
                     onReviewBodyChange={val => {
-                      setReviewBody(val);
+                      setReviewDrafts(current => updateBookingReviewDraft(current, selectedBooking.id, {body: val}));
                       if (reviewError) setReviewError(null);
                     }}
                     onSubmitReview={e => void handleSubmitReview(e, selectedBooking)}
