@@ -167,6 +167,12 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await page.getByRole('button',{name:'Propose appointment'}).press('Enter');
   await expect(page.getByText('Appointment time proposed in Europe/London.',{exact:false})).toBeVisible();
   await expect(page.getByText('Appointment: proposed')).toBeVisible();
+  const cancelTime=page.getByRole('button',{name:'Cancel appointment time'});
+  await cancelTime.press('Enter');
+  await expect(page.getByRole('button',{name:'Keep time'})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(cancelTime).toBeFocused();
+  await expect(page.getByText('Appointment: proposed')).toBeVisible();
   expect(writes).toBe(1);
 
   await page.goto('/professional/business');

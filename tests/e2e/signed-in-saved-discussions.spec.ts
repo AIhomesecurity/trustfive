@@ -20,13 +20,14 @@ test('signed-in mobile saved discussions recover a load and local events recover
  let areaFailuresRemaining=0;
  let failDiscovery=false;
  let failComments=true;
+ let failFeed=false;
  let bookmarkFailures=2;
  const fixture=createServer((request,response)=>{
   const url=new URL(request.url??'/',backend);
   const reply=(status:number,data:unknown)=>{
    response.writeHead(status,{
     'access-control-allow-origin':'*','access-control-allow-headers':'*',
-    'access-control-allow-methods':'GET,DELETE,OPTIONS','content-type':'application/json',
+    'access-control-allow-methods':'GET,POST,DELETE,OPTIONS','content-type':'application/json',
    });
    response.end(status===204?'':JSON.stringify(data));
   };
@@ -58,6 +59,9 @@ test('signed-in mobile saved discussions recover a load and local events recover
   }
   if(url.pathname==='/rest/v1/community_posts'&&url.searchParams.get('id')==='eq.'+published){
    return reply(200,[{id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created}]);
+  }
+  if(failFeed&&url.pathname==='/rest/v1/community_posts'){
+   return reply(400,{message:'Synthetic feed read failure'});
   }
   if(url.pathname==='/rest/v1/community_posts')return reply(200,[
    {id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created},
@@ -120,6 +124,15 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await retryDiscussion.press('Enter');
   await expect(page.getByRole('button',{name:'Hide discussion'})).toBeFocused();
   await expect(page.getByRole('button',{name:'Refresh discussion'})).toBeVisible();
+
+  failFeed=true;
+  await page.goto('/community');
+  const retryFeed=page.getByRole('button',{name:'Try loading posts again'});
+  await expect(retryFeed).toBeVisible();
+  failFeed=false;
+  await retryFeed.press('Enter');
+  await expect(page.getByRole('heading',{name:'Neighbourhood feed'})).toBeFocused();
+  await expect(page.getByText('Synthetic published saved post',{exact:true})).toBeVisible();
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());
