@@ -111,7 +111,7 @@ test('mobile mixed suggestions describe postcode precision without implying an e
  await page.goto('/services?q=CCTV');
  const input=page.getByRole('combobox',{name:'Your postcode or street address'});
  await input.fill('SW1A 1AA');
- await expect(page.getByRole('option')).toHaveCount(2);
+ await expect(page.getByRole('listbox',{name:'Matching addresses'}).getByRole('option')).toHaveCount(2);
  await input.press('Enter');
  await expect(page.getByText('Choose a location from the suggestions below.')).toBeVisible();
  await input.press('ArrowUp');
