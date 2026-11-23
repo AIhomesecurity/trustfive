@@ -1,6 +1,6 @@
 'use client';
 
-import {FormEvent,RefObject,useEffect} from 'react';
+import {FormEvent,RefObject,useEffect,useRef} from 'react';
 import Link from 'next/link';
 import {formatAppointmentWindow} from '../lib/appointment-schedule';
 import {deriveBookingProgressSteps} from '../lib/quote-comparison';
@@ -107,6 +107,11 @@ export default function SelectedBookingDetail({
   onSubmitReview,
 }: SelectedBookingDetailProps) {
   const title = bookingDisplayTitle(booking.id, jobTitle);
+  const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (reviewOpen) reviewHeadingRef.current?.focus();
+  }, [booking.id, reviewOpen]);
+
   const statusMeta = getBookingStatusMeta(booking.status);
 
   useEffect(() => {
@@ -750,9 +755,9 @@ export default function SelectedBookingDetail({
                   if (e.key === 'Escape' && !busy) onCloseReview();
                 }}
               >
-                <h4>Leave a verified-booking review</h4>
+                <h4 ref={reviewHeadingRef} tabIndex={-1}>Leave a verified-booking review</h4>
                 <p className="muted-note" style={{marginBottom: 12}}>
-                  Your review must describe your actual experience and will appear publicly on this professional&apos;s verified record.
+                  Your review will appear publicly on this professional&apos;s verified record. Describe your experience and leave out addresses, phone numbers and other private details.
                 </p>
                 <form className="form" onSubmit={onSubmitReview}>
                   <label htmlFor={`review-stars-${booking.id}`}>
