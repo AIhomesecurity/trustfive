@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
@@ -60,6 +60,7 @@ export default function Services(){
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [catalogRetry,setCatalogRetry]=useState(0);
  const [retryVersion,setRetryVersion]=useState(0);
+ const resultsHeading=useRef<HTMLHeadingElement>(null);
  const [catalogError,setCatalogError]=useState('');
  const [searchHint,setSearchHint]=useState('');
  const [shortlistIds,setShortlistIds]=useState<string[]>([]);
@@ -187,7 +188,7 @@ export default function Services(){
     {catalogError&&<div role="alert" className="notice error"><p>Could not load service filters. {catalogError}</p><button type="button" className="btn secondary" onClick={()=>{setCatalogLoading(true);setRetryVersion(v=>v+1);setCatalogRetry(v=>v+1);}}>Retry service filters</button></div>}
     {searchHint&&<p role="status" className="notice">{searchHint}</p>}
     <div className="directory-results-heading">
-     <div><span className="eyebrow">Your local directory</span><h2>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
+     <div><span className="eyebrow">Your local directory</span><h2 ref={resultsHeading} tabIndex={-1}>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
       <p className="subtle">{location?'Near '+location.label:areaEntry?areaEntry.area_name+', '+areaEntry.city:'Enter your address to find the nearest verified professionals'}</p></div>
      <label htmlFor="directory-sort">Sort results
       <select id="directory-sort" value={sort} onChange={e=>setSort(e.target.value as Sort)}>
@@ -195,7 +196,7 @@ export default function Services(){
       </select>
      </label>
     </div>
-    {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
+    {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>{resultsHeading.current?.focus();setRetryVersion(v=>v+1);}}>Try searching again</button></div>}
     {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
      resultsReady&&<p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
 
