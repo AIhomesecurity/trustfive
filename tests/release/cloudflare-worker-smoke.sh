@@ -43,3 +43,5 @@ assert.equal(location.pathname, '/account');
 assert.equal(location.searchParams.get('next'), destination);
 console.log('Local Cloudflare Worker health and signed-out job return checks passed');
 JS
+
+node tests/release/signed-in-smoke.mjs 3008

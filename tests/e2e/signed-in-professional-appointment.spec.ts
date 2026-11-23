@@ -19,6 +19,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  page.setDefaultTimeout(10000);
  let leadOutage=true;
  let writes=0;
+ let initialBusinessOutage=true;
  let draftInserts=0;
  let draftUpdates=0;
  let reviewSubmissions=0;
@@ -88,6 +89,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
    case '/rest/v1/professional_applications':
     return reply(200,[{id:draftApplication,business_name:'Synthetic CCTV business',status:'submitted'}]);
    case '/rest/v1/professional_business_pages':
+    if(request.method==='GET'&&initialBusinessOutage){initialBusinessOutage=false;return reply(500,{message:'Synthetic initial business page outage'});}
     if(request.method==='POST'){draftInserts++;return reply(201,null);}
     if(request.method==='PATCH'){draftUpdates++;return reply(204,null);}
     if(draftInserts)return reply(500,{message:'Synthetic draft read outage'});
@@ -140,6 +142,10 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   expect(writes).toBe(1);
 
   await page.goto('/professional/business');
+  const retryBusiness=page.getByRole('button',{name:'Retry loading business pages'});
+  await expect(retryBusiness).toBeVisible();
+  await expect(page.getByRole('link',{name:'Apply as a professional'})).toHaveCount(0);
+  await retryBusiness.press('Enter');
   await page.getByLabel('My professional application').selectOption(draftApplication);
   await page.getByLabel('Public description').fill('Synthetic CCTV installation and maintenance services.');
   await page.getByRole('button',{name:'Save private draft'}).click();

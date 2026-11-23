@@ -147,6 +147,8 @@ export default function Jobs(){
   void loadJobActivity(jobId);
  }
 
+ const [initialLoadFailed,setInitialLoadFailed]=useState(false);
+ const [loadAttempt,setLoadAttempt]=useState(0);
  useEffect(()=>{(async()=>{try{
   const s=supabaseBrowser();
   const [u,t,a]=await Promise.all([
@@ -154,6 +156,7 @@ export default function Jobs(){
    s.from('trades').select('id,name,slug').order('name'),
    s.from('service_areas').select('id,area_name,city').order('city')
   ]);
+  if(u.error)throw u.error;
   if(!u.data.user){setMessage('Sign in to post and manage jobs.');return}
   setUserId(u.data.user.id);
   if(t.error)throw t.error;
@@ -166,7 +169,7 @@ export default function Jobs(){
   if(matchedTrade)setTrade(matchedTrade.id);
   if((a.data||[]).some(item=>item.id===requestedArea))setArea(requestedArea);
   await refresh();
- }catch(e){setMessage(e instanceof Error?e.message:'Could not load jobs')}finally{setInitialLoading(false)}})()},[]);
+ }catch{setInitialLoadFailed(true);}finally{setInitialLoading(false)}})()},[loadAttempt]);
 
  useEffect(()=>{
   let active=true;
@@ -331,6 +334,10 @@ export default function Jobs(){
   {message&&<p className="notice" role="status">{message}</p>}
   {confirmedBookingHref&&userId&&<p><Link ref={confirmedBookingLink} className="btn" href={confirmedBookingHref}>Open your confirmed booking →</Link></p>}
   {initialLoading?<p className="notice" role="status" aria-live="polite">Checking your account and loading jobs…</p>:
+  initialLoadFailed?<div className="notice error" role="alert">
+   <p>Could not load your jobs and quotes. Please try again.</p>
+   <button className="btn secondary" type="button" onClick={()=>{setInitialLoadFailed(false);setInitialLoading(true);setLoadAttempt(attempt=>attempt+1);}}>Retry loading jobs and quotes</button>
+  </div>:
   !userId?<Link className="btn" href={'/account?next='+encodeURIComponent(typeof window==='undefined'?'/jobs':window.location.pathname+window.location.search)}>Sign in / create account</Link>:
   <div className="two-col">
    <section className="card">

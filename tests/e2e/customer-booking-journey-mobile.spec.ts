@@ -71,6 +71,7 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
   let reviewAttempts = 0;
   let savedReview: StoredReview | null = null;
 
+  let firstJobsRead = true;
   const fixture = createServer(async (request, response) => {
     const parsedUrl = new URL(request.url ?? '/', backend);
     const path = parsedUrl.pathname;
@@ -150,6 +151,10 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
       }
 
       case '/rest/v1/jobs':
+        if (!createdJob && firstJobsRead) {
+          firstJobsRead = false;
+          return reply(500, {message: 'Synthetic jobs read outage'});
+        }
         return reply(
           200,
           createdJob
@@ -355,6 +360,10 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
 
     // 2. Post a job with private address and automatic verified territory selection
     await expect(page).toHaveURL(`/jobs?trade=${trade.slug}&area=${area.id}`);
+    const retryJobs = page.getByRole('button', {name: 'Retry loading jobs and quotes'});
+    await expect(retryJobs).toBeVisible();
+    await expect(page.getByLabel('Job title')).toHaveCount(0);
+    await retryJobs.press('Enter');
     await expect(page.getByRole('combobox', {name: 'Trade', exact: true})).toHaveValue(trade.id);
     await page.getByLabel('Job title').fill('Install 4K driveway CCTV cameras');
     await page

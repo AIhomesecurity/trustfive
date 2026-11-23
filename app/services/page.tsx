@@ -201,14 +201,14 @@ export default function Services(){
 
     {shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}
     {shortlistIds.length>0&&<section className="directory-compare" aria-labelledby="directory-compare-title">
-     <div className="directory-compare-heading"><div><h3 id="directory-compare-title">Compare approved professionals</h3><p className="muted-note">{shortlistIds.length} saved on this browser · Maximum 3 · Only currently eligible matching results are shown</p></div><button type="button" className="btn secondary" onClick={()=>{setShortlistIds([]);setShortlistNotice('Comparison cleared.');}}>Clear comparison</button></div>
+     <div className="directory-compare-heading"><div><h3 id="directory-compare-title">Compare approved professionals</h3><p className="muted-note">{shortlistIds.length} saved on this browser · Maximum 3 · Only currently eligible matching results are shown</p></div><button type="button" className="btn secondary" onClick={()=>{document.getElementById('directory-sort')?.focus();setShortlistIds([]);setShortlistNotice('Comparison cleared.');}}>Clear comparison</button></div>
      {!resultsReady?<p className="muted-note">{resultsLoading?'Checking which saved professionals match this search…':'Current eligibility could not be checked.'}</p>:compareVisible.length===0?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
      <div className="directory-compare-grid">{compareVisible.map(p=><article className="directory-compare-card" key={p.application_id}>
       <h4>{p.business_name}</h4><span className="pill">Currently approved in these results</span>
       <p>{p.trade_name} · {p.area_name}</p>
       <dl><div><dt>Independent quality</dt><dd>{p.quality_score}/100</dd></div><div><dt>Verified booking reviews</dt><dd>{p.review_count>0?Number(p.average_stars).toFixed(1)+'/5 ('+p.review_count+')':'None yet'}</dd></div>{location&&p.distance_km!=null&&<div><dt>Approximate distance</dt><dd>{Number(p.distance_km).toFixed(1)} km</dd></div>}</dl>
       <Link className="btn secondary" href={'/business/'+p.application_id}>View full profile</Link>
-      <button type="button" className="directory-compare-remove" onClick={()=>toggleShortlist(p.application_id)}>Remove from comparison</button>
+      <button type="button" className="directory-compare-remove" onClick={()=>{document.getElementById('compare-result-'+p.application_id)?.focus();toggleShortlist(p.application_id);}}>Remove from comparison</button>
      </article>)}</div>}
     </section>}
     {resultsReady&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
@@ -223,7 +223,7 @@ export default function Services(){
         <span><strong>{p.quality_score}/100</strong> independent quality score</span>
         <span>{p.review_count>0?<><strong>★ {Number(p.average_stars).toFixed(1)}/5</strong> · {p.review_count} completed-booking review{p.review_count===1?'':'s'}</>:'No completed-booking reviews yet'}</span>
        </div>
-       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={postJobHref(p.trade_name)}>Post a job →</Link></div>
+       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" id={'compare-result-'+p.application_id} aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={postJobHref(p.trade_name)}>Post a job →</Link></div>
       </div>
      </article>)}</div>}
     {resultsReady&&visible.length===0&&
