@@ -17,6 +17,7 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
  test.setTimeout(60000);
  page.setDefaultTimeout(10000);
  let accepted=0;
+ let acceptanceAttempts=0;
  let failRefresh=false;
  let appointmentLookups=0;
  const consentChanges:boolean[]=[];
@@ -44,6 +45,7 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
     let raw='';
     for await(const chunk of request)raw+=chunk;
     if(raw!==JSON.stringify({p_quote:quoteId})||accepted)return reply(400,{message:'Unexpected quote acceptance'});
+    if(++acceptanceAttempts===1)return reply(500,{message:'Synthetic acceptance outage'});
     accepted++;failRefresh=true;
     return reply(200,bookingId);
    }
@@ -92,12 +94,18 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
 
   await review.press('Enter');
   await confirmation.getByRole('button',{name:'Confirm and create booking'}).press('Enter');
+  const acceptanceError=confirmation.getByRole('alert');
+  await expect(acceptanceError).toHaveText('Could not confirm the booking. Check your connection and try again.');
+  await expect(acceptanceError).toBeFocused();
+  expect(accepted).toBe(0);
+  await confirmation.getByRole('button',{name:'Confirm and create booking'}).press('Enter');
   const confirmed=page.getByRole('link',{name:'Open your confirmed booking'});
   await expect(confirmed).toBeFocused();
   await expect(confirmed).toHaveAttribute('href','/bookings?booking='+bookingId);
   await expect(page.getByText('The jobs list could not be refreshed.',{exact:false})).toBeVisible();
   await expect(review).toHaveCount(0);
   expect(accepted).toBe(1);
+  expect(acceptanceAttempts).toBe(2);
 
   await page.reload();
   const booking=page.getByRole('link',{name:'Manage confirmed booking'});
