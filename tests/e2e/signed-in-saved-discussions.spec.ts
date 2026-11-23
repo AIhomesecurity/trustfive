@@ -149,10 +149,15 @@ test('signed-in mobile saved discussions recover a load and local events recover
    await page.getByText('Synthetic published saved post',{exact:true}).locator('..')
     .getByRole('button',{name:/Reply to post/}).press('Enter');
    await page.getByLabel('Write a reply').fill('Synthetic draft for the original post');
+   const draft=page.getByLabel('Your post',{exact:true});
+   await expect(draft).toBeDisabled();
    const olderStarted=page.waitForRequest(r=>r.url().includes('area_id=eq.older-area'));
    await filter.selectOption('older-area');
    await olderStarted;
+   await expect(draft).toHaveValue('');
+   await draft.fill('Synthetic draft only for the older area');
    await filter.selectOption('latest-area');
+   await expect(draft).toHaveValue('');
    await expect(page.getByText('Current neighbourhood feed',{exact:true})).toBeVisible();
    const olderResponse=page.waitForResponse(r=>r.url().includes('area_id=eq.older-area'));
    releaseOlder();
@@ -163,6 +168,8 @@ test('signed-in mobile saved discussions recover a load and local events recover
    await page.getByText('Current neighbourhood feed',{exact:true}).locator('..')
     .getByRole('button',{name:/Reply to post/}).press('Enter');
    await expect(page.getByLabel('Write a reply')).toHaveValue('');
+   await filter.selectOption('older-area');
+   await expect(draft).toHaveValue('Synthetic draft only for the older area');
   }finally{releaseOlder();}
 
  }finally{
