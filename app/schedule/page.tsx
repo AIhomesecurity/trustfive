@@ -2,9 +2,10 @@
 import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
-import {authorisedBookingSelection,bookingHistoryHref} from '../../lib/workflow-links';
+import {bookingHistoryHref} from '../../lib/workflow-links';
 import {
   formatAppointmentWindow,
+  resolveAppointmentBooking,
   summarizeAppointments,
   validateAppointmentProposal,
   type ScheduledAppointment,
@@ -28,15 +29,25 @@ export default function BookingSchedule(){
  const [unavailableBooking,setUnavailableBooking]=useState(false);
  const inFlight=useRef(false);
 
- async function refresh(){
+ async function refresh(accountId:string){
   setLoadError('');
   const s=supabaseBrowser();
   const b=await s.from('job_bookings')
    .select('id,customer_id,professional_id,status')
+   .or('customer_id.eq.'+accountId+',professional_id.eq.'+accountId)
    .order('created_at',{ascending:false})
    .limit(75);
   if(b.error)throw b.error;
-  const current=(b.data||[]) as Booking[];
+  const requested=new URLSearchParams(window.location.search).getAll('booking');
+  const result=await resolveAppointmentBooking(requested,(b.data||[]) as Booking[],accountId,async id=>{
+   const {data,error}=await s.from('job_bookings')
+    .select('id,customer_id,professional_id,status')
+    .or('customer_id.eq.'+accountId+',professional_id.eq.'+accountId)
+    .eq('id',id).maybeSingle();
+   if(error)throw error;
+   return data as Booking|null;
+  });
+  const current=result.bookings;
   setBookings(current);
   const bookingIds=current.map(item=>item.id);
   if(bookingIds.length){
@@ -48,13 +59,8 @@ export default function BookingSchedule(){
   }else{
    setAppointments([]);
   }
-  const requested=new URLSearchParams(window.location.search).get('booking');
-  if(requested){
-   const eligible=current.filter(item=>item.status==='booked'||item.status==='awaiting_customer').map(item=>item.id);
-   const allowed=authorisedBookingSelection(requested,eligible);
-   setUnavailableBooking(!allowed);
-   setSelected(allowed||'');
-  }
+  setUnavailableBooking(requested.length>0&&!result.selectedId);
+  if(requested.length>0)setSelected(result.selectedId);
  }
 
  useEffect(()=>{
@@ -68,7 +74,7 @@ export default function BookingSchedule(){
     if(!active)return;
     if(!user){setNotice('Sign in to arrange an appointment.');return;}
     setUserId(user.id);
-    await refresh();
+    await refresh(user.id);
    }catch(e){
     if(active)setLoadError(e instanceof Error?e.message:'Unable to load appointment calendar');
    }finally{
@@ -98,7 +104,7 @@ export default function BookingSchedule(){
     p_timezone:zone.trim(),
    });
    if(error)throw error;
-   await refresh();
+   await refresh(userId);
    setNotice('Appointment time proposed in '+zone.trim()+'. The other participant must confirm it.');
   }catch(e){setNotice(e instanceof Error?e.message:'Unable to propose appointment');}
   finally{inFlight.current=false;setBusy(false);}
@@ -111,7 +117,7 @@ export default function BookingSchedule(){
    const {error}=await supabaseBrowser().rpc(kind,{p_booking:bookingId});
    if(error)throw error;
    setConfirmCancelId(null);
-   await refresh();
+   await refresh(userId);
    setNotice(kind==='confirm_booking_appointment'
     ?'Appointment confirmed. Both participants now see the agreed time.'
     :'Appointment time cancelled; the booking itself remains active so a new time can be proposed.');
@@ -129,7 +135,7 @@ export default function BookingSchedule(){
    <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments preserve their exact IANA time zone and cannot overlap for the same professional.</p>
   </div>
   {notice&&<p role="status" className="notice">{notice}</p>}
-  {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void refresh().catch(e=>setLoadError(e instanceof Error?e.message:'Retry failed'))}>Retry loading appointments</button></div>}
+  {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void refresh(userId).catch(e=>setLoadError(e instanceof Error?e.message:'Retry failed'))}>Retry loading appointments</button></div>}
   {unavailableBooking&&<p role="alert" className="notice">That appointment is not available to your account, or the booking is no longer active. Choose an eligible booking below.</p>}
   {loading?<p role="status" className="notice">Loading your booking appointments…</p>:
   !userId?<Link href="/account?next=%2Fschedule" className="btn">Sign in</Link>:
