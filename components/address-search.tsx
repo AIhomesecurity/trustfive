@@ -34,7 +34,19 @@ export default function AddressSearch({onSelect}:Props){
  },[query,selected,version]);
  function choose(item:SelectedLocation){setSelected(item);setQuery(item.label);setSuggestions([]);setError('');setActive(-1);inputRef.current?.focus();onSelect(item);}
  function change(value:string){setRetryable(false);setLoading(false);setDismissed(false);setActive(-1);setQuery(value);setSelected(null);setSuggestions([]);onSelect(null);setError('');setVersion(v=>v+1);}
- function find(){setDismissed(false);if(dismissed&&suggestions.length)return;if(suggestions.length===1)choose(suggestions[0]);else if(suggestions.length>1)setError('Choose your exact address from the suggestions below.');else setVersion(v=>v+1);}
+ function find(){
+  setDismissed(false);
+  if(dismissed&&suggestions.length)return;
+  if(suggestions.length===1){choose(suggestions[0]);return;}
+  if(suggestions.length>1){
+   setError(suggestions.every(item=>item.precision==='address')
+    ?'Choose your exact address from the suggestions below.'
+    :'Choose a location from the suggestions below.');
+   return;
+  }
+  inputRef.current?.focus();
+  setVersion(v=>v+1);
+ }
  function onInputKeyDown(e:KeyboardEvent<HTMLInputElement>){
   if(e.nativeEvent.isComposing)return;
   if(e.key==='Escape'&&expanded){

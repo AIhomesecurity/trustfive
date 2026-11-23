@@ -91,7 +91,8 @@ test('mobile keyboard retries an outage and reopens a dismissed result before ch
  await page.getByRole('button',{name:'Retry address lookup'}).press('Enter');
  await expect(options.getByRole('option')).toContainText('3 Example Street');
 
- await input.press('Escape');
+ await expect(input).toBeFocused();
+ await page.keyboard.press('Escape');
  await expect(options).toHaveCount(0);
  await input.press('Enter');
  await expect(options.getByRole('option')).toContainText('3 Example Street');
@@ -100,4 +101,21 @@ test('mobile keyboard retries an outage and reopens a dismissed result before ch
  await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('3 Example Street');
  await expect(page).toHaveURL(/\/services\?q=CCTV$/);
  expect(calls).toBe(2);
+});
+
+test('mobile mixed suggestions describe postcode precision without implying an exact address',async({page})=>{
+ await page.setViewportSize({width:360,height:740});
+ await page.route('**/api/address/search',route=>route.fulfill({json:{suggestions:[
+  property(1),{...property(2),label:'SW1A 1AA',precision:'postcode'},
+ ]}}));
+ await page.goto('/services?q=CCTV');
+ const input=page.getByRole('combobox',{name:'Your postcode or street address'});
+ await input.fill('SW1A 1AA');
+ await expect(page.getByRole('listbox',{name:'Matching addresses'}).getByRole('option')).toHaveCount(2);
+ await input.press('Enter');
+ await expect(page.getByText('Choose a location from the suggestions below.')).toBeVisible();
+ await input.press('ArrowUp');
+ await input.press('Enter');
+ await expect(page.getByText('Distance uses an approximate postcode or district centre', {exact:false})).toBeVisible();
+ await expect(page).toHaveURL(/\/services\?q=CCTV$/);
 });
