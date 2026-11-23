@@ -144,3 +144,18 @@ test('Escape keeps an in-flight mobile address lookup dismissed until reopened',
   await expect(page).toHaveURL(/\/services$/);
  }finally{release();}
 });
+
+test('mobile Escape dismisses suggestions even before the address request starts',async({page})=>{
+ await page.setViewportSize({width:360,height:740});
+ await page.route('**/api/address/search',route=>route.fulfill({json:{suggestions:[property(2)]}}));
+ await page.goto('/services');
+ const input=page.getByRole('combobox',{name:'Your postcode or street address'});
+ const response=page.waitForResponse(r=>r.url().endsWith('/api/address/search'));
+ await input.fill('Example Street');
+ await input.press('Escape');
+ await response;
+ await expect(page.getByRole('button',{name:'Find address'})).toBeEnabled();
+ await expect(input).toHaveAttribute('aria-expanded','false');
+ await input.press('ArrowDown');
+ await expect(page.getByRole('option',{selected:true,name:/2 Example Street/})).toBeVisible();
+});
