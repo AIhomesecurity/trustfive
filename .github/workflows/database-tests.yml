@@ -88,3 +88,9 @@ jobs:
 
       - name: Enforce nationwide pending-area interest privacy and no self-approval
         run: psql -v ON_ERROR_STOP=1 -f tests/db/uk-area-interest-contract.sql
+
+      - name: Verify five-slot cap, admin-only approval, suspension/expiry and payment/social independence
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/five-slot-verification-security-contract.sql
+
+      - name: Stress-test concurrent final-slot offers and activations across parallel PostgreSQL connections
+        run: bash tests/db/five-slot-concurrency-test.sh
