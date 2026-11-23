@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {validatePreview} from '../../scripts/release/validate-preview.mjs';
 
 const sha = 'a'.repeat(40);
@@ -36,4 +38,16 @@ test('accepts an Access redirect and rejects missing or mismatched release ident
       : health(reportedSha)}), /release commit/);
     assert.equal(calls, 2);
   }
+});
+
+
+test('command fails closed with no credentials and does not print credentials', () => {
+  const entry = fileURLToPath(new URL('../../scripts/release/validate-preview.mjs', import.meta.url));
+  const result = spawnSync(process.execPath, [entry, sha], {
+    encoding: 'utf8',
+    env: {...process.env, CF_ACCESS_CLIENT_ID: '', CF_ACCESS_CLIENT_SECRET: 'fixture-secret'},
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Missing credentials/);
+  assert.doesNotMatch(result.stderr + result.stdout, /fixture-secret/);
 });
