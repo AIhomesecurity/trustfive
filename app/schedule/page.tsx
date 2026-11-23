@@ -2,6 +2,7 @@
 import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
+import {executeBookingAction} from '../../lib/booking-lifecycle';
 import {bookingHistoryHref} from '../../lib/workflow-links';
 import {
   formatAppointmentWindow,
@@ -30,7 +31,6 @@ export default function BookingSchedule(){
  const inFlight=useRef(false);
 
  async function refresh(accountId:string){
-  setLoadError('');
   const s=supabaseBrowser();
   const b=await s.from('job_bookings')
    .select('id,customer_id,professional_id,status')
@@ -48,7 +48,6 @@ export default function BookingSchedule(){
    return data as Booking|null;
   });
   const current=result.bookings;
-  setBookings(current);
   const bookingIds=current.map(item=>item.id);
   if(bookingIds.length){
    const a=await s.from('booking_appointments')
@@ -59,6 +58,8 @@ export default function BookingSchedule(){
   }else{
    setAppointments([]);
   }
+  setBookings(current);
+  setLoadError('');
   setUnavailableBooking(requested.length>0&&!result.selectedId);
   if(requested.length>0)setSelected(result.selectedId);
  }
@@ -86,7 +87,7 @@ export default function BookingSchedule(){
 
  async function propose(e:FormEvent){
   e.preventDefault();
-  if(busy||inFlight.current||!selected)return;
+  if(busy||inFlight.current||loadError||!selected)return;
   const begins=new Date(start),finishes=new Date(end);
   const validationError=validateAppointmentProposal({
    bookingId:selected,
@@ -97,31 +98,55 @@ export default function BookingSchedule(){
   if(validationError){setNotice(validationError);return;}
   inFlight.current=true;setBusy(true);setNotice('');
   try{
-   const {error}=await supabaseBrowser().rpc('propose_booking_appointment',{
-    p_booking:selected,
-    p_start:begins.toISOString(),
-    p_end:finishes.toISOString(),
-    p_timezone:zone.trim(),
+   const result=await executeBookingAction({
+    runRpc:async()=>supabaseBrowser().rpc('propose_booking_appointment',{
+     p_booking:selected,
+     p_start:begins.toISOString(),
+     p_end:finishes.toISOString(),
+     p_timezone:zone.trim(),
+    }),
+    onCommittedLocalUpdate:()=>{setStart('');setEnd('');},
+    runRefresh:()=>refresh(userId),
+    successMessage:'Appointment time proposed in '+zone.trim()+'. The other participant must confirm it.',
+    refreshFailedMessage:'Appointment time proposed. Reload the calendar to see the latest details.',
+    fallbackErrorMessage:'Unable to propose appointment',
    });
-   if(error)throw error;
-   await refresh(userId);
-   setNotice('Appointment time proposed in '+zone.trim()+'. The other participant must confirm it.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to propose appointment');}
-  finally{inFlight.current=false;setBusy(false);}
+   showActionResult(result);
+  } finally{inFlight.current=false;setBusy(false);}
  }
 
  async function action(bookingId:string,kind:'confirm_booking_appointment'|'cancel_booking_appointment'){
-  if(busy||inFlight.current)return;
+  if(busy||inFlight.current||loadError)return;
   inFlight.current=true;setBusy(true);setNotice('');
   try{
-   const {error}=await supabaseBrowser().rpc(kind,{p_booking:bookingId});
-   if(error)throw error;
-   setConfirmCancelId(null);
-   await refresh(userId);
-   setNotice(kind==='confirm_booking_appointment'
-    ?'Appointment confirmed. Both participants now see the agreed time.'
-    :'Appointment time cancelled; the booking itself remains active so a new time can be proposed.');
-  }catch(e){setNotice(e instanceof Error?e.message:'Could not update appointment');}
+   const confirmed=kind==='confirm_booking_appointment';
+   const result=await executeBookingAction({
+    runRpc:async()=>supabaseBrowser().rpc(kind,{p_booking:bookingId}),
+    onCommittedLocalUpdate:()=>setConfirmCancelId(null),
+    runRefresh:()=>refresh(userId),
+    successMessage:confirmed?'Appointment confirmed. Both participants now see the agreed time.'
+     :'Appointment time cancelled; the booking itself remains active so a new time can be proposed.',
+    refreshFailedMessage:(confirmed?'Appointment confirmed.':'Appointment time cancelled.')+' Reload the calendar to see the latest details.',
+    fallbackErrorMessage:'Could not update appointment',
+   });
+   showActionResult(result);
+  } finally{inFlight.current=false;setBusy(false);}
+ }
+
+ function showActionResult(result:Awaited<ReturnType<typeof executeBookingAction>>){
+  setNotice(result.message);
+  if(result.outcome==='committed_refresh_failed')setLoadError('Calendar updates are paused until the latest appointments load.');
+ }
+
+ async function retryCalendar(){
+  if(inFlight.current)return;
+  inFlight.current=true;setBusy(true);
+  try{
+   const id=userId||(await supabaseBrowser().auth.getUser()).data.user?.id;
+   if(!id)throw Error('Sign in again to reload your appointments.');
+   setUserId(id);await refresh(id);
+  }
+  catch(e){setLoadError(e instanceof Error?e.message:'Could not reload the appointment calendar');}
   finally{inFlight.current=false;setBusy(false);}
  }
 
@@ -135,7 +160,7 @@ export default function BookingSchedule(){
    <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments preserve their exact IANA time zone and cannot overlap for the same professional.</p>
   </div>
   {notice&&<p role="status" className="notice">{notice}</p>}
-  {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void refresh(userId).catch(e=>setLoadError(e instanceof Error?e.message:'Retry failed'))}>Retry loading appointments</button></div>}
+  {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryCalendar()}>Retry loading appointments</button></div>}
   {unavailableBooking&&<p role="alert" className="notice">That appointment is not available to your account, or the booking is no longer active. Choose an eligible booking below.</p>}
   {loading?<p role="status" className="notice">Loading your booking appointments…</p>:
   !userId?<Link href="/account?next=%2Fschedule" className="btn">Sign in</Link>:
@@ -156,7 +181,7 @@ export default function BookingSchedule(){
       <label>Start date and time<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
       <label>End date and time<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
       <label>IANA time zone<input required minLength={3} maxLength={80} value={zone} onChange={e=>setZone(e.target.value)} placeholder="Europe/London"/></label>
-      <button className="btn" disabled={busy||!active.length} type="submit">{busy?'Saving…':'Propose appointment'}</button>
+      <button className="btn" disabled={busy||Boolean(loadError)||!active.length} type="submit">{busy?'Saving…':'Propose appointment'}</button>
      </form>
      <p className="muted-note" style={{marginTop:14}}>Dates are saved as exact UTC timestamps alongside the selected IANA time zone and displayed in that stored time zone for both participants. Proposing a new time replaces any prior proposal and requires the other party's confirmation.</p>
     </section>
@@ -174,18 +199,18 @@ export default function BookingSchedule(){
          <p style={{marginTop:10}}><strong>Appointment:</strong> {a.status}</p>
          <p>{formatAppointmentWindow(a.starts_at,a.ends_at,a.timezone_name)}</p>
          {a.status==='proposed'&&a.proposed_by!==userId&&
-          <button type="button" className="btn" style={{marginTop:10}} disabled={busy} onClick={()=>void action(b.id,'confirm_booking_appointment')}>Accept proposed time</button>}
+          <button type="button" className="btn" style={{marginTop:10}} disabled={busy||Boolean(loadError)} onClick={()=>void action(b.id,'confirm_booking_appointment')}>Accept proposed time</button>}
          {a.status==='proposed'&&a.proposed_by===userId&&<p className="muted-note" style={{marginTop:8}}>Awaiting the other participant's confirmation.</p>}
          {(a.status==='confirmed'||a.status==='proposed')&&(
           confirmCancelId===b.id?
           <div className="notice" style={{marginTop:10}} role="group" aria-label={'Confirm cancelling appointment for booking '+b.id.slice(0,8)}>
            <p>Cancel this appointment time? The booking stays active so you can agree a new time.</p>
            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
-            <button type="button" className="btn secondary" disabled={busy} onClick={()=>void action(b.id,'cancel_booking_appointment')}>Confirm cancellation</button>
+            <button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} onClick={()=>void action(b.id,'cancel_booking_appointment')}>Confirm cancellation</button>
             <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmCancelId(null)}>Keep time</button>
            </div>
           </div>:
-          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmCancelId(b.id)}>Cancel appointment time</button></p>
+          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} onClick={()=>setConfirmCancelId(b.id)}>Cancel appointment time</button></p>
          )}
         </>}
        </article>;
