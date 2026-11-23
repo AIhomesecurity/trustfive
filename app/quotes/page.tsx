@@ -48,6 +48,9 @@ export default function Quotes(){
    setQuotes((q.data||[]) as Quote[]);
    setBookings((b.data||[]) as Booking[]);
    setRequiresReload(false);
+  }catch(error){
+   setRequiresReload(true);
+   throw error;
   }finally{setRefreshing(false);}
  }
  useEffect(()=>{
@@ -166,9 +169,15 @@ export default function Quotes(){
    <p className="subtle">Only active, independently approved professionals can access matching customer job requests for their verified service areas.</p>
   </div>
   {notice&&<p role="status" className="notice">{notice}</p>}
-  {requiresReload&&<p className="muted-note">Quote and booking changes are paused until the workspace refreshes.</p>}
   {loading?<p role="status" className="notice">Checking your professional account and leads…</p>:
    !userId?<Link className="btn" href="/account?next=%2Fquotes">Sign in to access leads</Link>:
+   requiresReload?<section className="card" aria-labelledby="professional-reload-title">
+    <h2 id="professional-reload-title">Leads and quotes need to reload</h2>
+    <p>Reload to check current lead eligibility and quote or booking status.</p>
+    <button type="button" className="btn secondary" disabled={refreshing||busy} onClick={()=>void reload()}>
+     {refreshing?'Refreshing…':'Retry loading leads and quotes'}
+    </button>
+   </section>:
    <>
     <div className="professional-overview" aria-label="Your professional activity">
      <div className="card"><strong>{stats.available}</strong><span>New matching leads</span></div>
