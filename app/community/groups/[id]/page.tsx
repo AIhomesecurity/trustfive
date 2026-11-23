@@ -106,7 +106,7 @@ export default function SocialGroupConversation(){
      .range(bounds.from,bounds.to);
     if(result.error)throw result.error;
     if(!active||epoch!==postLoadEpoch.current)return;
-    const selection=socialGroupVisiblePage((result.data||[]) as GroupConversationPost[]);
+    const selection=socialGroupVisiblePage((result.data||[]) as GroupConversationPost[],groupId);
     setPosts(selection.posts);setHasMore(selection.hasMore);
    }catch{
     if(active&&epoch===postLoadEpoch.current)
