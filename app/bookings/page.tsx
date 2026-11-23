@@ -23,13 +23,14 @@ import {
   validateBookingReviewInput,
   type BookingAppointmentLike,
   type BookingRecordLike,
+  type BookingReviewRecord,
   type BookingSiteLike,
   type BookingStatusFilter,
 } from '../../lib/booking-lifecycle';
 
 type Booking = BookingRecordLike;
 type Appointment = BookingAppointmentLike;
-type Review = {booking_id: string};
+type Review = BookingReviewRecord;
 type JobSite = BookingSiteLike;
 
 type BookingEnrichment = {
@@ -126,7 +127,7 @@ export default function Bookings() {
           .or('customer_id.eq.' + user + ',professional_id.eq.' + user)
           .order('created_at', {ascending: false})
           .limit(75),
-        s.from('booking_reviews').select('booking_id').eq('author_id', user),
+        s.from('booking_reviews').select('booking_id,stars,body,created_at').eq('author_id', user),
         s
           .from('booking_appointments')
           .select('booking_id,proposed_by,status,starts_at,ends_at,timezone_name'),
@@ -526,22 +527,37 @@ export default function Bookings() {
       try {
         const rating = Number(stars);
         const trimmed = reviewBody.trim();
+        let alreadyRecorded = false;
         const result = await executeBookingAction({
-          runRpc: async () =>
-            await supabaseBrowser().from('booking_reviews').insert({
+          runRpc: async () => {
+            const res = await supabaseBrowser().from('booking_reviews').insert({
               booking_id: booking.id,
               author_id: userIdRef.current,
               professional_id: booking.professional_id,
               stars: rating,
               body: trimmed,
-            }),
+            });
+            if (res.error && (res.error as {code?: string}).code === '23505') {
+              alreadyRecorded = true;
+              return {error: null};
+            }
+            return res;
+          },
           onCommittedLocalUpdate: () => {
-            setReviews(prev => applyCommittedReview(prev, booking.id));
-            setReviewOpenId(current => current === booking.id ? null : current);
+            setReviews(prev =>
+              applyCommittedReview(
+                prev,
+                booking.id,
+                alreadyRecorded ? undefined : {stars: rating, body: trimmed}
+              )
+            );
+            setReviewOpenId(current => (current === booking.id ? null : current));
             setReviewDrafts(current => updateBookingReviewDraft(current, booking.id, null));
           },
           runRefresh: () => refresh(userIdRef.current, {preserveNotice: true}),
-          successMessage: 'Verified-booking review submitted. Thank you for sharing your experience.',
+          successMessage: alreadyRecorded
+            ? 'Your verified-booking review is already recorded for this booking.'
+            : 'Verified-booking review submitted. Thank you for sharing your experience.',
           refreshFailedMessage:
             'Your verified-booking review was saved, but the page could not refresh automatically.',
           fallbackErrorMessage: 'Unable to submit review. Please try again.',
@@ -809,6 +825,7 @@ export default function Bookings() {
                     siteInfo={sites[selectedBooking.id] || null}
                     siteUnavailable={siteUnavailableIds.includes(selectedBooking.id)}
                     hasReviewed={reviewedBookingIds.has(selectedBooking.id)}
+                    submittedReview={reviews.find(r => r.booking_id === selectedBooking.id) || null}
                     loadingBookings={loadingBookings}
                     busy={busy}
                     busyActionKey={busyActionKey}
