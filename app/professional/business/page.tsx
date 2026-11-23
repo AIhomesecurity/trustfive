@@ -10,6 +10,8 @@ export default function BusinessPageEditor(){
  const [selected,setSelected]=useState(''),[name,setName]=useState(''),[description,setDescription]=useState('');
  const [website,setWebsite]=useState(''),[phone,setPhone]=useState('');
  const [notice,setNotice]=useState('Loading your business applications…'),[busy,setBusy]=useState(false);
+ const [loading,setLoading]=useState(true),[loadFailed,setLoadFailed]=useState(false);
+ const [loadAttempt,setLoadAttempt]=useState(0);
  const current=pages.find(p=>p.application_id===selected);
  async function refresh(){
   const s=supabaseBrowser();const [a,p]=await Promise.all([
@@ -23,7 +25,8 @@ export default function BusinessPageEditor(){
   const {data:{user},error}=await supabaseBrowser().auth.getUser();
   if(error)throw error;if(!user){setNotice('Sign in to manage your professional page.');return;}
   setUserId(user.id);await refresh();setNotice('');
- }catch(e){setNotice(e instanceof Error?e.message:'Unable to load your business page');}})()},[]);
+ }catch{setLoadFailed(true);setNotice('');}
+ finally{setLoading(false);}})()},[loadAttempt]);
  function choose(id:string){
   setSelected(id);const p=pages.find(v=>v.application_id===id);
   const a=applications.find(v=>v.id===id);
@@ -72,7 +75,10 @@ export default function BusinessPageEditor(){
   <div className="page-heading"><span className="eyebrow">Professional business centre</span><h1>My business page</h1>
    <p className="subtle">Build a professional profile. Publishing requires separate administrator approval and an active verified TrustFive place.</p></div>
   {notice&&<p role="status" className="notice">{notice}</p>}
-  {!userId?<Link href="/account?next=%2Fprofessional%2Fbusiness" className="btn">Sign in</Link>:<div className="two-col">
+  {!loading&&(loadFailed?<div role="alert" className="notice error">
+   <p>Could not load your business applications and pages.</p>
+   <button className="btn secondary" type="button" onClick={()=>{setLoadFailed(false);setLoading(true);setNotice('Loading your business applications…');setLoadAttempt(attempt=>attempt+1);}}>Retry loading business pages</button>
+  </div>:!userId?<Link href="/account?next=%2Fprofessional%2Fbusiness" className="btn">Sign in</Link>:<div className="two-col">
    <section className="card"><h2>Edit business page</h2>
     <label>My professional application<select value={selected} onChange={e=>choose(e.target.value)}>
      <option value="">Select an application</option>
@@ -99,6 +105,6 @@ export default function BusinessPageEditor(){
     <p style={{marginTop:18}}>The optional £19.99/month business software membership does not affect approval or public ranking.</p>
     <p style={{marginTop:20}}><Link href="/professional/apply">View professional applications →</Link></p>
    </section>
-  </div>}
+  </div>)}
  </main>;
 }
