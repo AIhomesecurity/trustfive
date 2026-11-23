@@ -123,7 +123,16 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
       case '/rest/v1/rpc/resolve_trustfive_territory':
         return reply(200, area.id);
 
+      case '/rest/v1/rpc/set_job_contact_preference': {
+        const body = await readBody();
+        if (body.p_job !== jobId || body.p_preference !== 'phone_after_booking') {
+          return reply(400, {message: 'Unexpected contact preference'});
+        }
+        return reply(500, {message: 'Synthetic contact preference outage'});
+      }
+
       case '/rest/v1/rpc/create_job_with_private_location': {
+        if (createdJob) return reply(409, {message: 'Unexpected duplicate job'});
         const body = await readBody();
         if (body.p_trade !== trade.id || body.p_area !== area.id) {
           return reply(400, {message: 'Unexpected trade or area selection'});
@@ -362,9 +371,12 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
       page.getByText('Verified territory selected automatically from your address.')
     ).toBeVisible();
 
+    await page.getByLabel('How would you prefer to be contacted?', {exact: false}).selectOption('phone_after_booking');
     await page.getByRole('button', {name: 'Publish job request'}).click();
     await expect(page.getByText('Job published.', {exact: false})).toBeVisible();
     await expect(page.getByRole('heading', {name: 'Install 4K driveway CCTV cameras'})).toBeVisible();
+    await expect(page.getByText('We could not confirm your contact preference.', {exact: false})).toBeVisible();
+    await expect(page.getByLabel('Job title')).toHaveValue('');
     expect(createdJob).not.toBeNull();
     expect(page.url()).not.toContain('Synthetic Close');
     await assertZeroHorizontalOverflow();
