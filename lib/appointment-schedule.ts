@@ -1,3 +1,4 @@
+import {safeNotificationTarget} from './notification-target';
 /** Timezone-preserving appointment validation and formatting helpers.
  * Supports international IANA timezones rather than hard-coding UK-only assumptions. */
 
@@ -106,4 +107,27 @@ export function summarizeAppointments(
     }
   }
   return {upcomingConfirmed, awaitingYourConfirmation, awaitingOtherParty};
+}
+
+
+export async function resolveAppointmentBooking<T extends {
+ id:string; customer_id:string; professional_id:string; status:string;
+}>(hints:readonly string[], recent:T[], userId:string, lookup:(id:string)=>Promise<T|null>){
+ const fallback={bookings:recent,selectedId:''};
+ if(hints.length!==1||!userId)return fallback;
+ const target=safeNotificationTarget('/schedule?booking='+encodeURIComponent(hints[0]));
+ if(!target)return fallback;
+ const id=target.split('=')[1];
+ const eligible=(booking:T)=>booking.id===id&&
+  (booking.customer_id===userId||booking.professional_id===userId)&&
+  (booking.status==='booked'||booking.status==='awaiting_customer');
+ const existing=recent.find(booking=>booking.id===id);
+ if(existing)return eligible(existing)?{bookings:recent,selectedId:id}:fallback;
+ try{
+  const booking=await lookup(id);
+  if(booking&&eligible(booking))return {bookings:[booking,...recent],selectedId:id};
+ }catch{
+  // Keep the recent calendar available when the linked record cannot load.
+ }
+ return fallback;
 }
