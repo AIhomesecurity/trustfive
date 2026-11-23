@@ -19,6 +19,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const [loadedViewKey,setLoadedViewKey]=useState('');
  const [changingId,setChangingId]=useState(''),[revision,setRevision]=useState(0);
  const actionInFlight=useRef(false);
+ const refreshButtonRef=useRef<HTMLButtonElement>(null);
  const attendanceFilterRef=useRef<HTMLSelectElement>(null);
  const viewKey=socialEventViewKey(userId,areaId,revision,search);
  const currentViewRef=useRef(viewKey);
@@ -117,14 +118,14 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
       <option value="interested">Interested</option>
      </select>
     </label>
-    <button type="button" className="btn secondary" disabled={Boolean(changingId)}
+    <button type="button" className="btn secondary" disabled={Boolean(changingId)} ref={refreshButtonRef}
      onClick={()=>setRevision(v=>v+1)}>Refresh events</button>
     <Link href="/community/events" className="btn secondary">Organise an event</Link>
    </form>
    {search&&<p className="muted-note" role="status">Searching event titles for “{search}”. Results include up to 60 matching upcoming events. Clear the search to browse others.</p>}
    {notice&&<p className="notice" role="status">{notice}</p>}
    {isLoadingView?<div className="card" role="status">Loading upcoming events…</div>
-   :error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>setRevision(v=>v+1)}>Retry events</button></div>
+   :error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>{refreshButtonRef.current?.focus();setRevision(v=>v+1);}}>Retry events</button></div>
    :<>
     <p className="muted-note" role="status">{visibleEvents.length} matching upcoming {visibleEvents.length===1?'event':'events'} from {events.length} loaded (up to 60 total). Response filters only show your own RSVP data.</p>
     <div className="list">

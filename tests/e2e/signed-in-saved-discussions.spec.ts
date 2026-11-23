@@ -18,6 +18,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
  page.setDefaultTimeout(10000);
  let removes=0;
  let areaFailuresRemaining=0;
+ let failDiscovery=false;
  let failLoad=true;
  const fixture=createServer((request,response)=>{
   const url=new URL(request.url??'/',backend);
@@ -34,6 +35,10 @@ test('signed-in mobile saved discussions recover a load and local events recover
   if(url.pathname==='/rest/v1/service_areas'&&areaFailuresRemaining>0){
    areaFailuresRemaining--;
    return reply(500,{message:'Synthetic neighbourhood outage'});
+  }
+  if(url.pathname==='/rest/v1/community_events'&&url.searchParams.get('limit')==='60'&&failDiscovery){
+   failDiscovery=false;
+   return reply(500,{message:'Synthetic event discovery outage'});
   }
   if(url.pathname==='/rest/v1/social_saved_posts'){
    if(url.searchParams.get('user_id')!=='eq.'+user.id)return reply(403,{message:'Unexpected account'});
@@ -88,6 +93,13 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await expect(page.getByRole('heading',{name:'Local events'})).toBeFocused();
   await expect(page.getByRole('heading',{name:'Upcoming events'})).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-synthetic-events-document','initial');
+
+  failDiscovery=true;
+  await page.goto('/community/social?tab=events');
+  const discovery=page.getByRole('region',{name:'Community events'});
+  await discovery.getByRole('button',{name:'Retry events'}).press('Enter');
+  await expect(discovery.getByRole('button',{name:'Refresh events'})).toBeFocused();
+  await expect(discovery.getByText('0 matching upcoming events',{exact:false})).toBeVisible();
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());
