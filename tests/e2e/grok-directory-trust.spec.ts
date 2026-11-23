@@ -41,7 +41,7 @@ async function fulfill(route:Route,body:unknown){
 }
 
 async function stubDirectory(page:Page,professionals:unknown[]){
- await page.route('**/*supabase.co/**',async route=>{
+ await page.route(/^https?:\/\/[^/]+\/(?:rest|auth)\/v1\//,async route=>{
   const request=route.request();
   const url=request.url();
   if(request.method()==='OPTIONS'){
