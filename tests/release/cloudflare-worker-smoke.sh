@@ -46,7 +46,16 @@ assert.equal(result.status, 307);
 const location = new URL(result.headers.get('location'), origin);
 assert.equal(location.pathname, '/account');
 assert.equal(location.searchParams.get('next'), destination);
-console.log('Local Cloudflare Worker health and signed-out job return checks passed');
+const callback = new URL('/auth/callback', origin);
+callback.searchParams.set('next', 'https://outside.example/jobs');
+const anonymousCallback = await fetch(callback, {
+  redirect: 'manual',
+  signal: AbortSignal.timeout(5000),
+});
+assert.equal(anonymousCallback.status, 307);
+const callbackLocation = new URL(anonymousCallback.headers.get('location'), origin);
+assert.equal(callbackLocation.href, origin + '/account');
+console.log('Local Cloudflare Worker health, signed-out job return and auth callback checks passed');
 JS
 
 node tests/release/signed-in-smoke.mjs 3008
