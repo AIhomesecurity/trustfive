@@ -64,6 +64,7 @@ test('signed-in mobile saved discussions recover a load and keep focus after rem
   await expect(saved.getByRole('alert')).toContainText('Could not load your saved discussions');
   await saved.getByRole('button',{name:'Retry loading bookmarks'}).press('Enter');
   await expect(saved.getByText('Synthetic published saved post')).toBeVisible();
+  await expect(saved.getByRole('button',{name:'Refresh saved discussions'})).toBeFocused();
   await expect(saved.getByText('Synthetic hidden saved post')).toHaveCount(0);
   await saved.getByRole('button',{name:'Remove bookmark'}).press('Enter');
   await expect(saved.getByText('Removed from your private saved posts.')).toBeFocused();

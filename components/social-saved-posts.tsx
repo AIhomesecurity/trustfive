@@ -13,6 +13,15 @@ export default function SocialSavedPosts({userId}:{userId:string}){
  const [retry,setRetry]=useState(0),[busy,setBusy]=useState(false);
  const inFlight=useRef(false);
  const noticeRef=useRef<HTMLParagraphElement>(null);
+ const refreshRef=useRef<HTMLButtonElement>(null);
+ const restoreRefreshFocus=useRef(false);
+
+ useEffect(()=>{
+  if(!loading&&restoreRefreshFocus.current){
+   restoreRefreshFocus.current=false;
+   refreshRef.current?.focus();
+  }
+ },[loading]);
 
  useEffect(()=>{
   if(notice)noticeRef.current?.focus();
@@ -68,10 +77,10 @@ export default function SocialSavedPosts({userId}:{userId:string}){
   <p className="subtle">These bookmarks are private to your account and do not affect professional approval, quality ranking or post popularity. Only currently published posts appear below.</p>
   {!userId?<div className="card" role="status">Sign in to see private saved discussions.</div>:<>
    <button type="button" className="btn secondary" style={{marginBottom:14}}
-    disabled={busy||loading} onClick={refresh}>Refresh saved discussions</button>
+    ref={refreshRef} disabled={busy||loading} onClick={refresh}>Refresh saved discussions</button>
    {notice&&<p ref={noticeRef} tabIndex={-1} role="status" className="notice">{notice}</p>}
    {loading?<div className="card" role="status">Loading your private saved discussions…</div>
-   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={refresh}>Retry loading bookmarks</button></div>
+   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={()=>{restoreRefreshFocus.current=true;refresh();}}>Retry loading bookmarks</button></div>
    :<>
     <p role="status" className="muted-note">{posts.length} published {posts.length===1?'discussion':'discussions'} from your most recent {saved.length} saved {saved.length===1?'record':'records'} (up to 100 loaded).</p>
     <div className="list">
