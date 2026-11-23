@@ -14,14 +14,15 @@ export default function SocialSavedPosts({userId}:{userId:string}){
  const inFlight=useRef(false);
  const noticeRef=useRef<HTMLParagraphElement>(null);
  const refreshRef=useRef<HTMLButtonElement>(null);
+ const retryRef=useRef<HTMLButtonElement>(null);
  const restoreRefreshFocus=useRef(false);
 
  useEffect(()=>{
   if(!loading&&restoreRefreshFocus.current){
    restoreRefreshFocus.current=false;
-   refreshRef.current?.focus();
+   (error?retryRef:refreshRef).current?.focus();
   }
- },[loading]);
+ },[loading,error]);
 
  useEffect(()=>{
   if(notice)noticeRef.current?.focus();
@@ -80,7 +81,7 @@ export default function SocialSavedPosts({userId}:{userId:string}){
     ref={refreshRef} disabled={busy||loading} onClick={refresh}>Refresh saved discussions</button>
    {notice&&<p ref={noticeRef} tabIndex={-1} role="status" className="notice">{notice}</p>}
    {loading?<div className="card" role="status">Loading your private saved discussions…</div>
-   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={()=>{restoreRefreshFocus.current=true;refresh();}}>Retry loading bookmarks</button></div>
+   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" ref={retryRef} onClick={()=>{restoreRefreshFocus.current=true;refresh();}}>Retry loading bookmarks</button></div>
    :<>
     <p role="status" className="muted-note">{posts.length} published {posts.length===1?'discussion':'discussions'} from your most recent {saved.length} saved {saved.length===1?'record':'records'} (up to 100 loaded).</p>
     <div className="list">
