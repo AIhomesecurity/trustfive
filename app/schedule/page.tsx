@@ -28,8 +28,16 @@ export default function BookingSchedule(){
  const proposalErrorRef=useRef<HTMLParagraphElement>(null);
  useEffect(()=>{if(proposalError)proposalErrorRef.current?.focus();},[proposalError]);
  const [loadError,setLoadError]=useState('');
- const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
+ const retryCalendarRef=useRef<HTMLButtonElement>(null);
+ const focusCalendarRetry=useRef(false);
+ useEffect(()=>{
+  if(loadError&&!busy&&focusCalendarRetry.current){
+   focusCalendarRetry.current=false;
+   retryCalendarRef.current?.focus();
+  }
+ },[loadError,busy]);
+ const [loading,setLoading]=useState(true);
  const [confirmCancelId,setConfirmCancelId]=useState<string|null>(null);
  const cancellationNoticeRef=useRef<HTMLParagraphElement>(null);
  const focusCancellationNotice=useRef(false);
@@ -174,7 +182,11 @@ export default function BookingSchedule(){
 
  function showActionResult(result:Awaited<ReturnType<typeof executeBookingAction>>){
   setNotice(result.message);
-  if(result.outcome==='committed_refresh_failed')setLoadError('Calendar updates are paused until the latest appointments load.');
+  if(result.outcome==='committed_refresh_failed'){
+   focusCalendarRetry.current=true;
+   focusCancellationNotice.current=false;
+   setLoadError('Calendar updates are paused until the latest appointments load.');
+  }
  }
 
  async function retryCalendar(){
@@ -199,7 +211,7 @@ export default function BookingSchedule(){
    <p className="subtle">Either participant can propose a time. Only the other participant can confirm it. Confirmed appointments preserve their exact IANA time zone and cannot overlap for the same professional.</p>
   </div>
   {notice&&<p ref={cancellationNoticeRef} tabIndex={-1} role="status" className="notice">{notice}</p>}
-  {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryCalendar()}>Retry loading appointments</button></div>}
+  {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" ref={retryCalendarRef} disabled={busy} onClick={()=>void retryCalendar()}>Retry loading appointments</button></div>}
   {unavailableBooking&&<p role="alert" className="notice">That appointment is not available to your account, or the booking is no longer active. Choose an eligible booking below.</p>}
   {loading?<p role="status" className="notice">Loading your booking appointments…</p>:
   loadError&&!hasLoaded.current?null:

@@ -30,7 +30,13 @@ const aliases:Record<string,string>={
  'cctv installer':'cctv-installation','cctv installation':'cctv-installation',
  'security camera installation':'cctv-installation','video surveillance':'cctv-installation',
  'home surveillance':'cctv-installation',surveillance:'cctv-installation',
+ 'security camera installer':'cctv-installation','security camera installers':'cctv-installation',
+ 'security camera repair':'cctv-installation','cctv repair':'cctv-installation',
+ 'repair my cctv system':'cctv-installation','fit a security camera system':'cctv-installation',
  'ring doorbell':'cctv-installation','video doorbell':'cctv-installation','doorbell camera':'cctv-installation','ip camera':'cctv-installation','ip cameras':'cctv-installation',
+ 'burglar alarm repair':'home-security','intruder alarm repair':'home-security',
+ 'burglar alarm servicing':'home-security','intruder alarm servicing':'home-security',
+ 'service my burglar alarm system':'home-security',
  alarm:'home-security','alarm installer':'home-security','alarm installers':'home-security','intruder alarms':'home-security','alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
 };
 

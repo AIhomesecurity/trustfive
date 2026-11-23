@@ -2,7 +2,7 @@ import {expect,test} from '@playwright/test';
 
 test.use({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
 
-for(const [query,trade] of [['C.C.T.V.','fixture-cctv'],['Alarm','fixture-security'],['Intruder alarms','fixture-security']]){
+for(const [query,trade] of [['C.C.T.V.','fixture-cctv'],['Alarm','fixture-security'],['Intruder alarms','fixture-security'],['Security camera installers','fixture-cctv'],['Repair my CCTV system','fixture-cctv'],['Fit a security camera system','fixture-cctv'],['Intruder alarm repair','fixture-security'],['Burglar-alarm servicing','fixture-security']]){
  test(`mobile directory resolves ${query} to the matching catalogue trade`,async({page})=>{
   await page.route('**/rest/v1/trades?*',route=>route.fulfill({json:[
    {id:'fixture-cctv',name:'CCTV installation',slug:'cctv-installation'},
