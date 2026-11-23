@@ -122,6 +122,12 @@ export default function SelectedBookingDetail({
   }, [shareConfirmOpen]);
 
   const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const reviewErrorRef = useRef<HTMLParagraphElement>(null);
+  const visibleReviewError = reviewError || (sectionRetryError?.section === 'review' ? sectionRetryError.message : null);
+
+  useEffect(() => {
+    if (reviewOpen && !busy && visibleReviewError) reviewErrorRef.current?.focus();
+  }, [reviewOpen, busy, visibleReviewError]);
   const abortCompletionRef = useRef<HTMLButtonElement>(null);
   const completionTriggerRef = useRef<HTMLButtonElement>(null);
   const reviewTriggerRef = useRef<HTMLButtonElement>(null);
@@ -157,7 +163,7 @@ export default function SelectedBookingDetail({
 
     if (reviewOpen) {
       pendingReviewUnlockFocus.current = false;
-      reviewHeadingRef.current?.focus();
+      if (!sameBooking || !prev.open) reviewHeadingRef.current?.focus();
     } else if (sameBooking && !prev.hasReviewed && hasReviewed) {
       pendingReviewUnlockFocus.current = false;
       reviewSubmittedRef.current?.focus();
@@ -896,14 +902,9 @@ export default function SelectedBookingDetail({
                       placeholder="Describe punctuality, workmanship, tidiness and communication."
                     />
                   </label>
-                  {reviewError ? (
-                    <p className="notice error" role="alert" style={{margin: 0}}>
-                      {reviewError}
-                    </p>
-                  ) : null}
-                  {sectionRetryError?.section === 'review' ? (
-                    <p className="notice error" role="alert" style={{margin: 0}}>
-                      {sectionRetryError.message} — your draft is preserved above so you can retry safely.
+                  {visibleReviewError ? (
+                    <p ref={reviewErrorRef} tabIndex={-1} className="notice error" role="alert" style={{margin: 0}}>
+                      {visibleReviewError}{!reviewError && ' — your draft is preserved above so you can retry safely.'}
                     </p>
                   ) : null}
                   <div className="job-confirm-actions">
