@@ -44,6 +44,8 @@ export default function Jobs(){
  const [jobBookingLinks,setJobBookingLinks]=useState<Map<string,string>>(()=>new Map());
  const [confirmedBookingHref,setConfirmedBookingHref]=useState('');
  const [confirmQuoteId,setConfirmQuoteId]=useState<string|null>(null);
+ const [quoteError,setQuoteError]=useState('');
+ const quoteErrorRef=useRef<HTMLParagraphElement>(null);
  const quoteCancelButton=useRef<HTMLButtonElement>(null);
  const confirmedBookingLink=useRef<HTMLAnchorElement>(null);
  const quoteFocus=useRef<{kind:'restore';id:string}|{kind:'booking'}|null>(null);
@@ -56,7 +58,10 @@ export default function Jobs(){
   if(target?.kind==='booking')confirmedBookingLink.current?.focus();
  },[confirmQuoteId]);
 
+ useEffect(()=>{if(quoteError)quoteErrorRef.current?.focus();},[quoteError]);
+
  function closeQuoteConfirmation(quoteId:string){
+  setQuoteError('');
   quoteFocus.current={kind:'restore',id:quoteId};
   setConfirmQuoteId(null);
  }
@@ -251,7 +256,7 @@ export default function Jobs(){
  async function accept(quoteId:string){
   if(busy||actionInFlight.current||confirmQuoteId!==quoteId)return;
   if(!canConfirmJobQuote(quoteId,quotes,jobs)){closeQuoteConfirmation(quoteId);setMessage('This quote can no longer be accepted. Refresh your jobs and try again.');return;}
-  actionInFlight.current=true;setBusy(true);setMessage('');
+  actionInFlight.current=true;setBusy(true);setMessage('');setQuoteError('');
   try{
    const {data,error}=await supabaseBrowser().rpc('accept_job_quote',{p_quote:quoteId});
    if(error)throw error;
@@ -268,7 +273,7 @@ export default function Jobs(){
    }catch{
     setMessage('Booking recorded successfully. The jobs list could not be refreshed. Open the booking to continue. No payment has been taken.');
    }
-  }catch(e){setMessage(e instanceof Error?e.message:'Unable to accept quote')}
+  }catch{setQuoteError('Could not confirm the booking. Check your connection and try again.');}
   finally{actionInFlight.current=false;setBusy(false)}
  }
 
@@ -488,6 +493,7 @@ export default function Jobs(){
           <h4>Confirm this booking?</h4>
           <p>You are choosing <strong>{q.business_name}</strong> for <strong>{money(q.amount_pence)}</strong> for “{j.title}”.</p>
           <p className="muted-note">Confirming creates a TrustFive booking. No payment is collected here. Agree the work, timing and terms with the professional. Your exact job address stays private unless you separately choose to share it for the booking.</p>
+          {quoteError&&<p ref={quoteErrorRef} tabIndex={-1} role="alert" className="notice error">{quoteError}</p>}
           <div className="quote-confirmation-actions">
            <button type="button" className="btn" disabled={busy} onClick={()=>void accept(q.quote_id)}>{busy?'Confirming…':'Confirm and create booking'}</button>
            <button ref={quoteCancelButton} type="button" className="btn secondary" disabled={busy} onClick={()=>closeQuoteConfirmation(q.quote_id)}>Cancel</button>
