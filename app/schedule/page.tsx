@@ -24,6 +24,9 @@ export default function BookingSchedule(){
  const [end,setEnd]=useState('');
  const [zone,setZone]=useState('Europe/London');
  const [notice,setNotice]=useState('');
+ const [proposalError,setProposalError]=useState('');
+ const proposalErrorRef=useRef<HTMLParagraphElement>(null);
+ useEffect(()=>{if(proposalError)proposalErrorRef.current?.focus();},[proposalError]);
  const [loadError,setLoadError]=useState('');
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
@@ -92,6 +95,7 @@ export default function BookingSchedule(){
  async function propose(e:FormEvent){
   e.preventDefault();
   if(busy||inFlight.current||loadError||!selected)return;
+  setProposalError('');
   const begins=new Date(start),finishes=new Date(end);
   const validationError=validateAppointmentProposal({
    bookingId:selected,
@@ -99,7 +103,7 @@ export default function BookingSchedule(){
    endIso:Number.isFinite(finishes.getTime())?finishes.toISOString():'',
    timezoneName:zone,
   });
-  if(validationError){setNotice(validationError);return;}
+  if(validationError){setProposalError(validationError);return;}
   inFlight.current=true;setBusy(true);setNotice('');
   try{
    const result=await executeBookingAction({
@@ -115,7 +119,8 @@ export default function BookingSchedule(){
     refreshFailedMessage:'Appointment time proposed. Reload the calendar to see the latest details.',
     fallbackErrorMessage:'Unable to propose appointment',
    });
-   showActionResult(result);
+   if(result.outcome==='rpc_error')setProposalError(result.message);
+   else showActionResult(result);
   } finally{inFlight.current=false;setBusy(false);}
  }
 
@@ -179,13 +184,14 @@ export default function BookingSchedule(){
     <section className="card">
      <h2>Propose or change a time</h2>
      <form className="form" onSubmit={propose}>
-      <label>Booking<select required value={selected} onChange={e=>setSelected(e.target.value)}>
+      <label>Booking<select required value={selected} onChange={e=>{setProposalError('');setSelected(e.target.value);}}>
        <option value="">Choose active booking</option>
        {active.map(b=><option key={b.id} value={b.id}>Booking #{b.id.slice(0,8)} · {b.customer_id===userId?'Customer':'Professional'}</option>)}
       </select></label>
       <label>Start date and time<input type="datetime-local" required value={start} onChange={e=>setStart(e.target.value)}/></label>
       <label>End date and time<input type="datetime-local" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
       <label>IANA time zone<input required minLength={3} maxLength={80} value={zone} onChange={e=>setZone(e.target.value)} placeholder="Europe/London"/></label>
+      {proposalError&&<p ref={proposalErrorRef} tabIndex={-1} role="alert" className="notice error">{proposalError}</p>}
       <button className="btn" disabled={busy||Boolean(loadError)||!active.length} type="submit">{busy?'Saving…':'Propose appointment'}</button>
      </form>
      <p className="muted-note" style={{marginTop:14}}>Dates are saved as exact UTC timestamps alongside the selected IANA time zone and displayed in that stored time zone for both participants. Proposing a new time replaces any prior proposal and requires the other party's confirmation.</p>
