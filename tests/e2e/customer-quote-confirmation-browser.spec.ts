@@ -15,6 +15,7 @@ test.use({viewport:{width:360,height:740},isMobile:true,hasTouch:true});
 test('signed-in customer can cancel and confirm a quote by keyboard after a reload failure',async({page})=>{
  test.skip(process.env.NEXT_PUBLIC_SUPABASE_URL!==backend,'Requires the isolated loopback application build.');
  test.setTimeout(60000);
+ page.setDefaultTimeout(10000);
  let accepted=0;
  let failRefresh=false;
  const fixture=createServer(async(request,response)=>{
@@ -84,6 +85,9 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   await page.reload();
   await expect(page.getByRole('link',{name:'Manage confirmed booking'})).toHaveAttribute('href','/bookings?booking='+bookingId);
  }finally{
-  await new Promise<void>((resolve,reject)=>fixture.close(error=>error?reject(error):resolve()));
+  await new Promise<void>((resolve,reject)=>{
+   fixture.close(error=>error?reject(error):resolve());
+   fixture.closeAllConnections();
+  });
  }
 });
