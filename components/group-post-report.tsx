@@ -21,10 +21,10 @@ export default function GroupPostReport({postId,userId}:{postId:string;userId:st
  useEffect(()=>{
   if(!focusRequested.current)return;
   focusRequested.current=false;
-  if(submitted)noticeRef.current?.focus();
+  if(notice)noticeRef.current?.focus();
   else if(open)reasonRef.current?.focus();
   else triggerRef.current?.focus();
- },[open,submitted]);
+ },[open,notice]);
 
  function toggleForm(){
   focusRequested.current=true;
@@ -45,6 +45,7 @@ export default function GroupPostReport({postId,userId}:{postId:string;userId:st
    setSubmitted(true);setOpen(false);setExplanation('');
    setNotice(error?'You already reported this post.':'Report sent to TrustFive moderators.');
   }catch{
+   focusRequested.current=true;
    setNotice('The report could not be submitted. Please try again.');
   }finally{
    inFlight.current=false;setBusy(false);
@@ -70,6 +71,6 @@ export default function GroupPostReport({postId,userId}:{postId:string;userId:st
     {busy?'Sending…':'Submit report'}
    </button>
   </form>}</div>
-  {notice&&<p ref={noticeRef} tabIndex={-1} className="notice" role="status">{notice}</p>}
+  {notice&&<p ref={noticeRef} tabIndex={-1} className="notice" role={submitted?'status':'alert'}>{notice}</p>}
  </div>;
 }
