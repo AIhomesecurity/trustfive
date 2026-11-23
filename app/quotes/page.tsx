@@ -23,6 +23,9 @@ export default function Quotes(){
  const [availability,setAvailability]=useState('');
  const [message,setMessage]=useState('');
  const [notice,setNotice]=useState('');
+ const [quoteError,setQuoteError]=useState('');
+ const quoteErrorRef=useRef<HTMLParagraphElement>(null);
+ useEffect(()=>{if(quoteError)quoteErrorRef.current?.focus();},[quoteError]);
  const [busy,setBusy]=useState(false);
  const [requiresReload,setRequiresReload]=useState(false);
  const mutationLock=useRef(createSingleFlightLock());
@@ -74,7 +77,7 @@ export default function Quotes(){
 
  function chooseLead(lead:Lead|null){
   if(chosen?.job_id!==lead?.job_id||chosen?.allocation_id!==lead?.allocation_id){
-   setAmount('');setAvailability('');setMessage('');
+   setAmount('');setAvailability('');setMessage('');setQuoteError('');
   }
   setChosen(lead);
  }
@@ -89,14 +92,15 @@ export default function Quotes(){
 
  const mutationsDisabled=busy||refreshing||requiresReload;
 
- async function runMutation(options:Parameters<typeof executeBookingAction>[0]){
+ async function runMutation(options:Parameters<typeof executeBookingAction>[0],onError?:(message:string)=>void){
   if(mutationsDisabled)return;
   await mutationLock.current.run(async()=>{
    setBusy(true);setNotice('');
    try{
     const result=await executeBookingAction(options);
     if(result.outcome==='committed_refresh_failed')setRequiresReload(true);
-    setNotice(result.message);
+    if(result.outcome==='rpc_error'&&onError)onError(result.message);
+    else setNotice(result.message);
    }finally{setBusy(false);}
   });
  }
@@ -114,14 +118,15 @@ export default function Quotes(){
   if(!canPrepareProfessionalQuote(chosen,leads,quotes)){
    chooseLead(null);setNotice('This opportunity is no longer available for a new quote. Refresh your leads.');return;
   }
+  setQuoteError('');
   const availError=validateQuoteAvailability(availability);
-  if(availError){setNotice(availError);return;}
+  if(availError){setQuoteError(availError);return;}
   const pence=Math.round(Number(amount)*100);
   if(!Number.isSafeInteger(pence)||pence<100||pence>1000000000){
-   setNotice('Quote must be between £1 and £10 million');return;
+   setQuoteError('Quote must be between £1 and £10 million');return;
   }
   if(message.trim().length<10){
-   setNotice('Describe the scope of work in at least 10 non-whitespace characters');return;
+   setQuoteError('Describe the scope of work in at least 10 non-whitespace characters');return;
   }
   await runMutation({
    runRpc:async()=>supabaseBrowser().from('job_quotes').insert({
@@ -138,7 +143,7 @@ export default function Quotes(){
    successMessage:'Quote submitted to the customer. No payment has been collected.',
    refreshFailedMessage:'Quote submitted to the customer. Refresh your leads to see it before making another change.',
    fallbackErrorMessage:'Unable to submit quote',
-  });
+  },setQuoteError);
  }
 
  async function withdraw(quoteId:string){
@@ -226,6 +231,7 @@ export default function Quotes(){
         <label>Earliest availability and timeframe (optional)<input maxLength={240} value={availability} onChange={e=>setAvailability(e.target.value)} placeholder="e.g. Available from Tuesday morning; approx. 1 day"/></label>
         <label>Message and scope of work<textarea minLength={10} maxLength={3000} required value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe materials, timing, exclusions and assumptions"/></label>
         <p className="muted-note">Make sure the price, availability and scope are accurate. This sends a quote, not a payment request.</p>
+        {quoteError&&<p ref={quoteErrorRef} tabIndex={-1} className="notice error" role="alert">{quoteError}</p>}
         <div className="professional-lead-actions"><button type="submit" disabled={mutationsDisabled} className="btn">{busy?'Sending…':'Send quote'}</button>
          <button type="button" disabled={busy} className="btn secondary" onClick={()=>chooseLead(null)}>Cancel</button>
         </div>
