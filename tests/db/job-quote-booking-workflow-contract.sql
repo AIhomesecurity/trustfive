@@ -132,7 +132,14 @@ begin
   -- Customer accepts quote -> creates booking; afterwards Approved Pro CANNOT withdraw accepted quote
   perform set_config('request.jwt.claim.sub', '50000000-0000-0000-0000-000000000002', true);
   v_booking := public.accept_job_quote(v_quote);
-  if v_booking is null then raise exception 'Booking creation failed'; end if;
+  if not exists(select 1 from public.job_bookings
+    where id = v_booking and quote_id = v_quote and job_id = v_job
+      and customer_id = auth.uid() and status = 'booked') then
+    raise exception 'Quote acceptance did not return the customer-visible booking ID';
+  end if;
+  if exists(select 1 from public.job_quotes where job_id = v_job and status = 'pending') then
+    raise exception 'Booked job retained an actionable pending quote';
+  end if;
 
   perform set_config('request.jwt.claim.sub', '50000000-0000-0000-0000-000000000003', true);
   begin
