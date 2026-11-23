@@ -75,7 +75,7 @@ export default function AddressSearch({onSelect}:Props){
    <button className="btn secondary" type="button" onClick={find} disabled={loading||query.trim().length<2}>{loading?'Finding…':retryable?'Retry address lookup':'Find address'}</button>
   </div>
   {expanded&&<div id="address-options" className="address-suggestions" role="listbox" aria-label="Matching addresses">
-    {suggestions.map((item,i)=><button type="button" key={i} role="option" id={`directory-address-option-${i}`} aria-selected={active===i} onClick={()=>choose(item)}>
+    {suggestions.map((item,i)=><button type="button" key={i} role="option" tabIndex={-1} id={`directory-address-option-${i}`} aria-selected={active===i} onClick={()=>choose(item)}>
       <strong>{item.label}</strong><span>{item.precision==='address'?'Street and property address':item.postcode?'Full postcode centre':'Postcode district centre'}</span>
     </button>)}
    </div>}
