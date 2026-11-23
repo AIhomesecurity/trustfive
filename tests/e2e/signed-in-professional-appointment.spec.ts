@@ -86,7 +86,9 @@ test('signed-in professional retries eligible leads, submits a quote and opens t
   const appointment=page.getByRole('link',{name:'Appointments'});
   await expect(appointment).toHaveAttribute('href','/schedule?booking='+bookingId);
   await appointment.click();
-  await expect(page.getByLabel('Booking',{exact:true})).toHaveValue(bookingId);
+  await expect(page).toHaveURL(app+'/schedule?booking='+bookingId);
+  await expect(page.getByRole('heading',{name:'Propose or change a time'})).toBeVisible();
+  await expect(page.getByRole('combobox',{name:/^Booking/})).toHaveValue(bookingId);
   expect(writes).toBe(1);
  }finally{
   await new Promise<void>((resolve,reject)=>{
