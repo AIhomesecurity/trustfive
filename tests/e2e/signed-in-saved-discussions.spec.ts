@@ -27,7 +27,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
   const reply=(status:number,data:unknown)=>{
    response.writeHead(status,{
     'access-control-allow-origin':'*','access-control-allow-headers':'*',
-    'access-control-allow-methods':'GET,DELETE,OPTIONS','content-type':'application/json',
+    'access-control-allow-methods':'GET,POST,DELETE,OPTIONS','content-type':'application/json',
    });
    response.end(status===204?'':JSON.stringify(data));
   };
@@ -61,8 +61,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
    return reply(200,[{id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created}]);
   }
   if(failFeed&&url.pathname==='/rest/v1/community_posts'){
-   failFeed=false;
-   return reply(503,{message:'Synthetic feed outage'});
+   return reply(400,{message:'Synthetic feed read failure'});
   }
   if(url.pathname==='/rest/v1/community_posts')return reply(200,[
    {id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created},
@@ -128,7 +127,10 @@ test('signed-in mobile saved discussions recover a load and local events recover
 
   failFeed=true;
   await page.goto('/community');
-  await page.getByRole('button',{name:'Try loading posts again'}).press('Enter');
+  const retryFeed=page.getByRole('button',{name:'Try loading posts again'});
+  await expect(retryFeed).toBeVisible();
+  failFeed=false;
+  await retryFeed.press('Enter');
   await expect(page.getByRole('heading',{name:'Neighbourhood feed'})).toBeFocused();
   await expect(page.getByText('Synthetic published saved post',{exact:true})).toBeVisible();
  }finally{
