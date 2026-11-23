@@ -20,6 +20,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
  let areaFailuresRemaining=0;
  let failDiscovery=false;
  let failComments=true;
+ let failFeed=false;
  let bookmarkFailures=2;
  const fixture=createServer((request,response)=>{
   const url=new URL(request.url??'/',backend);
@@ -58,6 +59,10 @@ test('signed-in mobile saved discussions recover a load and local events recover
   }
   if(url.pathname==='/rest/v1/community_posts'&&url.searchParams.get('id')==='eq.'+published){
    return reply(200,[{id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created}]);
+  }
+  if(failFeed&&url.pathname==='/rest/v1/community_posts'){
+   failFeed=false;
+   return reply(503,{message:'Synthetic feed outage'});
   }
   if(url.pathname==='/rest/v1/community_posts')return reply(200,[
    {id:published,body:'Synthetic published saved post',area_id:null,visibility:'published',created_at:created},
@@ -120,6 +125,12 @@ test('signed-in mobile saved discussions recover a load and local events recover
   await retryDiscussion.press('Enter');
   await expect(page.getByRole('button',{name:'Hide discussion'})).toBeFocused();
   await expect(page.getByRole('button',{name:'Refresh discussion'})).toBeVisible();
+
+  failFeed=true;
+  await page.goto('/community');
+  await page.getByRole('button',{name:'Try loading posts again'}).press('Enter');
+  await expect(page.getByRole('heading',{name:'Neighbourhood feed'})).toBeFocused();
+  await expect(page.getByText('Synthetic published saved post',{exact:true})).toBeVisible();
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());
