@@ -28,6 +28,8 @@ jobs:
         run: npm run build
       - name: Compile Cloudflare Worker without publishing
         run: npm run build:vinext
+      - name: Smoke test the Cloudflare Worker build locally
+        run: bash tests/release/cloudflare-worker-smoke.sh
       - name: Smoke test web server and basic HTTP routes
         run: |
           set -euo pipefail
