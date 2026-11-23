@@ -45,3 +45,29 @@ test('Enter selects a unique address without submitting an unrelated page form',
  await expect(page.getByLabel('Sort results')).toHaveValue('recommended');
  await expect(page).toHaveURL(/\/services\?trade=plumbing$/);
 });
+
+test('mobile combobox can dismiss and choose an explicit property with the keyboard',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ try{
+  const page=await context.newPage();
+  await page.route('**/api/address/search',route=>route.fulfill({json:{suggestions:[property(1),property(2)]}}));
+  await page.goto('http://127.0.0.1:3112/services');
+  const input=page.getByRole('combobox',{name:'Your postcode or street address'});
+  await input.fill('Example Street London');
+  await expect(input).toHaveAttribute('aria-expanded','true');
+  await input.press('ArrowDown');
+  await expect(page.getByRole('option',{selected:true})).toContainText('1 Example Street');
+  await input.press('Escape');
+  await expect(input).toHaveAttribute('aria-expanded','false');
+  await expect(input).toBeFocused();
+  await expect(page.getByText('Searching near:')).toHaveCount(0);
+  await input.press('ArrowUp');
+  await expect(page.getByRole('option',{selected:true})).toContainText('2 Example Street');
+  await input.press('Enter');
+  await expect(input).toBeFocused();
+  await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('2 Example Street');
+  await expect(page).toHaveURL(/\/services$/);
+ }finally{
+  await context.close();
+ }
+});

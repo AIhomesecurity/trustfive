@@ -135,7 +135,7 @@
 .address-suggestions{display:grid;border:1px solid #b9d8c8;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 7px 24px rgba(18,60,43,.1)}
 .address-suggestions button{border:none;border-bottom:1px solid var(--border);background:white;text-align:left;cursor:pointer;padding:11px;display:grid;gap:2px;font-size:13px;color:var(--dark)}
 .address-suggestions button:last-child{border-bottom:none}
-.address-suggestions button:hover,.address-suggestions button:focus-visible{background:#eaf8f0}
+.address-suggestions button:hover,.address-suggestions button:focus-visible,.address-suggestions button[aria-selected="true"]{background:#eaf8f0}
 .address-suggestions button span{font-size:12px;color:var(--muted)}
 .address-selection{background:#ebf8ef;border:1px solid #b8d8c6;border-radius:12px;padding:12px;font-size:13px;overflow-wrap:anywhere}
 .address-selection button{padding:3px 6px;margin-left:4px;background:none;border:none;color:var(--green);font-weight:750;text-decoration:underline}
