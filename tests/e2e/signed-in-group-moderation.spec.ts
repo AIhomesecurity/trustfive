@@ -26,6 +26,7 @@ async function signIn(page:Page,id:string){
 test('signed-in mobile reporting, moderation and cross-group UI use the existing routes',async({browser})=>{
  test.skip(process.env.NEXT_PUBLIC_SUPABASE_URL!==backend,'Requires the isolated loopback application build.');
  const reports:Report[]=[];
+ let failNextReport=true;
  const decisions:string[]=[];
  let outsiderPostReads=0;
  const fixture=createServer(async(request,response)=>{
@@ -65,6 +66,7 @@ test('signed-in mobile reporting, moderation and cross-group UI use the existing
    if(type==='community_group_post_reports'){
     const post=posts.find(item=>item.id===body.post_id&&item.visibility==='published');
     if(!post||id!==member||body.reporter_id!==member)return reply(403,{message:'Forbidden'});
+    if(failNextReport){failNextReport=false;return reply(503,{message:'Synthetic report outage'});}
     reports.push({id:post.id,category:body.category,explanation:body.explanation,
      created_at:time,post_body:post.body,post_id:post.id});
     return reply(201,null);
@@ -103,6 +105,14 @@ test('signed-in mobile reporting, moderation and cross-group UI use the existing
     await card.getByRole('button',{name:'Report group post'}).click();
     await card.getByRole('combobox',{name:'Reason'}).selectOption('spam');
     await card.getByRole('button',{name:'Submit report'}).click();
+    if(title==='Synthetic post to hide'){
+     const error=card.getByRole('alert');
+     await expect(error).toHaveText('The report could not be submitted. Please try again.');
+     await expect(error).toBeFocused();
+     await expect(card.getByRole('combobox',{name:'Reason'})).toHaveValue('spam');
+     expect(reports).toHaveLength(0);
+     await card.getByRole('button',{name:'Submit report'}).press('Enter');
+    }
     await expect(card.getByText('Report sent to TrustFive moderators.')).toBeFocused();
    }
 
