@@ -75,3 +75,27 @@ test('mobile result job links use the listed trade when browsing all services',a
  await expect(page.getByLabel('Sort results')).toBeFocused();
  await expect(page.getByRole('region',{name:'Compare approved professionals'})).toHaveCount(0);
 });
+
+test('mobile catalog retry preserves keyboard focus and resolves an alarm search',async({page})=>{
+ let catalogUnavailable=true;
+ const searchedTrades:string[]=[];
+ await page.route('**/rest/v1/trades?*',route=>{
+  if(catalogUnavailable)return route.fulfill({status:400,json:{message:'Synthetic catalog read failure'}});
+  return route.fulfill({json:[{id:'fixture-security',name:'Home security',slug:'home-security'}]});
+ });
+ await page.route('**/rest/v1/service_areas?*',route=>route.fulfill({json:[]}));
+ await page.route('**/rest/v1/rpc/find_trustfive_professionals_with_reviews',route=>{
+  searchedTrades.push(route.request().postDataJSON().p_trade);
+  return route.fulfill({json:[]});
+ });
+
+ await page.goto('/services?q=burglar+alarm');
+ const retry=page.getByRole('button',{name:'Retry service filters'});
+ await expect(retry).toBeVisible();
+ expect(searchedTrades).toEqual([]);
+ catalogUnavailable=false;
+ await retry.press('Enter');
+ await expect(page.getByRole('heading',{name:'Home security',exact:true})).toBeFocused();
+ await expect(page.getByRole('link',{name:'Post your job'})).toHaveAttribute('href','/jobs?trade=home-security');
+ expect(searchedTrades).toEqual(['fixture-security']);
+});

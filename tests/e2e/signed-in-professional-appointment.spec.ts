@@ -27,6 +27,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
  let reviewSubmissions=0;
  const draftApplication="ffffffff-0000-4000-8000-000000000020";
  let calendarOutage=true;
+ let proposalOutage=true;
  let proposal: {booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string}|null=null;
  const fixture=createServer(async(request,response)=>{
   const path=new URL(request.url??'/',backend).pathname;
@@ -76,6 +77,7 @@ test('signed-in professional retries eligible leads, submits a quote and propose
     if(proposal||p_booking!==bookingId||p_timezone!=='Europe/London'||!(Date.parse(p_end)>Date.parse(p_start))){
      return reply(400,{message:'Unexpected appointment proposal'});
     }
+    if(proposalOutage){proposalOutage=false;return reply(503,{message:'Synthetic proposal outage'});}
     proposal={booking_id:p_booking,proposed_by:professional.id,starts_at:p_start,ends_at:p_end,
      timezone_name:p_timezone,status:'proposed'};
     return reply(200,null);
@@ -157,6 +159,12 @@ test('signed-in professional retries eligible leads, submits a quote and propose
   await page.getByLabel('End date and time').fill(date+'T11:00');
   await page.getByLabel('IANA time zone').fill('Europe/London');
   await page.getByRole('button',{name:'Propose appointment'}).click();
+  await expect(page.getByRole('alert').filter({hasText:'Synthetic proposal outage'})).toBeFocused();
+  await expect(page.getByLabel('Start date and time')).toHaveValue(date+'T10:00');
+  await expect(page.getByLabel('End date and time')).toHaveValue(date+'T11:00');
+  await expect(page.getByLabel('IANA time zone')).toHaveValue('Europe/London');
+  expect(proposal).toBeNull();
+  await page.getByRole('button',{name:'Propose appointment'}).press('Enter');
   await expect(page.getByText('Appointment time proposed in Europe/London.',{exact:false})).toBeVisible();
   await expect(page.getByText('Appointment: proposed')).toBeVisible();
   expect(writes).toBe(1);

@@ -68,6 +68,7 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
   let bookingStatus: 'booked' | 'awaiting_customer' | 'completed' = 'booked';
   let completionConfirmCalls = 0;
   const consentChanges: boolean[] = [];
+  let failNextConsentChange = true;
   let reviewAttempts = 0;
   let savedReview: StoredReview | null = null;
 
@@ -237,6 +238,10 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
         const body = await readBody();
         if (body.p_booking !== bookingId || typeof body.p_allow !== 'boolean') {
           return reply(400, {message: 'Unexpected synthetic consent request'});
+        }
+        if (failNextConsentChange) {
+          failNextConsentChange = false;
+          return reply(503, {message: 'Synthetic consent outage'});
         }
         consentChanges.push(body.p_allow);
         return reply(200, null);
@@ -418,6 +423,12 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
     await page.keyboard.press('Escape');
     await expect(shareButton).toBeFocused();
     expect(consentChanges).toEqual([]);
+    await shareButton.press('Enter');
+    await page.getByRole('button', {name: 'Confirm share address'}).click();
+    await expect(page.getByText('Your address sharing change could not be confirmed.', {exact: false})).toBeVisible();
+    await expect(page.getByTestId(`customer-address-${bookingId}`)).toHaveCount(0);
+    expect(consentChanges).toEqual([]);
+    await page.getByRole('button', {name: 'Recheck address status'}).press('Enter');
     await shareButton.press('Enter');
     await page.getByRole('button', {name: 'Confirm share address'}).click();
     await expect(page.getByText('Sharing is active', {exact: true})).toBeVisible();

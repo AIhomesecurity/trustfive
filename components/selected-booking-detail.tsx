@@ -511,6 +511,9 @@ export default function SelectedBookingDetail({
             </p>
           ) : customerConsentView === 'unavailable' ? (
             <div className="notice notice-warn" style={{margin: 0}}>
+              {sectionRetryError?.section === 'address' ? (
+                <p role="alert">Your address sharing change could not be confirmed. Recheck its status before trying again.</p>
+              ) : null}
               <p style={{margin: '0 0 10px'}}>
                 Private address sharing status could not be confirmed. No cached address is displayed until a live check succeeds.
               </p>

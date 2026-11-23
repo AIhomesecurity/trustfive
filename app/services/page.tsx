@@ -185,7 +185,7 @@ export default function Services(){
    </aside>
    <section className="directory-results" aria-label="Approved professional results">
     {catalogLoading&&<p role="status">Loading service categories…</p>}
-    {catalogError&&<div role="alert" className="notice error"><p>Could not load service filters. {catalogError}</p><button type="button" className="btn secondary" onClick={()=>{setCatalogLoading(true);setRetryVersion(v=>v+1);setCatalogRetry(v=>v+1);}}>Retry service filters</button></div>}
+    {catalogError&&<div role="alert" className="notice error"><p>Could not load service filters. {catalogError}</p><button type="button" className="btn secondary" onClick={()=>{resultsHeading.current?.focus();setCatalogLoading(true);setRetryVersion(v=>v+1);setCatalogRetry(v=>v+1);}}>Retry service filters</button></div>}
     {searchHint&&<p role="status" className="notice">{searchHint}</p>}
     <div className="directory-results-heading">
      <div><span className="eyebrow">Your local directory</span><h2 ref={resultsHeading} tabIndex={-1}>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
