@@ -38,21 +38,10 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client
           fi
-      - name: Check migration versions are unique
+      - name: Test and run migration preflight
         run: |
-          for migration in supabase/migrations/*.sql; do
-            filename=${migration##*/}
-            printf '%s %s\n' "${filename%%_*}" "$filename"
-          done | awk '
-            $1 in seen {
-              printf "Duplicate migration version %s: %s and %s\n", $1, seen[$1], $2
-              failed = 1
-            }
-            !($1 in seen) { seen[$1] = $2 }
-            END { exit failed }
-          '
-      - name: Check migration version uniqueness
-        run: bash scripts/db/check-migration-versions.sh
+          bash tests/db/check-migration-versions.sh
+          bash scripts/db/check-migration-versions.sh
       - name: Bootstrap Supabase auth compatibility
         run: psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql
       - name: Apply TrustFive migrations
