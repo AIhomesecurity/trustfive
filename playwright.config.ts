@@ -1,4 +1,11 @@
 import {defineConfig,devices} from '@playwright/test';
+// These specs each bind the same loopback Supabase fixture port.
+const loopbackSpecs = [
+ '**/customer-quote-confirmation-browser.spec.ts',
+ '**/signed-in-group-moderation.spec.ts',
+ '**/signed-in-professional-appointment.spec.ts',
+ '**/signed-in-saved-discussions.spec.ts',
+];
 export default defineConfig({
  testDir:'./tests/e2e',
  fullyParallel:true,
@@ -10,7 +17,10 @@ export default defineConfig({
   trace:'retain-on-failure',
   screenshot:'only-on-failure'
  },
- projects:[{name:'chromium',use:{...devices['Desktop Chrome']}}],
+ projects:[
+  {name:'chromium',testIgnore:loopbackSpecs,use:{...devices['Desktop Chrome']}},
+  {name:'chromium-loopback',testMatch:loopbackSpecs,workers:1,use:{...devices['Desktop Chrome']}}
+ ],
  webServer:{
   command:'npm run start -- --port 3112',
   url:'http://127.0.0.1:3112/api/health',
