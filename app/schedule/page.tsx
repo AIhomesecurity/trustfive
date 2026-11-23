@@ -167,6 +167,7 @@ export default function BookingSchedule(){
   {loadError&&<div role="alert" className="notice error"><p>{loadError}</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryCalendar()}>Retry loading appointments</button></div>}
   {unavailableBooking&&<p role="alert" className="notice">That appointment is not available to your account, or the booking is no longer active. Choose an eligible booking below.</p>}
   {loading?<p role="status" className="notice">Loading your booking appointments…</p>:
+  loadError&&!hasLoaded.current?null:
   !userId?<Link href="/account?next=%2Fschedule" className="btn">Sign in</Link>:
   <>
    <div className="grid" style={{marginBottom:22}} aria-label="Appointment summary">

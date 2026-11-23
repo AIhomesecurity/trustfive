@@ -13,12 +13,14 @@ const bookingId='eeeeeeee-0000-4000-8000-000000000020';
 const token='synthetic-professional-appointment-token';
 
 test.use({viewport:{width:360,height:740},isMobile:true,hasTouch:true});
-test('signed-in professional retries eligible leads, submits a quote and opens the booked appointment',async({page})=>{
+test('signed-in professional retries eligible leads, submits a quote and proposes a time after calendar recovery',async({page})=>{
  test.skip(process.env.NEXT_PUBLIC_SUPABASE_URL!==backend,'Requires the isolated loopback application build.');
  test.setTimeout(60000);
  page.setDefaultTimeout(10000);
  let leadOutage=true;
  let writes=0;
+ let calendarOutage=true;
+ let proposal: {booking_id:string;proposed_by:string;starts_at:string;ends_at:string;timezone_name:string;status:string}|null=null;
  const fixture=createServer(async(request,response)=>{
   const path=new URL(request.url??'/',backend).pathname;
   const reply=(status:number,data:unknown)=>{
@@ -56,6 +58,20 @@ test('signed-in professional retries eligible leads, submits a quote and opens t
    case '/rest/v1/job_bookings':
     return reply(200,writes?[{id:bookingId,quote_id:quoteId,customer_id:'synthetic-customer',
      professional_id:professional.id,status:'booked'}]:[]);
+   case '/rest/v1/booking_appointments':
+    if(calendarOutage){calendarOutage=false;return reply(500,{message:'Synthetic calendar outage'});}
+    return reply(200,proposal?[proposal]:[]);
+   case '/rest/v1/rpc/propose_booking_appointment':{
+    let raw='';
+    for await(const chunk of request)raw+=chunk;
+    const {p_booking,p_start,p_end,p_timezone}=JSON.parse(raw);
+    if(proposal||p_booking!==bookingId||p_timezone!=='Europe/London'||!(Date.parse(p_end)>Date.parse(p_start))){
+     return reply(400,{message:'Unexpected appointment proposal'});
+    }
+    proposal={booking_id:p_booking,proposed_by:professional.id,starts_at:p_start,ends_at:p_end,
+     timezone_name:p_timezone,status:'proposed'};
+    return reply(200,null);
+   }
    default:return reply(200,[]);
   }
  });
@@ -87,8 +103,20 @@ test('signed-in professional retries eligible leads, submits a quote and opens t
   await expect(appointment).toHaveAttribute('href','/schedule?booking='+bookingId);
   await appointment.click();
   await expect(page).toHaveURL(app+'/schedule?booking='+bookingId);
+  const retry=page.getByRole('button',{name:'Retry loading appointments'});
+  await expect(retry).toBeVisible();
+  await expect(page.getByText('No bookings yet.',{exact:false})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Propose appointment'})).toHaveCount(0);
+  await retry.press('Enter');
   await expect(page.getByRole('heading',{name:'Propose or change a time'})).toBeVisible();
   await expect(page.getByRole('combobox',{name:/^Booking/})).toHaveValue(bookingId);
+  const date=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  await page.getByLabel('Start date and time').fill(date+'T10:00');
+  await page.getByLabel('End date and time').fill(date+'T11:00');
+  await page.getByLabel('IANA time zone').fill('Europe/London');
+  await page.getByRole('button',{name:'Propose appointment'}).click();
+  await expect(page.getByText('Appointment time proposed in Europe/London.',{exact:false})).toBeVisible();
+  await expect(page.getByText('Appointment: proposed')).toBeVisible();
   expect(writes).toBe(1);
  }finally{
   await new Promise<void>((resolve,reject)=>{
