@@ -50,6 +50,7 @@ jobs:
             curl -fsS -o /dev/null "http://127.0.0.1:3007$path"
           done
           curl -fsS http://127.0.0.1:3007/api/health | grep -q '"status":"ok"'
+          node tests/release/signed-in-smoke.mjs
 
       - name: Install Chromium browser runtime
         run: npx playwright install --with-deps chromium
