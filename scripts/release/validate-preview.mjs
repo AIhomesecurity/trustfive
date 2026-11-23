@@ -1,3 +1,5 @@
+import {pathToFileURL} from 'node:url';
+
 const previewOrigin = 'https://preview.trustfive.co.uk';
 
 export async function validatePreview({origin, fetchImpl = fetch, clientId, clientSecret, expectedSha}) {
@@ -29,5 +31,24 @@ export async function validatePreview({origin, fetchImpl = fetch, clientId, clie
   const report = await authorized.json().catch(() => null);
   if (report?.service !== 'trustfive-web' || report.status !== 'ok' || report.commitSha !== expectedSha) {
     throw new Error('Preview health or release commit could not be verified');
+  }
+}
+
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    if (process.argv.length !== 3) {
+      throw new Error('Usage: node scripts/release/validate-preview.mjs EXPECTED_COMMIT_SHA');
+    }
+    await validatePreview({
+      origin: previewOrigin,
+      clientId: process.env.CF_ACCESS_CLIENT_ID,
+      clientSecret: process.env.CF_ACCESS_CLIENT_SECRET,
+      expectedSha: process.argv[2],
+    });
+    console.log('Private preview verified for ' + process.argv[2]);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : 'Preview verification failed');
+    process.exitCode = 1;
   }
 }
