@@ -213,6 +213,10 @@ export default function SocialGroupConversation(){
      </section>
      <section aria-labelledby="group-discussions-title">
       <h2 id="group-discussions-title">Member discussions</h2>
+      <button type="button" className="btn secondary" aria-disabled={postsLoading||busy}
+       onClick={()=>{if(!postsLoading&&!busy)setPostsRevision(v=>v+1);}}>
+       {postsLoading?'Refreshing discussions…':'Refresh discussions'}
+      </button>
       {postsLoading?<p className="card" role="status">Loading real group posts…</p>
        :postsError?<div className="card" role="alert"><p>{postsError}</p><button type="button" className="btn secondary" onClick={()=>setPostsRevision(v=>v+1)}>Retry posts</button></div>
        :<>
