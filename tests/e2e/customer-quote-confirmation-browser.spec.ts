@@ -12,12 +12,13 @@ const bookingId='dddddddd-0000-4000-8000-000000000001';
 const token='synthetic-quote-confirmation-token';
 
 test.use({viewport:{width:360,height:740},isMobile:true,hasTouch:true});
-test('signed-in customer can cancel and confirm a quote by keyboard after a reload failure',async({page})=>{
+test('signed-in customer can cancel and confirm a quote by keyboard after a reload failure and retry booking appointments',async({page})=>{
  test.skip(process.env.NEXT_PUBLIC_SUPABASE_URL!==backend,'Requires the isolated loopback application build.');
  test.setTimeout(60000);
  page.setDefaultTimeout(10000);
  let accepted=0;
  let failRefresh=false;
+ let appointmentLookups=0;
  const fixture=createServer(async(request,response)=>{
   const path=new URL(request.url??'/',backend).pathname;
   const reply=(status:number,data:unknown)=>{
@@ -46,7 +47,12 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
     return reply(200,bookingId);
    }
    case '/rest/v1/job_bookings':
-    return reply(200,accepted?[{id:bookingId,job_id:jobId,customer_id:user.id}]:[]);
+    return reply(200,accepted?[{id:bookingId,job_id:jobId,quote_id:quoteId,customer_id:user.id,
+     professional_id:'eeeeeeee-0000-4000-8000-000000000001',status:'confirmed',created_at:'2026-11-23T00:00:00Z'}]:[]);
+   case '/rest/v1/booking_appointments':
+    appointmentLookups++;
+    if(appointmentLookups<=2)return reply(503,{message:'Synthetic appointment outage'});
+    return reply(200,[]);
    default:return reply(200,[]);
   }
  });
@@ -83,7 +89,19 @@ test('signed-in customer can cancel and confirm a quote by keyboard after a relo
   expect(accepted).toBe(1);
 
   await page.reload();
-  await expect(page.getByRole('link',{name:'Manage confirmed booking'})).toHaveAttribute('href','/bookings?booking='+bookingId);
+  const booking=page.getByRole('link',{name:'Manage confirmed booking'});
+  await expect(booking).toHaveAttribute('href','/bookings?booking='+bookingId);
+  await booking.click();
+  await expect(page.getByTestId('bookings-load-error')).toContainText('Unable to check appointment times');
+  await expect(page.getByTestId('count-active')).toHaveCount(0);
+  await page.getByRole('button',{name:'Retry loading bookings'}).click();
+  await expect(page.getByRole('button',{name:'Retry loading bookings'})).toBeEnabled();
+  await expect(page.getByTestId('bookings-load-error')).toBeVisible();
+  await page.getByRole('button',{name:'Retry loading bookings'}).click();
+  await expect(page.getByTestId('bookings-load-error')).toHaveCount(0);
+  await expect(page.getByTestId('count-active')).toBeVisible();
+  await expect(page).toHaveURL(/booking=dddddddd-0000-4000-8000-000000000001$/);
+  expect(appointmentLookups).toBe(3);
  }finally{
   await new Promise<void>((resolve,reject)=>{
    fixture.close(error=>error?reject(error):resolve());

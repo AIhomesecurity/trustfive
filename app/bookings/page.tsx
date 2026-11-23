@@ -133,6 +133,7 @@ export default function Bookings() {
       ]);
       if (b.error) throw b.error;
       if (r.error) throw r.error;
+      if (ap.error) throw new Error('Unable to check appointment times. Please retry loading bookings.');
       if (currentRequest !== refreshRequest.current) return;
 
       const recent = (b.data || []) as Booking[];
@@ -152,10 +153,8 @@ export default function Bookings() {
       setInitialLoadError('');
 
       const apptMap: Record<string, Appointment> = {};
-      if (!ap.error && ap.data) {
-        for (const item of ap.data as Appointment[]) {
-          apptMap[item.booking_id] = item;
-        }
+      for (const item of (ap.data || []) as Appointment[]) {
+        apptMap[item.booking_id] = item;
       }
       setAppointments(apptMap);
 
@@ -569,9 +568,11 @@ export default function Bookings() {
       return;
     }
     try {
-      await refresh(userIdRef.current);
+      await refresh(userIdRef.current, {preserveNotice: true});
+      showNotice('', 'info');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not refresh bookings right now.';
+      setInitialLoadError(msg);
       showNotice(msg, 'error');
     }
   }
