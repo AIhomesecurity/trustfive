@@ -32,6 +32,11 @@ import assert from 'node:assert/strict';
 const response = JSON.parse(process.env.HEALTH_RESPONSE);
 assert.equal(response.service, 'trustfive-web');
 assert.equal(response.status, 'ok');
+const expectedSha = process.env.EXPECTED_WORKER_SHA;
+if (expectedSha !== undefined) {
+  assert.match(expectedSha, /^[a-f0-9]{40}$/, 'Expected Worker build SHA must be a full Git commit');
+  assert.equal(response.commitSha, expectedSha, 'Worker health must identify the exact build');
+}
 JS
 
 node --input-type=module <<'JS'
