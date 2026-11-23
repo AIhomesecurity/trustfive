@@ -19,7 +19,7 @@ test('Enter never silently selects one of two matching properties',async({page})
  const options=page.getByRole('listbox',{name:'Matching addresses'}).getByRole('option');
  await expect(options).toHaveCount(2);
  await input.press('Enter');
- await expect(page.getByText('Choose your exact address from the suggestions below.')).toBeVisible();
+ await expect(page.getByText('Choose a location from the suggestions below.')).toBeVisible();
  await expect(page.getByText('Searching near:')).toHaveCount(0);
  await expect(page.getByLabel('Sort results')).toHaveValue('quality');
  // A keyboard user can tab to the desired result and activate it.
@@ -91,7 +91,8 @@ test('mobile keyboard retries an outage and reopens a dismissed result before ch
  await page.getByRole('button',{name:'Retry address lookup'}).press('Enter');
  await expect(options.getByRole('option')).toContainText('3 Example Street');
 
- await input.press('Escape');
+ await expect(input).toBeFocused();
+ await page.keyboard.press('Escape');
  await expect(options).toHaveCount(0);
  await input.press('Enter');
  await expect(options.getByRole('option')).toContainText('3 Example Street');
