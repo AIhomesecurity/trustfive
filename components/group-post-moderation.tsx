@@ -12,16 +12,37 @@ export default function GroupPostModeration(){
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
  const [decision,setDecision]=useState<{id:string;action:Decision}|null>(null);
+ const cancelButton=useRef<HTMLButtonElement>(null);
+ const status=useRef<HTMLParagraphElement>(null);
+ const restoreFocus=useRef<{id:string;action:Decision}|null>(null);
+ const actionButtons=useRef(new Map<string,HTMLButtonElement>());
+ const focusStatus=useRef(false);
  const inFlight=useRef(false);
  const epoch=useRef(0);
 
  useEffect(()=>{
   const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange(event=>{
    if(event!=='SIGNED_OUT'&&event!=='SIGNED_IN'&&event!=='USER_UPDATED')return;
-   epoch.current++;setReports(null);setDecision(null);setNotice('');
+   epoch.current++;restoreFocus.current=null;focusStatus.current=false;setReports(null);setDecision(null);setNotice('');
   });
   return()=>{epoch.current++;subscription.unsubscribe();};
  },[]);
+
+ useEffect(()=>{
+  if(decision&&!busy)cancelButton.current?.focus();
+  if(!decision&&restoreFocus.current){
+   const {id,action}=restoreFocus.current;
+   actionButtons.current.get(id+':'+action)?.focus();
+   restoreFocus.current=null;
+  }
+ },[decision,busy]);
+
+ useEffect(()=>{
+  if(notice&&focusStatus.current){
+   focusStatus.current=false;
+   status.current?.focus();
+  }
+ },[notice]);
 
  async function run(action?:{id:string;action:Decision}){
   if(inFlight.current)return;
@@ -42,10 +63,12 @@ export default function GroupPostModeration(){
    if(error)throw error;
    if(version!==epoch.current)return;
    setReports((data??[]) as Report[]);
+   if(resolved)focusStatus.current=true;
    if(resolved)setNotice(action?.action==='hide'?'Post hidden and decision recorded.':'Report dismissed and decision recorded.');
   }catch{
    if(version!==epoch.current)return;
    setReports(null);setDecision(null);
+   focusStatus.current=Boolean(action);
    setNotice(resolved?'Decision recorded. Reload the queue to see remaining reports.':
     'Could not load or update group reports. Check your access and try again.');
   }finally{
@@ -58,21 +81,23 @@ export default function GroupPostModeration(){
   <button type="button" className="btn secondary" disabled={busy} onClick={()=>void run()}>
    {busy?'Working…':reports?'Refresh group reports':'Load group reports'}
   </button>
-  {notice&&<p role="status" className="notice">{notice}</p>}
+  {notice&&<p ref={status} role="status" tabIndex={-1} className="notice">{notice}</p>}
   {reports?.length===0&&<p>No pending group post reports.</p>}
   {reports?.map(report=><article className="notice" key={report.id}>
    <h3>{report.category} report</h3>
    <p className="muted-note">{readablePostDate(report.created_at)}</p>
    <blockquote style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{report.post_body}</blockquote>
    {report.explanation&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>Reporter details: {report.explanation}</p>}
-   {decision?.id===report.id?<div role="group" aria-label="Confirm moderation decision" className="social-hub-shortcuts">
+   {decision?.id===report.id?<div role="group" aria-label="Confirm moderation decision" className="social-hub-shortcuts" onKeyDown={event=>{
+     if(event.key==='Escape'&&!busy){event.preventDefault();restoreFocus.current=decision;setDecision(null);}
+    }}>
     <button type="button" className="btn" disabled={busy} onClick={()=>void run(decision)}>
      {decision.action==='hide'?'Confirm hide post':'Confirm dismiss report'}
     </button>
-    <button type="button" className="btn secondary" disabled={busy} onClick={()=>setDecision(null)}>Cancel</button>
+    <button ref={cancelButton} type="button" className="btn secondary" disabled={busy} onClick={()=>{restoreFocus.current=decision;setDecision(null);}}>Cancel</button>
    </div>:<div className="social-hub-shortcuts">
-    <button type="button" className="btn secondary" disabled={busy} onClick={()=>setDecision({id:report.id,action:'hide'})}>Hide post</button>
-    <button type="button" className="btn secondary" disabled={busy} onClick={()=>setDecision({id:report.id,action:'dismiss'})}>Dismiss report</button>
+    <button type="button" className="btn secondary" disabled={busy} ref={button=>{const key=report.id+':hide';if(button)actionButtons.current.set(key,button);else actionButtons.current.delete(key);}} onClick={()=>setDecision({id:report.id,action:'hide'})}>Hide post</button>
+    <button type="button" className="btn secondary" disabled={busy} ref={button=>{const key=report.id+':dismiss';if(button)actionButtons.current.set(key,button);else actionButtons.current.delete(key);}} onClick={()=>setDecision({id:report.id,action:'dismiss'})}>Dismiss report</button>
    </div>}
   </article>)}
  </section>;

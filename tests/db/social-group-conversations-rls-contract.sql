@@ -184,6 +184,11 @@ begin
  exception when unique_violation then null;
  end;
  begin
+  perform 1 from public.community_group_post_reports;
+  raise exception 'Reporter could read the private report table directly';
+ exception when insufficient_privilege then null;
+ end;
+ begin
   perform public.pending_group_post_reports();
   raise exception 'Non-admin could read the moderation queue';
  exception when insufficient_privilege then null;
@@ -210,6 +215,10 @@ begin
  perform public.moderate_group_post_report(v_report,'hide');
  if exists(select 1 from public.pending_group_post_reports() where id=v_report) then
   raise exception 'Resolved report stayed in the pending queue';
+ end if;
+ if not exists(select 1 from public.pending_group_post_reports()
+  where explanation='Synthetic report to dismiss.') then
+  raise exception 'Hiding the first post removed an unrelated pending report';
  end if;
  if not exists(select 1 from public.network_audit_events
   where action='community_group_post_report_resolved' and actor_id=v_admin
