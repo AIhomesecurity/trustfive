@@ -1,15 +1,20 @@
 import Link from 'next/link';
 
 export type DirectoryEmptyContext={
- hasLocation:boolean;
+ locationPrecision:'address'|'postcode'|null;
  hasTrade:boolean;
  hasArea:boolean;
 };
-export function directoryEmptyCopy({hasLocation,hasTrade,hasArea}:DirectoryEmptyContext){
- if(hasLocation)return {
+export function directoryEmptyCopy({locationPrecision,hasTrade,hasArea}:DirectoryEmptyContext){
+ if(locationPrecision==='postcode')return {
+  title:'No approved professionals near this postcode centre yet',
+  description:'This search uses an approximate postcode or district centre. Verified service locations may match a different property location.',
+  action:'Change search location'
+ };
+ if(locationPrecision==='address')return {
   title:'No approved professionals near this address yet',
   description:'We only show approved professionals with verified service locations covering your selected address. We will not fill gaps with unvetted listings.',
-  action:'Try a different location or service'
+  action:'Change search location'
  };
  if(hasArea&&hasTrade)return {
   title:'No approved professionals for this trade in the selected area yet',
@@ -33,8 +38,8 @@ export function directoryEmptyCopy({hasLocation,hasTrade,hasArea}:DirectoryEmpty
  };
 }
 
-export default function DirectoryEmptyState({context,onReset,jobHref}:{
- context:DirectoryEmptyContext;onReset:()=>void;jobHref:string;
+export default function DirectoryEmptyState({context,onReset,onChangeLocation,jobHref}:{
+ context:DirectoryEmptyContext;onReset:()=>void;onChangeLocation:()=>void;jobHref:string;
 }){
  const copy=directoryEmptyCopy(context);
  return <div className="directory-empty" role="status">
@@ -42,7 +47,7 @@ export default function DirectoryEmptyState({context,onReset,jobHref}:{
   <h3>{copy.title}</h3>
   <p>{copy.description}</p>
   <div className="directory-empty-actions">
-   <button type="button" className="btn secondary" onClick={onReset}>{copy.action}</button>
+   <button type="button" className="btn secondary" onClick={context.locationPrecision?onChangeLocation:onReset}>{copy.action}</button>
    <Link className="btn" href={jobHref}>Post your job</Link>
    <Link className="btn secondary" href="/coverage">Register interest in your UK area</Link>
   </div>

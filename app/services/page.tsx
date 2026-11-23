@@ -214,7 +214,11 @@ export default function Services(){
       </div>
      </article>)}</div>}
     {!resultsLoading&&!resultsError&&visible.length===0&&
-     <DirectoryEmptyState context={{hasLocation:Boolean(location),hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={clearFilters} jobHref={jobHref}/>}
+     <DirectoryEmptyState context={{locationPrecision:location?.precision??null,hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={clearFilters}
+      onChangeLocation={()=>{
+       const input=document.getElementById('directory-address');
+       if(input instanceof HTMLInputElement){input.focus();input.select();}
+      }} jobHref={jobHref}/>}
 
    </section>
   </div>
