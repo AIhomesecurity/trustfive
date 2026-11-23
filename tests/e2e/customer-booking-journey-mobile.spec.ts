@@ -489,6 +489,7 @@ test('repeatable mobile customer journey: trade & area -> post job -> accept quo
         'Synthetic temporary review outage — your draft is preserved above so you can retry safely.'
       )
     ).toBeVisible();
+    await expect(completionSection.getByRole('alert')).toBeFocused();
     await expect(starsSelect).toHaveValue('4');
     await expect(bodyInput).toHaveValue(reviewText);
     expect(reviewAttempts).toBe(1);
