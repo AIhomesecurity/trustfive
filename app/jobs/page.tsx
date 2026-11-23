@@ -44,6 +44,22 @@ export default function Jobs(){
  const [jobBookingLinks,setJobBookingLinks]=useState<Map<string,string>>(()=>new Map());
  const [confirmedBookingHref,setConfirmedBookingHref]=useState('');
  const [confirmQuoteId,setConfirmQuoteId]=useState<string|null>(null);
+ const quoteCancelButton=useRef<HTMLButtonElement>(null);
+ const confirmedBookingLink=useRef<HTMLAnchorElement>(null);
+ const quoteFocus=useRef<{kind:'restore';id:string}|{kind:'booking'}|null>(null);
+
+ useEffect(()=>{
+  if(confirmQuoteId){quoteCancelButton.current?.focus();return;}
+  const target=quoteFocus.current;
+  quoteFocus.current=null;
+  if(target?.kind==='restore')document.getElementById('review-quote-'+target.id)?.focus();
+  if(target?.kind==='booking')confirmedBookingLink.current?.focus();
+ },[confirmQuoteId]);
+
+ function closeQuoteConfirmation(quoteId:string){
+  quoteFocus.current={kind:'restore',id:quoteId};
+  setConfirmQuoteId(null);
+ }
  const [confirmCancelJobId,setConfirmCancelJobId]=useState<string|null>(null);
  const [cancelReason,setCancelReason]=useState('');
  const [confirmReopenJobId,setConfirmReopenJobId]=useState<string|null>(null);
@@ -228,12 +244,13 @@ export default function Jobs(){
 
  async function accept(quoteId:string){
   if(busy||actionInFlight.current||confirmQuoteId!==quoteId)return;
-  if(!canConfirmJobQuote(quoteId,quotes,jobs)){setConfirmQuoteId(null);setMessage('This quote can no longer be accepted. Refresh your jobs and try again.');return;}
+  if(!canConfirmJobQuote(quoteId,quotes,jobs)){closeQuoteConfirmation(quoteId);setMessage('This quote can no longer be accepted. Refresh your jobs and try again.');return;}
   actionInFlight.current=true;setBusy(true);setMessage('');
   try{
    const {data,error}=await supabaseBrowser().rpc('accept_job_quote',{p_quote:quoteId});
    if(error)throw error;
    const acceptedJobId=quotes.find(quote=>quote.quote_id===quoteId)?.job_id;
+   quoteFocus.current={kind:'booking'};
    setConfirmedBookingHref(acceptedQuoteBookingHref(data));
    setConfirmQuoteId(null);
    setJobs(current=>current.map(job=>job.id===acceptedJobId?{...job,status:'booked'}:job));
@@ -309,7 +326,7 @@ export default function Jobs(){
    <p className="subtle">Post a job step-by-step, manage open or cancelled requests, inspect genuine activity history, and compare quotations from independently approved local professionals.</p>
   </div>
   {message&&<p className="notice" role="status">{message}</p>}
-  {confirmedBookingHref&&userId&&<p><Link className="btn" href={confirmedBookingHref}>Open your confirmed booking →</Link></p>}
+  {confirmedBookingHref&&userId&&<p><Link ref={confirmedBookingLink} className="btn" href={confirmedBookingHref}>Open your confirmed booking →</Link></p>}
   {initialLoading?<p className="notice" role="status" aria-live="polite">Checking your account and loading jobs…</p>:
   !userId?<Link className="btn" href={'/account?next='+encodeURIComponent(typeof window==='undefined'?'/jobs':window.location.pathname+window.location.search)}>Sign in / create account</Link>:
   <div className="two-col">
@@ -455,16 +472,18 @@ export default function Jobs(){
         <p style={{marginTop:12}}><Link href={quoteMessagesHref(q.quote_id)}>Message this professional →</Link></p>
         {j.status==='open'&&q.status==='pending'&&(
          confirmQuoteId===q.quote_id?
-         <div className="quote-confirmation" role="group" aria-label={'Confirm quote from '+q.business_name}>
+         <div className="quote-confirmation" role="group" aria-label={'Confirm quote from '+q.business_name} onKeyDown={event=>{
+          if(event.key==='Escape'&&!actionInFlight.current){event.preventDefault();closeQuoteConfirmation(q.quote_id);}
+         }}>
           <h4>Confirm this booking?</h4>
           <p>You are choosing <strong>{q.business_name}</strong> for <strong>{money(q.amount_pence)}</strong> for “{j.title}”.</p>
           <p className="muted-note">Confirming creates a TrustFive booking. No payment is collected here. Agree the work, timing and terms with the professional. Your exact job address stays private unless you separately choose to share it for the booking.</p>
           <div className="quote-confirmation-actions">
            <button type="button" className="btn" disabled={busy} onClick={()=>void accept(q.quote_id)}>{busy?'Confirming…':'Confirm and create booking'}</button>
-           <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmQuoteId(null)}>Cancel</button>
+           <button ref={quoteCancelButton} type="button" className="btn secondary" disabled={busy} onClick={()=>closeQuoteConfirmation(q.quote_id)}>Cancel</button>
           </div>
          </div>:
-         <button type="button" disabled={busy} className="btn" onClick={()=>{setConfirmQuoteId(q.quote_id);setMessage('');}}>Review and accept quote</button>
+         <button id={'review-quote-'+q.quote_id} type="button" disabled={busy} className="btn" onClick={()=>{setConfirmQuoteId(q.quote_id);setMessage('');}}>Review and accept quote</button>
         )}
        </div>)}
        {j.status==='booked'&&<p style={{marginTop:12}}><Link href={jobBookingLinks.get(j.id)??'/bookings'}>Manage confirmed booking →</Link></p>}
