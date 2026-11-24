@@ -15,10 +15,14 @@ const ids = [
 ];
 
 function run(report, expectedSha = sha) {
+  return runRaw(JSON.stringify(report), expectedSha);
+}
+
+function runRaw(source, expectedSha = sha) {
   const directory = mkdtempSync(join(tmpdir(), 'trustfive-evidence-'));
   try {
     const path = join(directory, 'report.json');
-    writeFileSync(path, JSON.stringify(report));
+    writeFileSync(path, source);
     return spawnSync(process.execPath, [script, path, expectedSha], {encoding: 'utf8'});
   } finally {
     rmSync(directory, {recursive: true, force: true});
@@ -52,4 +56,12 @@ test('rejects the wrong commit or unexpected fields without copying data to outp
     assert.equal(result.status, 1);
     assert.doesNotMatch(result.stdout + result.stderr, /fictional private details/);
   }
+});
+
+test('rejects truncated release evidence without echoing its contents', () => {
+  const result = runRaw('{"sha":"' + sha + '","evidence":{"ranking":"fictional private details"');
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Error parsing JSON/);
+  assert.equal(result.stdout, '');
+  assert.doesNotMatch(result.stderr, /fictional private details/);
 });
