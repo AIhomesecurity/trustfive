@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import {safeNotificationTarget} from '../../lib/notification-target';
 import {
+  classifyNotificationReadFailure,
   countUnreadNotifications,
   filterAccountNotifications,
   NOTIFICATION_DELIVERY_CHANNELS,
@@ -18,11 +19,15 @@ export default function Notifications() {
   const [signedIn, setSignedIn] = useState(false);
   const [checkingAccount, setCheckingAccount] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [refreshError, setRefreshError] = useState('');
   const [actionNotice, setActionNotice] = useState('');
   const [actionIsError, setActionIsError] = useState(false);
+  const [failedReadIds, setFailedReadIds] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const inFlightRef = useRef(false);
   const noticeRef = useRef<HTMLParagraphElement>(null);
+  const refreshAlertRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -38,8 +43,10 @@ export default function Notifications() {
   const loadAccountAndNotifications = useCallback(async () => {
     setCheckingAccount(true);
     setLoadError('');
+    setRefreshError('');
     setActionNotice('');
     setActionIsError(false);
+    setFailedReadIds({});
     try {
       const {
         data: {user},
@@ -65,36 +72,62 @@ export default function Notifications() {
   }, [loadAccountAndNotifications]);
 
   async function refreshInbox() {
-    if (refreshing || busy) return;
+    if (refreshing || busy || inFlightRef.current) return;
+    inFlightRef.current = true;
     setRefreshing(true);
-    setLoadError('');
+    setRefreshError('');
     setActionNotice('');
     setActionIsError(false);
     try {
       await fetchNotifications();
+      setFailedReadIds({});
     } catch {
-      setLoadError('Could not refresh notifications. Please retry.');
+      setRefreshError('Could not refresh notifications. Your previously loaded items remain visible below.');
+      window.requestAnimationFrame(() => refreshAlertRef.current?.focus());
     } finally {
+      inFlightRef.current = false;
       setRefreshing(false);
     }
   }
 
   async function markRead(id: string) {
-    if (busy) return;
+    if (busy || refreshing || inFlightRef.current) return;
+    inFlightRef.current = true;
     setBusy(id);
     setActionNotice('');
     setActionIsError(false);
+    setRefreshError('');
     try {
       const {data, error} = await supabaseBrowser().rpc('mark_notification_read', {
         p_notification: id,
       });
       if (error) throw error;
-      if (data !== true) throw Error('Notification not found');
+      if (data !== true) {
+        const classified = classifyNotificationReadFailure(new Error('Notification not found'));
+        setFailedReadIds(prev => {
+          const next = {...prev};
+          delete next[id];
+          return next;
+        });
+        try {
+          await fetchNotifications();
+        } catch {
+          // Keep current state visible if follow-up refresh also fails.
+        }
+        setActionIsError(false);
+        setActionNotice(classified.message);
+        return;
+      }
       setItems(prev =>
         prev.map(item =>
           item.id === id ? {...item, read_at: item.read_at ?? new Date().toISOString()} : item
         )
       );
+      setFailedReadIds(prev => {
+        const next = {...prev};
+        delete next[id];
+        return next;
+      });
       setActionIsError(false);
       setActionNotice('Notification marked as read.');
       try {
@@ -102,11 +135,14 @@ export default function Notifications() {
       } catch {
         setActionNotice('Notification marked as read. Refresh to sync newer updates.');
       }
-    } catch {
+    } catch (err) {
+      const classified = classifyNotificationReadFailure(err);
+      setFailedReadIds(prev => ({...prev, [id]: true}));
       setActionIsError(true);
-      setActionNotice('Unable to mark notification as read. Please try again.');
+      setActionNotice(classified.message);
       window.requestAnimationFrame(() => noticeRef.current?.focus());
     } finally {
+      inFlightRef.current = false;
       setBusy('');
     }
   }
@@ -209,6 +245,20 @@ export default function Notifications() {
             </button>
           </div>
 
+          {refreshError ? (
+            <div ref={refreshAlertRef} tabIndex={-1} className="notice error" role="alert" style={{marginBottom: 14}}>
+              <p style={{margin: '0 0 8px'}}>{refreshError}</p>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={refreshing || busy !== ''}
+                onClick={() => void refreshInbox()}
+              >
+                Retry refresh
+              </button>
+            </div>
+          ) : null}
+
           {actionNotice ? (
             <p
               ref={noticeRef}
@@ -256,7 +306,7 @@ export default function Notifications() {
                     {!item.read_at ? (
                       <button
                         type="button"
-                        disabled={busy !== ''}
+                        disabled={busy !== '' || refreshing}
                         className="btn secondary"
                         onClick={() => void markRead(item.id)}
                       >
@@ -264,6 +314,11 @@ export default function Notifications() {
                       </button>
                     ) : null}
                   </div>
+                  {failedReadIds[item.id] && !item.read_at ? (
+                    <p className="muted-note" style={{margin: '8px 0 0'}}>
+                      Last attempt did not save — try marking as read again.
+                    </p>
+                  ) : null}
                 </article>
               ))
             )}

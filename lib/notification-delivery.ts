@@ -42,3 +42,27 @@ export function filterAccountNotifications<T extends Pick<AccountNotificationRec
 export function notificationDeliveryLabel(item: Pick<AccountNotificationRecord, 'read_at'>): string {
   return item.read_at ? 'Read in app' : 'Delivered in app · Unread';
 }
+
+export type NotificationReadErrorKind = 'already_resolved' | 'transient';
+
+export function classifyNotificationReadFailure(error: unknown): {
+  kind: NotificationReadErrorKind;
+  message: string;
+} {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error && typeof (error as {message?: unknown}).message === 'string'
+        ? (error as {message: string}).message
+        : '';
+  if (/not found|already read/i.test(raw)) {
+    return {
+      kind: 'already_resolved',
+      message: 'This notification was already read or is no longer available. Your inbox has been refreshed.',
+    };
+  }
+  return {
+    kind: 'transient',
+    message: 'Unable to mark notification as read. Please try again.',
+  };
+}

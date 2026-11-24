@@ -5,6 +5,7 @@ const loopbackSpecs = [
  '**/customer-booking-journey-mobile.spec.ts',
  '**/customer-quote-confirmation-browser.spec.ts',
  '**/marketplace-onboarding-journey-rehearsal.spec.ts',
+ '**/notification-failure-recovery.spec.ts',
  '**/professional-availability-overlap.spec.ts',
  '**/signed-in-group-moderation.spec.ts',
  '**/signed-in-professional-appointment.spec.ts',
