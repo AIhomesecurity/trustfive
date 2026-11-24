@@ -1,6 +1,7 @@
 import {defineConfig,devices} from '@playwright/test';
 // These specs each bind the same loopback Supabase fixture port.
 const loopbackSpecs = [
+ '**/complaints-disputes-lifecycle.spec.ts',
  '**/customer-booking-journey-mobile.spec.ts',
  '**/customer-quote-confirmation-browser.spec.ts',
  '**/marketplace-onboarding-journey-rehearsal.spec.ts',
