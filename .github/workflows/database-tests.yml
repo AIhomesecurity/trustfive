@@ -50,6 +50,16 @@ jobs:
             echo "Applying $migration"
             psql -v ON_ERROR_STOP=1 -f "$migration"
           done
+      - name: Verify preview schema readiness after migration replay
+        run: |
+          checks=$(psql -XAt -v ON_ERROR_STOP=1 -f scripts/release/preview-schema-readiness.sql)
+          printf '%s\n' "$checks"
+          test -n "$checks"
+          if grep -qvE '^.+[|]t$' <<< "$checks"; then
+            echo "Preview schema readiness check failed" >&2
+            exit 1
+          fi
+
       - name: Test RLS, five-slot constraint and quote completion
         run: psql -v ON_ERROR_STOP=1 -f tests/db/flows.sql
 
