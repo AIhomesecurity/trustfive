@@ -453,12 +453,12 @@ reset role;
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
 insert into public.professional_business_pages(
- application_id,owner_id,display_name,description,website_url,status
+ application_id,owner_id,display_name,description,status
 ) values(
  '00000000-0000-0000-0001-000000000001',auth.uid(),
  'Local Plumbing Example',
  'Verified plumbing services with experience in residential maintenance and repairs.',
- 'https://example.org','draft'
+ 'draft'
 );
 select public.submit_business_page('00000000-0000-0000-0001-000000000001');
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
@@ -475,8 +475,12 @@ select public.review_business_page(
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
 do $$
 begin
- if (select count(*) from public.professional_business_pages where
-  status='published')<>1 then raise exception 'Approved business page was not published'; end if;
+ if exists (select 1 from public.professional_business_pages) then
+  raise exception 'Unrelated signed-in user can read the business source row';
+ end if;
+ if (select count(*) from public.public_showcase_business('00000000-0000-0000-0001-000000000001'))<>1 then
+  raise exception 'Approved business vanished from the public projection';
+ end if;
 end $$;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000006',false);
 insert into public.professional_business_pages(

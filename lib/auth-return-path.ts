@@ -16,7 +16,9 @@ export function safeAuthReturnPath(requested:string|null,allowPasswordReset=fals
  if(path.includes('%')||path.split('/').some(segment=>segment==='.'||segment==='..'))
   return '/dashboard';
  const segments=path.split('/').filter(Boolean);
- if(!segments.length||!protectedRoots.has(segments[0]))return '/dashboard';
+ const uuid='[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}';
+ const showcase=new RegExp('^/business/'+uuid+'/work/'+uuid+'$','i');
+ if(!segments.length||(!protectedRoots.has(segments[0])&&!showcase.test(path)))return '/dashboard';
  if(requested.length>2048)return '/dashboard';
  return requested;
 }

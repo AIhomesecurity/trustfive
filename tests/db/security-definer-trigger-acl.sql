@@ -36,7 +36,7 @@ do $$
 declare visible_count bigint;
 begin
  select count(*) into visible_count from public.professional_business_pages;
- if visible_count < 0 then raise exception 'Impossible public count'; end if;
+ if visible_count <> 0 then raise exception 'Anonymous access to private business rows'; end if;
 end $$;
 rollback;
 
