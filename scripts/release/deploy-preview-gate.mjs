@@ -539,6 +539,21 @@ export async function verifyPrebuiltWorkerArtifact({
         reasons.push('Generated worker.config.json must bind ASSETS with { type: "assets" }.');
       }
 
+      const runtimeUrl = workerConfig.env.NEXT_PUBLIC_SUPABASE_URL;
+      const publishableKey = workerConfig.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      const runtimeSha = workerConfig.env.TRUSTFIVE_BUILD_SHA;
+      if (runtimeUrl?.type !== 'text' || !normalizedPreviewSupabase ||
+          normalizeSupabaseOrigin(runtimeUrl.value) !== normalizedPreviewSupabase) {
+        reasons.push('Prebuilt Worker requires a NEXT_PUBLIC_SUPABASE_URL text binding for the isolated preview project.');
+      }
+      if (publishableKey?.type !== 'text' || typeof publishableKey.value !== 'string' ||
+          !/^sb_publishable_[A-Za-z0-9_-]+$/.test(publishableKey.value)) {
+        reasons.push('Prebuilt Worker requires a Supabase publishable key text binding.');
+      }
+      if (runtimeSha?.type !== 'text' || runtimeSha.value !== expectedCommitSha) {
+        reasons.push('Prebuilt Worker requires a TRUSTFIVE_BUILD_SHA text binding for the candidate commit.');
+      }
+
       for (const [bindingName, binding] of Object.entries(workerConfig.env)) {
         if (!isPlainObject(binding) || !isNonEmptyString(binding.type)) {
           reasons.push(`Generated worker.config.json binding "${bindingName}" is malformed.`);
