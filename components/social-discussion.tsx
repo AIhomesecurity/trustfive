@@ -21,9 +21,14 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  const [busy,setBusy]=useState(false);
  const [reporting,setReporting]=useState(false);
  const [reportOpen,setReportOpen]=useState(false);
+ const [reportSubmitted,setReportSubmitted]=useState(false);
  const [reportCategory,setReportCategory]=useState<SocialReportCategory>('spam');
  const [reportDetails,setReportDetails]=useState('');
+ const [noticeIsError,setNoticeIsError]=useState(false);
  const discussionToggle=useRef<HTMLButtonElement>(null);
+ const reportToggleRef=useRef<HTMLButtonElement>(null);
+ const reportCategoryRef=useRef<HTMLSelectElement>(null);
+ const noticeRef=useRef<HTMLParagraphElement>(null);
  const inFlight=useRef(false);
 
  async function readDiscussion(){
@@ -56,27 +61,28 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  async function submitReply(event:FormEvent){
   event.preventDefault();
   const validation=socialReplyError(reply);
-  if(validation){setNotice(validation);return;}
+  if(validation){setNoticeIsError(true);setNotice(validation);return;}
   if(!userId||inFlight.current)return;
-  inFlight.current=true;setBusy(true);setNotice('');
+  inFlight.current=true;setBusy(true);setNotice('');setNoticeIsError(false);
   try{
    const s=supabaseBrowser();
    const {error:insertError}=await s.from('community_comments')
     .insert({post_id:postId,author_id:userId,body:reply.trim()});
    if(insertError)throw insertError;
    setReply('');
+   setNoticeIsError(false);
    setNotice('Your reply was published. It may take a moment to appear.');
    const result=await s.from('community_comments')
     .select('id,post_id,body,created_at').eq('post_id',postId)
     .order('created_at',{ascending:true}).limit(100);
    if(result.error){setNotice('Your reply was published, but refreshing failed. Use Refresh discussion to load it.');}
    else setComments(result.data||[]);
-  }catch{setNotice('Could not publish your reply. Check the connection and try again.');}
+  }catch{setNoticeIsError(true);setNotice('Could not publish your reply. Check the connection and try again.');}
   finally{inFlight.current=false;setBusy(false);}
  }
  async function react(kind:SocialReactionKind){
   if(!userId||inFlight.current)return;
-  inFlight.current=true;setBusy(true);setNotice('');
+  inFlight.current=true;setBusy(true);setNotice('');setNoticeIsError(false);
   try{
    const s=supabaseBrowser();
    const current=reaction?.my_reaction||null;
@@ -93,12 +99,12 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
    }
    const row=((refreshed.data||[]) as SocialReactionSummary[]).find(item=>item.post_id===postId);
    setReaction(row||null);
-  }catch{setNotice('Could not update your reaction. Please retry.');}
+  }catch{setNoticeIsError(true);setNotice('Could not update your reaction. Please retry.');}
   finally{inFlight.current=false;setBusy(false);}
  }
  async function toggleSave(){
   if(!userId||inFlight.current)return;
-  inFlight.current=true;setBusy(true);setNotice('');
+  inFlight.current=true;setBusy(true);setNotice('');setNoticeIsError(false);
   try{
    if(saved){
     const result=await supabaseBrowser().from('social_saved_posts').delete()
@@ -112,24 +118,41 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
     setSaved(true);
     setNotice('Saved privately to your account. This does not affect rankings or post popularity.');
    }
-  }catch{setNotice('Could not update saved posts. Please refresh this discussion and retry.');}
+  }catch{setNoticeIsError(true);setNotice('Could not update saved posts. Please refresh this discussion and retry.');}
   finally{inFlight.current=false;setBusy(false);}
+ }
+ function toggleReportForm(){
+  setReportOpen(prev=>{
+   const next=!prev;
+   window.requestAnimationFrame(()=>{
+    if(next)reportCategoryRef.current?.focus();
+    else reportToggleRef.current?.focus();
+   });
+   return next;
+  });
+  setNotice('');setNoticeIsError(false);
  }
  async function report(event:FormEvent){
   event.preventDefault();
   const validation=socialReportError(reportCategory,reportDetails);
-  if(validation){setNotice(validation);return;}
-  if(!userId||reporting||inFlight.current)return;
-  inFlight.current=true;setReporting(true);setNotice('');
+  if(validation){setNoticeIsError(true);setNotice(validation);return;}
+  if(!userId||reporting||reportSubmitted||inFlight.current)return;
+  inFlight.current=true;setReporting(true);setNotice('');setNoticeIsError(false);
   try{
    const result=await supabaseBrowser().from('community_reports').insert({
     post_id:postId,reporter_id:userId,category:reportCategory,
     explanation:reportDetails.trim()||'Flagged by a community member for moderator review'
    });
-   if(result.error)throw result.error;
-   setReportOpen(false);setReportDetails('');
-   setNotice('Report submitted for moderator review.');
-  }catch{setNotice('Could not submit the report. Please retry.');}
+   if(result.error&&result.error.code!=='23505')throw result.error;
+   setReportOpen(false);setReportDetails('');setReportSubmitted(true);
+   setNoticeIsError(false);
+   setNotice(result.error?'You already reported this post.':'Report submitted for moderator review.');
+   window.requestAnimationFrame(()=>noticeRef.current?.focus());
+  }catch{
+   setNoticeIsError(true);
+   setNotice('Could not submit the report. Please retry.');
+   window.requestAnimationFrame(()=>noticeRef.current?.focus());
+  }
   finally{inFlight.current=false;setReporting(false);}
  }
  return <section aria-label="Post discussion" style={{marginTop:12}}>
@@ -148,18 +171,19 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
       onClick={()=>{void react('support');}}>Support ({reaction?.supports??0})</button>
      <button type="button" className="btn secondary" disabled={busy||reporting}
       aria-pressed={saved} onClick={()=>{void toggleSave();}}>{saved?'Remove saved post':'Save post privately'}</button>
-     <button type="button" className="btn secondary" disabled={busy||reporting}
-      aria-expanded={reportOpen} onClick={()=>{setReportOpen(v=>!v);setNotice('');}}>
+     {!reportSubmitted&&<button ref={reportToggleRef} type="button" className="btn secondary" disabled={busy||reporting}
+      aria-expanded={reportOpen} onClick={toggleReportForm}>
       {reportOpen?'Cancel report':'Report post'}
-     </button>
+     </button>}
      <button type="button" className="btn secondary" disabled={busy||reporting}
       onClick={()=>{void readDiscussion();}}>Refresh discussion</button>
     </div>
-    {reportOpen&&<form className="form card" aria-label="Report this community post" onSubmit={report} style={{marginBottom:14}}>
+    {reportOpen&&<form className="form card" aria-label="Report this community post" onSubmit={report} style={{marginBottom:14}}
+      onKeyDown={event=>{if(event.key==='Escape'&&!reporting){event.preventDefault();toggleReportForm();}}}>
       <h4>Report this post</h4>
       <p className="muted-note">Your report is sent to moderators. Reporting does not automatically remove a post or affect professional approval.</p>
       <label>Reason
-       <select value={reportCategory} disabled={reporting} onChange={event=>setReportCategory(event.target.value as SocialReportCategory)}>
+       <select ref={reportCategoryRef} value={reportCategory} disabled={reporting} onChange={event=>setReportCategory(event.target.value as SocialReportCategory)}>
         {SOCIAL_REPORT_CATEGORIES.map(kind=><option key={kind} value={kind}>{kind==='privacy'?'Private information':kind==='abuse'?'Abusive content':kind==='spam'?'Spam':'Other concern'}</option>)}
        </select>
       </label>
@@ -186,7 +210,7 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
      </button>
     </form>
    </>}
-   {notice&&<p className="notice" role="status">{notice}</p>}
+   {notice&&<p ref={noticeRef} tabIndex={-1} className={noticeIsError?'notice error':'notice'} role={noticeIsError?'alert':'status'}>{notice}</p>}
   </div>}
  </section>;
 }

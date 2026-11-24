@@ -171,7 +171,7 @@ export default function SocialGroupConversation(){
    <h1>Group conversations</h1>
    <p className="subtle">Community group membership is not TrustFive professional verification. Only group members may see or write group updates.</p>
    <div className="social-hub-shortcuts">
-    <Link href="/community/social?tab=trade" className="btn secondary">Back to Trade Network</Link>
+    <Link href="/community/social?tab=trade" className="btn secondary">Back to Social Groups</Link>
     <Link href="/community/groups" className="btn secondary">Browse all groups</Link>
    </div>
   </div>
@@ -226,7 +226,7 @@ export default function SocialGroupConversation(){
          {posts.map(post=><article className="card" key={post.id}>
           <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{post.body}</p>
           <p className="muted-note"><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
-          {post.author_id!==userId&&<GroupPostReport key={userId} postId={post.id} userId={userId}/>}
+          {post.author_id!==userId&&<GroupPostReport key={`${userId}:${post.id}`} postId={post.id} userId={userId}/>}
          </article>)}
         </div>
         <nav aria-label="Group post pages" className="social-hub-shortcuts">
