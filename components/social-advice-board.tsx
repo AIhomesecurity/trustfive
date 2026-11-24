@@ -7,6 +7,7 @@ import {socialPageBounds,socialPageRows} from '../lib/social-feed-paging';
 import {SOCIAL_ADVICE_TOPICS,socialQuestionBody,socialQuestionSearchPattern} from '../lib/social-advice';
 import {buildSocialPostHref,getAreaDraft,setAreaDraft} from '../lib/social-feed-url';
 import {clearScopedDraft,loadScopedDraft,saveScopedDraft} from '../lib/social-draft-storage';
+import {assessSocialPostSafety,classifySocialWriteError} from '../lib/social-safety';
 import SocialDiscussion from './social-discussion';
 
 /**
@@ -26,6 +27,7 @@ export default function SocialAdviceBoard({userId,areas}:{userId:string;areas:So
  const browseHeadingRef=useRef<HTMLHeadingElement>(null);
 
  const question=getAreaDraft(draftsByArea,postArea);
+ const safety=assessSocialPostSafety(question);
 
  function selectPostArea(nextArea:string){
   setPostArea(nextArea);
@@ -93,6 +95,11 @@ export default function SocialAdviceBoard({userId,areas}:{userId:string;areas:So
    setNotice('Choose an available neighbourhood and write a question of at least 8 characters.');
    return;
   }
+  if(safety.blockingError){
+   setNoticeIsError(true);
+   setNotice(safety.blockingError);
+   return;
+  }
   sendingRef.current=true;setSending(true);setNotice('');setNoticeIsError(false);
   try{
    const result=await supabaseBrowser().from('community_posts').insert({
@@ -105,9 +112,9 @@ export default function SocialAdviceBoard({userId,areas}:{userId:string;areas:So
    setFilterTopic(topic);setFilterArea(targetArea);setPage(0);setRefresh(v=>v+1);
    setNoticeIsError(false);
    setNotice('Your question was published to the neighbourhood. Do not repost if refreshing takes longer.');
-  }catch{
+  }catch(err){
    setNoticeIsError(true);
-   setNotice('Your question could not be published — your draft is preserved above so you can retry safely.');
+   setNotice(classifySocialWriteError(err,'Your question could not be published — your draft is preserved above so you can retry safely.'));
   }
   finally{sendingRef.current=false;setSending(false);}
  }
