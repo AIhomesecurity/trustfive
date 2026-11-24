@@ -8,6 +8,7 @@ const loopbackSpecs = [
  '**/signed-in-professional-appointment.spec.ts',
  '**/signed-in-messaging-load-retry.spec.ts',
  '**/signed-in-saved-discussions.spec.ts',
+ '**/social-home-navigation-mobile.spec.ts',
 ];
 export default defineConfig({
  testDir:'./tests/e2e',
