@@ -3,6 +3,7 @@ import {defineConfig,devices} from '@playwright/test';
 const loopbackSpecs = [
  '**/customer-booking-journey-mobile.spec.ts',
  '**/customer-quote-confirmation-browser.spec.ts',
+ '**/marketplace-onboarding-journey-rehearsal.spec.ts',
  '**/signed-in-group-moderation.spec.ts',
  '**/signed-in-professional-appointment.spec.ts',
  '**/signed-in-saved-discussions.spec.ts',
