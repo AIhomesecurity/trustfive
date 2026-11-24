@@ -14,6 +14,15 @@ export default defineConfig({
     name: requestedWorker || ALLOWED_PREVIEW_WORKER,
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-11-22",
+    workersDev: false,
+    previewUrls: false,
+    domains: [
+      {
+        hostname: "preview.trustfive.co.uk",
+        production: true,
+        previews: false,
+      },
+    ],
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
