@@ -30,6 +30,7 @@ const FORBIDDEN_EVIDENCE_KEYS = new Set([
   'password',
   'authorization',
 ]);
+const SECRET_LIKE_BINDING_NAME_RE = /(?:^|_)(SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL|PRIVATE)(?:_|$)/i;
 const FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 function isNonEmptyString(value) {
@@ -556,6 +557,11 @@ export async function verifyPrebuiltWorkerArtifact({
         }
         if (binding.type === 'text') {
           const textValue = typeof binding.value === 'string' ? binding.value : '';
+          if (SECRET_LIKE_BINDING_NAME_RE.test(bindingName)) {
+            reasons.push(
+              `Generated worker.config.json text binding "${bindingName}" has a secret-like name and must use the "secret" binding type, not "text".`
+            );
+          }
           if (LIVE_STRIPE_OR_SECRET_RE.test(textValue)) {
             reasons.push(
               `Generated worker.config.json text binding "${bindingName}" must not contain live Stripe keys or webhook secrets.`
