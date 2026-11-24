@@ -24,6 +24,7 @@ export default function Messages(){
  const [checking,setChecking]=useState(true);
  const [threadLoading,setThreadLoading]=useState(false);
  const [messagesLoading,setMessagesLoading]=useState(false);
+ const [messagesLoadFailed,setMessagesLoadFailed]=useState(false);
  const [notice,setNotice]=useState('');
  const [filter,setFilter]=useState('');
  const selectedRequest=useRef(0);
@@ -34,6 +35,7 @@ export default function Messages(){
  const loadMessages=useCallback(async(quoteId:string)=>{
   const request=++selectedRequest.current;
   setMessagesLoading(true);
+  setMessagesLoadFailed(false);
   try{
    const {data,error}=await supabaseBrowser().from('quote_messages')
     .select('id,quote_id,author_id,body,created_at')
@@ -42,10 +44,9 @@ export default function Messages(){
    if(request===selectedRequest.current){
     setMessages(sortAndDedupeMessages((data||[]) as QuoteMessageItem[]));
    }
-  }catch(e){
+  }catch{
    if(request===selectedRequest.current){
-    setMessages([]);
-    setNotice(e instanceof Error?e.message:'Unable to load this conversation');
+    setMessagesLoadFailed(true);
    }
   }finally{if(request===selectedRequest.current)setMessagesLoading(false);}
  },[]);
@@ -163,6 +164,7 @@ export default function Messages(){
       <p className="muted-note">{active.role} view · Quote £{(active.amount_pence/100).toFixed(2)} · {active.status} · Only quote participants have access</p>
       <div className="conversation-messages" aria-live="polite" aria-busy={messagesLoading}>
        {messagesLoading?<p role="status">Loading messages…</p>:
+        messagesLoadFailed?<p role="alert" className="notice">Unable to load this conversation. Select Refresh messages to try again.</p>:
         messages.length===0?<p className="subtle">No messages yet. Start a private conversation about your quote.</p>:
         messages.map(m=><article className={m.author_id===userId?'conversation-bubble mine':'conversation-bubble'} key={m.id}>
          <strong>{m.author_id===userId?'You':active.role==='Customer'?'Professional':'Customer'}</strong>
