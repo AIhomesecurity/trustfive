@@ -7,6 +7,7 @@ import {supabaseBrowser} from '../../../../lib/supabase';
 import {readablePostDate} from '../../../../lib/social-discovery';
 import {socialNeedsAuthRecheck} from '../../../../lib/social-auth-identity';
 import {clearAllSocialDrafts,clearScopedDraft,clearSocialDraftsForOtherUsers,loadScopedDraft,saveScopedDraft} from '../../../../lib/social-draft-storage';
+import {assessSocialPostSafety,classifySocialWriteError} from '../../../../lib/social-safety';
 import {socialGroupCanLeave,socialGroupCanPublish,socialGroupPostError,socialGroupPostPage,
  socialGroupRouteId,socialGroupVisiblePage,socialGroupFocusTarget,type SocialGroupMembershipAction,
  type GroupConversationMembership,type GroupConversationPost,type GroupConversationSummary
@@ -161,6 +162,8 @@ export default function SocialGroupConversation(){
   async function publish(event:FormEvent){
    event.preventDefault();
    if(!groupId||inFlight.current||!socialGroupCanPublish(userId,groupId,membership,body))return;
+   const safety=assessSocialPostSafety(body);
+   if(safety.blockingError){setNotice(safety.blockingError);return;}
    const epoch=authEpoch.current;
    inFlight.current=true;setBusy(true);setNotice('');
    try{
@@ -171,7 +174,7 @@ export default function SocialGroupConversation(){
     clearScopedDraft(userId,'group',groupId);
     setBody('');setPage(0);setPostsRevision(x=>x+1);
     setNotice('Your group update was published. If the list does not refresh, do not repost it.');
-   }catch{if(epoch===authEpoch.current)setNotice('Could not publish the update. Check membership and connection, then retry.');}
+   }catch(err){if(epoch===authEpoch.current)setNotice(classifySocialWriteError(err,'Could not publish the update. Check membership and connection, then retry.'));}
    finally{inFlight.current=false;setBusy(false);}
   }
 

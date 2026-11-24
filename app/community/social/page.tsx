@@ -20,6 +20,8 @@ import {
   loadScopedDraft,
   saveScopedDraft,
 } from '../../../lib/social-draft-storage';
+import {assessSocialPostSafety, classifySocialWriteError} from '../../../lib/social-safety';
+import SocialMediaPrivacyNotice from '../../../components/social-media-privacy-notice';
 import SocialPostCard from '../../../components/social-post-card';
 import SocialAdviceBoard from '../../../components/social-advice-board';
 import SocialGroupDiscovery from '../../../components/social-group-discovery';
@@ -322,6 +324,12 @@ function SocialHub() {
       setPostNoticeIsError(true);
       return;
     }
+    const safety = assessSocialPostSafety(draftText);
+    if (safety.blockingError) {
+      setPostNotice(safety.blockingError);
+      setPostNoticeIsError(true);
+      return;
+    }
 
     publishingRef.current = true;
     setPosting(true);
@@ -355,10 +363,13 @@ function SocialHub() {
         'Your neighbourhood post was published. If it does not appear immediately, refresh the feed. Do not repost it.'
       );
       setPostNoticeIsError(false);
-    } catch {
+    } catch (err) {
       if (authEpoch.current === currentAuthEpoch) {
         setPostNotice(
-          'Your post could not be published — your draft is preserved above so you can retry safely.'
+          classifySocialWriteError(
+            err,
+            'Your post could not be published — your draft is preserved above so you can retry safely.'
+          )
         );
         setPostNoticeIsError(true);
       }
@@ -370,6 +381,7 @@ function SocialHub() {
 
   const browsingArea = findSocialArea(areas, areaId);
   const postingArea = findSocialArea(areas, postingAreaId);
+  const postSafety = useMemo(() => assessSocialPostSafety(postBody), [postBody]);
   const hasActiveFilters = Boolean(areaId || search || order !== 'recent' || page > 0);
   const signInReturnHref = tab === 'neighbourhood' ? currentFeedHref : socialSectionHref(tab);
 
@@ -551,6 +563,16 @@ function SocialHub() {
                         Draft recovered for {postingArea ? postingArea.area_name : 'this neighbourhood'}.
                       </p>
                     ) : null}
+                    {postSafety.privacyWarnings.length > 0 ? (
+                      <div
+                        className="notice notice-warn"
+                        role="status"
+                        data-testid="social-privacy-warning"
+                        style={{margin: 0}}
+                      >
+                        <strong>Privacy reminder:</strong> {postSafety.privacyWarnings.join(' ')}
+                      </div>
+                    ) : null}
                     <p id="social-composer-guidance" className="muted-note" style={{margin: 0}}>
                       {!postingAreaId ? 'Choose a neighbourhood first. ' : ''}
                       {postBody.length.toLocaleString('en-GB')} / 3,000 characters. Minimum 8 characters. Avoid sharing private addresses or contact details.
@@ -589,6 +611,7 @@ function SocialHub() {
                     </div>
                   </form>
                 )}
+                <SocialMediaPrivacyNotice />
                 {postNotice ? (
                   <p
                     role={postNoticeIsError ? 'alert' : 'status'}
