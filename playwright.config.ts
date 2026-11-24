@@ -10,6 +10,7 @@ const loopbackSpecs = [
  '**/signed-in-saved-discussions.spec.ts',
  '**/social-home-navigation-mobile.spec.ts',
  '**/social-slice1-membership-moderation.spec.ts',
+ '**/social-slice2-mobile-drafts-a11y.spec.ts',
 ];
 export default defineConfig({
  testDir:'./tests/e2e',
