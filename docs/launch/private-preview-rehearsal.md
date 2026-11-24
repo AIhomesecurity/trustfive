@@ -33,7 +33,13 @@ are disabled or protected. The preview database must contain synthetic data only
    multiple projects. Record the evidence sources and the active version ID.
 4. Dry-run the explicit protected preview deployment gate before any authorized
    upload. Only `trustfive-preview` and `https://preview.trustfive.co.uk` are
-   permitted destinations; raw model output and unreviewed patches are rejected:
+   permitted destinations; raw model output, unreviewed patches, stale or
+   mismatched prebuilt artifacts, wrong targets/bindings, and accidental public
+   URL exposure (`workersDev`, `previewUrls`, extra domains, or fetch triggers)
+   are rejected. Authorized `--execute` requires genuine protected-preview
+   evidence (`--protected-preview-evidence`) and deploys ONLY the verified
+   prebuilt `.cloudflare/output/v1` artifact using the installed Cloudflare CLI
+   (`cf deploy --prebuilt --mode production --worker trustfive-preview --no-provision --tag EXPECTED_COMMIT_SHA`) without rebuilding:
 
    ```sh
    node scripts/release/deploy-preview-gate.mjs \
@@ -42,8 +48,9 @@ are disabled or protected. The preview database must contain synthetic data only
      --hostname https://preview.trustfive.co.uk \
      --source-kind reviewed_commit \
      --commit EXPECTED_COMMIT_SHA \
-     --assets .cloudflare/output/v1/workers/default/assets \
-     --evidence path/to/review-evidence.json
+     --build-output-root . \
+     --evidence path/to/review-evidence.json \
+     --protected-preview-evidence path/to/protected-preview-evidence.json
    ```
 
    Local Ollama runs must use `scripts/agent/ollama-handoff.mjs` so every
