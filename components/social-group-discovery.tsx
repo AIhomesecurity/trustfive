@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
@@ -14,6 +14,8 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
  const [page,setPage]=useState(0),[retry,setRetry]=useState(0);
  const [groups,setGroups]=useState<SocialGroupSummary[]>([]);
  const [hasMore,setHasMore]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const headingRef=useRef<HTMLHeadingElement>(null);
+
  useEffect(()=>{
   let active=true;
   setMembershipOwner('');setOwnGroupIds([]);setMembershipError('');
@@ -31,6 +33,8 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
   })();
   return()=>{active=false;};
  },[userId,membershipRetry]);
+
+ const membershipFilterKey=myGroupsOnly?`${membershipOwner}:${membershipError}:${ownGroupIds.join(',')}`:'all';
 
  useEffect(()=>{
   if(!userId){setLoading(false);return;}
@@ -63,16 +67,23 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
    finally{if(active)setLoading(false);}
   })();
   return()=>{active=false;};
- },[userId,areaId,search,page,retry,myGroupsOnly,ownGroupIds,membershipOwner,membershipError]);
+ },[userId,areaId,search,page,retry,myGroupsOnly,membershipFilterKey]);
+
  function searchGroups(event:FormEvent){event.preventDefault();setSearch(input.trim());setPage(0);}
+ function clearGroupFilters(){setInput('');setSearch('');setAreaId('');setMyGroupsOnly(false);setPage(0);}
+ const hasGroupFilters=Boolean(search||areaId||myGroupsOnly||page>0);
+
  return <section aria-labelledby="social-trade-title">
   <span className="eyebrow">People sharing practical knowledge</span>
-  <h2 id="social-trade-title">Trade Network &amp; Community Groups</h2>
-  <p className="subtle">Explore actual public TrustFive community groups, including any formed around trades and specialist interests. A group's name does not prove its members are verified or approved professionals.</p>
+  <h2 id="social-trade-title" ref={headingRef} tabIndex={-1}>Trade Network &amp; Community Groups</h2>
+  <p className="subtle">Explore actual public TrustFive community groups, including any formed around trades and specialist interests. A group&apos;s name does not prove its members are verified or approved professionals.</p>
   <div className="card" style={{marginBottom:16}}>
    <h3>Professional collaboration is being developed</h3>
-   <p className="muted-note">Use these groups for general conversation only. Never publish a customer's address, contact details, quote, protected lead or private job information. Sharing in Social does not grant marketplace approval, a sixth professional slot, or access to private customer work.</p>
-   <Link className="btn secondary" href="/services">Find genuinely approved professionals</Link>
+   <p className="muted-note">Use these groups for general conversation only. Never publish a customer&apos;s address, contact details, quote, protected lead or private job information. Sharing in Social does not grant marketplace approval, a sixth professional slot, or access to private customer work.</p>
+   <div className="social-hub-shortcuts" style={{marginBottom:0}}>
+    <Link className="btn secondary" href="/services">Find genuinely approved professionals</Link>
+    <Link className="btn secondary" href="/community/groups">Create or manage groups</Link>
+   </div>
   </div>
   {!userId?<div className="card" role="status">Sign in to discover TrustFive groups.</div>:<>
    <form className="card social-hub-filters" onSubmit={searchGroups}>
@@ -83,17 +94,24 @@ export default function SocialGroupDiscovery({userId,areas}:{userId:string;areas
      <option value="">All available areas</option>
      {areas.map(item=><option key={item.id} value={item.id}>{item.area_name}, {item.city}</option>)}
     </select></label>
-    <label><input type="checkbox" checked={myGroupsOnly} onChange={event=>{setMyGroupsOnly(event.target.checked);setPage(0);}}/> My groups only</label>
+    <label style={{display:'flex',alignItems:'center',gap:8,alignSelf:'end',minHeight:44}}><input type="checkbox" style={{width:18,height:18}} checked={myGroupsOnly} onChange={event=>{setMyGroupsOnly(event.target.checked);setPage(0);}}/> My groups only</label>
     <button type="submit" className="btn" disabled={loading}>Find groups</button>
-    <button type="button" className="btn secondary" onClick={()=>{setInput('');setSearch('');setAreaId('');setMyGroupsOnly(false);setPage(0);}}>Clear filters</button>
+    <button type="button" className="btn secondary" disabled={!hasGroupFilters&&!input} onClick={clearGroupFilters}>Clear filters</button>
    </form>
-   {myGroupsOnly&&membershipError?<div className="card" role="alert"><p>{membershipError}</p><button className="btn secondary" type="button" onClick={()=>setMembershipRetry(v=>v+1)}>Retry memberships</button></div>
+   {myGroupsOnly&&membershipError?<div className="card" role="alert"><p>{membershipError}</p><button className="btn secondary" type="button" onClick={()=>{headingRef.current?.focus();setMembershipRetry(v=>v+1);}}>Retry memberships</button></div>
    :loading?<div className="card" role="status">Loading public groups…</div>
-   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={()=>setRetry(n=>n+1)}>Retry groups</button></div>
+   :error?<div className="card" role="alert"><p>{error}</p><button type="button" className="btn secondary" onClick={()=>{headingRef.current?.focus();setRetry(n=>n+1);}}>Retry groups</button></div>
    :<>
     <p className="muted-note" role="status">Page {page+1}: {groups.length} public {groups.length===1?'group':'groups'}.</p>
     <div className="list">
-     {!groups.length&&<div className="card">{myGroupsOnly?'No joined groups match these filters. Join a group from the public directory first.':'No public groups match the current filters. You can create a new group from the groups directory.'}</div>}
+     {!groups.length&&<div className="card" role="status">
+      <p style={{margin:'0 0 12px'}}>{myGroupsOnly?'No joined groups match these filters. Join a group from the public directory first.':'No public groups match the current filters. You can create a new group from the groups directory.'}</p>
+      <div className="social-hub-shortcuts" style={{margin:0}}>
+       {myGroupsOnly?<button type="button" className="btn" onClick={()=>{setMyGroupsOnly(false);setPage(0);headingRef.current?.focus();}}>Show all public groups</button>
+        :hasGroupFilters?<button type="button" className="btn secondary" onClick={()=>{clearGroupFilters();headingRef.current?.focus();}}>Clear filters</button>:null}
+       <Link className="btn secondary" href="/community/groups">Create a group</Link>
+      </div>
+     </div>}
      {groups.map(group=><article key={group.id} className="card">
       <span className="pill">{socialGroupAreaLabel(group.area_id,areas)}</span>
       <h3 style={{marginTop:12}}>{group.name}</h3>

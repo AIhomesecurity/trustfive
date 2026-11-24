@@ -90,7 +90,7 @@ export default function SocialSavedPosts({userId}:{userId:string}){
       <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{post.body}</p>
       <p className="muted-note"><time dateTime={post.created_at}>{readablePostDate(post.created_at)}</time></p>
       <div className="social-hub-shortcuts">
-       <Link className="btn secondary" href={`/community/posts/${post.id}`}>Open discussion</Link>
+       <Link className="btn secondary" href={`/community/posts/${post.id}?from=${encodeURIComponent('/community/social?tab=saved')}`}>Open discussion</Link>
        <button type="button" className="btn secondary" disabled={busy}
         onClick={()=>{void remove(post.id);}}>Remove bookmark</button>
       </div>

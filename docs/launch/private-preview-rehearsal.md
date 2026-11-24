@@ -31,7 +31,28 @@ are disabled or protected. The preview database must contain synthetic data only
    `WORKER_RUNTIME_SUPABASE_URL`. It supports canonical Supabase SaaS project
    URLs and fails if executable browser assets have no project URL or mention
    multiple projects. Record the evidence sources and the active version ID.
-4. With credentials limited to this Access application, run
+4. Dry-run the explicit protected preview deployment gate before any authorized
+   upload. Only `trustfive-preview` and `https://preview.trustfive.co.uk` are
+   permitted destinations; raw model output and unreviewed patches are rejected:
+
+   ```sh
+   node scripts/release/deploy-preview-gate.mjs \
+     --dry-run \
+     --worker trustfive-preview \
+     --hostname https://preview.trustfive.co.uk \
+     --source-kind reviewed_commit \
+     --commit EXPECTED_COMMIT_SHA \
+     --assets .cloudflare/output/v1/workers/default/assets \
+     --evidence path/to/review-evidence.json
+   ```
+
+   Local Ollama runs must use `scripts/agent/ollama-handoff.mjs` so every
+   attempt records its patch/commit or failure status, originating SHA, test
+   evidence and destination in the coordinator inbox (`events.jsonl` and
+   `reports/`), with GitHub draft PR eligibility restricted to independently
+   reviewed passing commits and zero direct model-output deployments.
+
+5. With credentials limited to this Access application, run
    `node scripts/release/validate-preview.mjs EXPECTED_COMMIT_SHA`.
    Supply `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` through the
    environment. Record the anonymous denial and the authenticated health check.

@@ -1,13 +1,21 @@
 import {defineConfig,devices} from '@playwright/test';
 // These specs each bind the same loopback Supabase fixture port.
 const loopbackSpecs = [
+ '**/complaints-disputes-lifecycle.spec.ts',
  '**/customer-booking-journey-mobile.spec.ts',
  '**/customer-quote-confirmation-browser.spec.ts',
  '**/marketplace-onboarding-journey-rehearsal.spec.ts',
+ '**/notification-failure-recovery.spec.ts',
+ '**/professional-availability-overlap.spec.ts',
  '**/signed-in-group-moderation.spec.ts',
  '**/signed-in-professional-appointment.spec.ts',
  '**/signed-in-messaging-load-retry.spec.ts',
  '**/signed-in-saved-discussions.spec.ts',
+ '**/social-home-navigation-mobile.spec.ts',
+ '**/social-slice1-membership-moderation.spec.ts',
+ '**/social-slice2-mobile-drafts-a11y.spec.ts',
+ '**/social-slice3-events-notifications.spec.ts',
+ '**/social-slice4-media-spam-moderation.spec.ts',
 ];
 export default defineConfig({
  testDir:'./tests/e2e',
