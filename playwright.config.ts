@@ -9,6 +9,7 @@ const loopbackSpecs = [
  '**/signed-in-messaging-load-retry.spec.ts',
  '**/signed-in-saved-discussions.spec.ts',
  '**/social-home-navigation-mobile.spec.ts',
+ '**/social-slice1-membership-moderation.spec.ts',
 ];
 export default defineConfig({
  testDir:'./tests/e2e',
