@@ -4,7 +4,7 @@
 -- no role switches and no data mutation, so it is safe in any CI order.
 -- Run with psql -v ON_ERROR_STOP=1 after bootstrap + all migrations.
 
--- 1. Anonymous callers may execute exactly four read-only helpers ----------
+-- 1. Anonymous callers may execute the approved read-only helpers ----------
 -- These are the deliberate public discovery surface and the boolean gate
 -- used by public business-page RLS. Any new anon-executable definer function
 -- must be added here explicitly, so a silent privilege escalation fails CI.
@@ -14,7 +14,8 @@ declare
     'find_trustfive_professionals',
     'find_trustfive_professionals_nearby',
     'find_trustfive_professionals_with_reviews',
-    'is_active_approved_application'];
+    'is_active_approved_application',
+    'public_showcase_business'];
   actual text[];
   v_unstable integer;
 begin
@@ -94,7 +95,7 @@ begin
 end
 $billing_grant$;
 
--- 5. The four anon helpers are also available to signed-in users ----------
+-- 5. The anon helpers are also available to signed-in users ----------
 -- Public directory and business-page reads must work in both auth states.
 do $auth_helpers$
 declare v_missing integer;
@@ -105,7 +106,7 @@ begin
     and p.proname in ('find_trustfive_professionals',
                       'find_trustfive_professionals_with_reviews',
                       'find_trustfive_professionals_nearby',
-                      'is_active_approved_application')
+                      'is_active_approved_application', 'public_showcase_business')
     and not has_function_privilege('authenticated',p.oid,'EXECUTE');
   if v_missing>0 then
     raise exception '% public helpers are not executable by authenticated users',v_missing;
