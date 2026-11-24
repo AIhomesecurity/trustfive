@@ -70,6 +70,9 @@ function makeValidWorkerConfig(overrides = {}) {
     },
     env: {
       ASSETS: {type: 'assets'},
+      NEXT_PUBLIC_SUPABASE_URL: {type: 'text', value: previewUrl},
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: {type: 'text', value: 'sb_publishable_fixture'},
+      TRUSTFIVE_BUILD_SHA: {type: 'text', value: commitSha},
     },
     manifest: {
       type: 'partial',
@@ -815,4 +818,15 @@ test('verifies digest changes immediately if prebuilt artifact is modified on di
     cliExecuteWithoutProtectedEvidence.stdout + cliExecuteWithoutProtectedEvidence.stderr,
     /cf-execute-secret-should-not-leak|access-execute-secret-should-not-leak/
   );
+});
+
+test('rejects an artifact whose runtime database settings are absent', async t => {
+  const fixture = await createPrebuiltArtifactFixture(t, {
+    workerConfig: makeValidWorkerConfig({env: {ASSETS: {type: 'assets'}}}),
+  });
+  const result = await runPreviewDeployGate(makeBaseOptions(fixture));
+  assert.equal(result.ok, false);
+  assert.match(result.reasons.join(' '), /requires a NEXT_PUBLIC_SUPABASE_URL text binding/);
+  assert.match(result.reasons.join(' '), /requires a Supabase publishable key text binding/);
+  assert.match(result.reasons.join(' '), /requires a TRUSTFIVE_BUILD_SHA text binding/);
 });
