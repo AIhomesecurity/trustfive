@@ -60,7 +60,22 @@ const anonymousCallback = await fetch(callback, {
 assert.equal(anonymousCallback.status, 307);
 const callbackLocation = new URL(anonymousCallback.headers.get('location'), origin);
 assert.equal(callbackLocation.href, origin + '/account');
-console.log('Local Cloudflare Worker health, signed-out job return and auth callback checks passed');
+const recovery = new URL('/auth/callback', origin);
+recovery.searchParams.set('next', '/auth/update-password');
+const recoveryCallback = await fetch(recovery, {
+  redirect: 'manual',
+  signal: AbortSignal.timeout(5000),
+});
+assert.equal(recoveryCallback.status, 307);
+assert.equal(new URL(recoveryCallback.headers.get('location'), origin).href, origin + '/account');
+
+const reset = await fetch(origin + '/account/reset', {
+  redirect: 'manual',
+  signal: AbortSignal.timeout(5000),
+});
+assert.equal(reset.status, 200);
+assert.match(await reset.text(), /Reset your password/);
+console.log('Local Worker health, job return, auth callback and recovery entry checks passed');
 JS
 
 node tests/release/signed-in-smoke.mjs 3008
