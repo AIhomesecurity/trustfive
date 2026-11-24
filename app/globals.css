@@ -384,10 +384,18 @@
 .social-signed-out-card{display:grid;gap:12px;border-color:#b8dcc7;background:linear-gradient(180deg,#ffffff 0%,#f4fbf6 100%)}
 .social-signed-out-card h2{margin:0;font-size:clamp(21px,2.4vw,26px);line-height:1.22}
 .social-signed-out-features{margin:0;padding-left:20px;display:grid;gap:8px;color:var(--dark);font-size:14.5px;line-height:1.5}
+.social-reminder-panel,.notification-delivery-bar{display:grid;gap:10px;padding:15px 17px;margin:0 0 18px;border-radius:14px;border:1px solid #c3decb;background:#f3faf5}
+.social-reminder-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.social-reminder-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;border-radius:11px;border:1px solid #d5e8dc;background:#fff}
+.notification-channel-list{display:flex;flex-wrap:wrap;gap:8px}
+.notification-channel-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;font-size:12.5px;line-height:1.35;border:1px solid #cfe2d6;background:#fff;color:var(--dark)}
+.notification-channel-pill.is-active{background:#e4f5eb;border-color:#98cfb0;color:#065d32}
+.notification-channel-pill.is-disabled{background:#f7f9f8;border-color:#dce5e0;color:#4f685b}
+.notification-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 18px}
 @media(max-width:560px){
  .social-hub-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
  .social-hub-tab{padding:10px 8px;font-size:13.5px}
- .social-home-head-actions,.social-home-head-actions .btn,.social-composer-actions .btn,.social-hub-shortcuts .btn,.social-post-permalink{width:100%}
+ .social-home-head-actions,.social-home-head-actions .btn,.social-composer-actions .btn,.social-hub-shortcuts .btn,.social-post-permalink,.social-reminder-row .btn{width:100%}
  .social-post-time{white-space:normal}
 }
 @media(max-width:340px){.social-hub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
