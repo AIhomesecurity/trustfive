@@ -31,7 +31,7 @@ test('denies a shared project, live runtime binding and noncanonical configurati
 });
 
 test('denies an absent, production, mixed or insecure origin in browser assets', async t => {
-  for (const source of ['', production, preview + ' ' + production, preview + ' ' + preview.replace('https:', 'http:')]) {
+  for (const source of ['', production, preview + '.example', preview + ' ' + production, preview + ' ' + preview.replace('https:', 'http:')]) {
     await assert.rejects(checkPreviewIsolation(await fixture(t, source)), /JavaScript/);
   }
 });

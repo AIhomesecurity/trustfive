@@ -18,7 +18,7 @@ async function collectBrowserOrigins(directory, origins) {
     if (!entry.isFile() || !/\.(?:js|mjs)$/.test(entry.name)) continue;
 
     const source = await readFile(path, 'utf8');
-    for (const [origin] of source.matchAll(/https?:\/\/[a-z]{20}\.supabase\.co\b/gi)) {
+    for (const [origin] of source.matchAll(/https?:\/\/[a-z]{20}\.supabase\.co(?![a-z0-9.%-])/gi)) {
       origins.add(origin);
     }
   }
