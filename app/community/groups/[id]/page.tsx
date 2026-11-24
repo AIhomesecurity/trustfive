@@ -6,6 +6,7 @@ import GroupPostReport from '../../../../components/group-post-report';
 import {supabaseBrowser} from '../../../../lib/supabase';
 import {readablePostDate} from '../../../../lib/social-discovery';
 import {socialNeedsAuthRecheck} from '../../../../lib/social-auth-identity';
+import {clearAllSocialDrafts,clearScopedDraft,clearSocialDraftsForOtherUsers,loadScopedDraft,saveScopedDraft} from '../../../../lib/social-draft-storage';
 import {socialGroupCanLeave,socialGroupCanPublish,socialGroupPostError,socialGroupPostPage,
  socialGroupRouteId,socialGroupVisiblePage,socialGroupFocusTarget,type SocialGroupMembershipAction,
  type GroupConversationMembership,type GroupConversationPost,type GroupConversationSummary
@@ -46,124 +47,133 @@ export default function SocialGroupConversation(){
 
  // Supabase auth changes can arrive from another browser tab. Never keep
  // previous member posts or a draft visible across a real account switch.
- useEffect(()=>{
-  const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange((event,session)=>{
-   if(!socialNeedsAuthRecheck(event,userIdRef.current,session?.user?.id||''))return;
-   authEpoch.current++;
-   postLoadEpoch.current++;
-   setPosts([]);setMembership(null);setBody('');setNotice('');
-   setRevision(value=>value+1);
-  });
-  return()=>subscription.unsubscribe();
- },[]);
+  useEffect(()=>{
+   const {data:{subscription}}=supabaseBrowser().auth.onAuthStateChange((event,session)=>{
+    if(!socialNeedsAuthRecheck(event,userIdRef.current,session?.user?.id||''))return;
+    if(event==='SIGNED_OUT')clearAllSocialDrafts();
+    authEpoch.current++;
+    postLoadEpoch.current++;
+    setPosts([]);setMembership(null);setBody('');setNotice('');
+    setRevision(value=>value+1);
+   });
+   return()=>subscription.unsubscribe();
+  },[]);
 
- useEffect(()=>{
-  authEpoch.current++;
-  setUserId('');setGroup(null);setMembership(null);setPosts([]);setNotice('');
-  setLoading(true);setError('');setPage(0);setLeaveConfirm(false);
-  if(!groupId){setError('This community group link is invalid.');setLoading(false);return;}
-  let active=true;
-  (async()=>{
+  useEffect(()=>{
+   authEpoch.current++;
+   setUserId('');setGroup(null);setMembership(null);setPosts([]);setBody('');setNotice('');
+   setLoading(true);setError('');setPage(0);setLeaveConfirm(false);
+   if(!groupId){setError('This community group link is invalid.');setLoading(false);return;}
+   let active=true;
+   (async()=>{
+    try{
+     const s=supabaseBrowser();
+     const result=await s.auth.getUser();
+     if(result.error||!result.data.user)throw Error('Sign in required');
+     if(!active)return;
+     const id=result.data.user.id;
+     clearSocialDraftsForOtherUsers(id);
+     const [g,m]=await Promise.all([
+      s.from('community_groups').select('id,name,description,area_id,creator_id,visibility,created_at')
+       .eq('id',groupId).eq('visibility','public').maybeSingle(),
+      s.from('community_group_memberships').select('group_id,user_id,role')
+       .eq('group_id',groupId).eq('user_id',id).maybeSingle()
+     ]);
+     if(g.error||m.error)throw g.error||m.error;
+     if(!active)return;
+     setUserId(id);
+     setGroup((g.data||null) as GroupConversationSummary|null);
+     const nextMembership=(m.data||null) as GroupConversationMembership|null;
+     setMembership(nextMembership);
+     if(nextMembership){
+      const recovered=loadScopedDraft(id,'group',groupId);
+      if(recovered)setBody(recovered);
+     }
+     if(!g.data)setError('This public group is not available. It may have been removed or hidden.');
+    }catch{
+     if(active)setError('Unable to load this group and verify membership. Please retry.');
+    }finally{if(active)setLoading(false);}
+   })();
+   return()=>{active=false;};
+  },[groupKey,revision]);
+
+  useEffect(()=>{
+   ++postLoadEpoch.current;
+   setPosts([]);setHasMore(false);setPostsError('');
+   if(!userId||!groupId||!group||!membership){setPostsLoading(false);return;}
+   const epoch=postLoadEpoch.current;
+   let active=true;
+   (async()=>{
+    setPostsLoading(true);
+    try{
+     const bounds=socialGroupPostPage(page);
+     const result=await supabaseBrowser().from('community_group_posts')
+      .select('id,group_id,body,author_id,created_at,visibility')
+      .eq('group_id',groupId).eq('visibility','published')
+      .order('created_at',{ascending:false}).order('id',{ascending:true})
+      .range(bounds.from,bounds.to);
+     if(result.error)throw result.error;
+     if(!active||epoch!==postLoadEpoch.current)return;
+     const selection=socialGroupVisiblePage((result.data||[]) as GroupConversationPost[],groupId);
+     setPosts(selection.posts);setHasMore(selection.hasMore);
+    }catch{
+     if(active&&epoch===postLoadEpoch.current)
+      setPostsError('Group discussions could not be loaded. Please retry.');
+    }finally{if(active&&epoch===postLoadEpoch.current)setPostsLoading(false);}
+   })();
+   return()=>{active=false;};
+  },[groupId,userId,group,membership,page,postsRevision]);
+
+  async function joinGroup(){
+   if(!userId||!groupId||!group||membership||inFlight.current)return;
+   const epoch=authEpoch.current;
+   inFlight.current=true;setBusy(true);setNotice('');
    try{
     const s=supabaseBrowser();
-    const result=await s.auth.getUser();
-    if(result.error||!result.data.user)throw Error('Sign in required');
-    if(!active)return;
-    const id=result.data.user.id;
-    const [g,m]=await Promise.all([
-     s.from('community_groups').select('id,name,description,area_id,creator_id,visibility,created_at')
-      .eq('id',groupId).eq('visibility','public').maybeSingle(),
-     s.from('community_group_memberships').select('group_id,user_id,role')
-      .eq('group_id',groupId).eq('user_id',id).maybeSingle()
-    ]);
-    if(g.error||m.error)throw g.error||m.error;
-    if(!active)return;
-    setUserId(id);
-    setGroup((g.data||null) as GroupConversationSummary|null);
-    setMembership((m.data||null) as GroupConversationMembership|null);
-    if(!g.data)setError('This public group is not available. It may have been removed or hidden.');
-   }catch{
-    if(active)setError('Unable to load this group and verify membership. Please retry.');
-   }finally{if(active)setLoading(false);}
-  })();
-  return()=>{active=false;};
- },[groupKey,revision]);
-
- useEffect(()=>{
-  ++postLoadEpoch.current;
-  setPosts([]);setHasMore(false);setPostsError('');
-  if(!userId||!groupId||!group||!membership){setPostsLoading(false);return;}
-  const epoch=postLoadEpoch.current;
-  let active=true;
-  (async()=>{
-   setPostsLoading(true);
-   try{
-    const bounds=socialGroupPostPage(page);
-    const result=await supabaseBrowser().from('community_group_posts')
-     .select('id,group_id,body,author_id,created_at,visibility')
-     .eq('group_id',groupId).eq('visibility','published')
-     .order('created_at',{ascending:false}).order('id',{ascending:true})
-     .range(bounds.from,bounds.to);
+    const result=await s.from('community_group_memberships')
+     .insert({group_id:groupId,user_id:userId,role:'member'});
     if(result.error)throw result.error;
-    if(!active||epoch!==postLoadEpoch.current)return;
-    const selection=socialGroupVisiblePage((result.data||[]) as GroupConversationPost[],groupId);
-    setPosts(selection.posts);setHasMore(selection.hasMore);
-   }catch{
-    if(active&&epoch===postLoadEpoch.current)
-     setPostsError('Group discussions could not be loaded. Please retry.');
-   }finally{if(active&&epoch===postLoadEpoch.current)setPostsLoading(false);}
-  })();
-  return()=>{active=false;};
- },[groupId,userId,group,membership,page,postsRevision]);
+    if(epoch!==authEpoch.current)return;
+    pendingFocus.current='joined';
+    setMembership({group_id:groupId,user_id:userId,role:'member'});
+    setNotice('You joined this group. Only members can read its discussions.');
+   }catch{if(epoch===authEpoch.current)setNotice('Unable to join this group. Please retry.');}
+   finally{inFlight.current=false;setBusy(false);}
+  }
 
- async function joinGroup(){
-  if(!userId||!groupId||!group||membership||inFlight.current)return;
-  const epoch=authEpoch.current;
-  inFlight.current=true;setBusy(true);setNotice('');
-  try{
-   const s=supabaseBrowser();
-   const result=await s.from('community_group_memberships')
-    .insert({group_id:groupId,user_id:userId,role:'member'});
-   if(result.error)throw result.error;
-   if(epoch!==authEpoch.current)return;
-   pendingFocus.current='joined';
-   setMembership({group_id:groupId,user_id:userId,role:'member'});
-   setNotice('You joined this group. Only members can read its discussions.');
-  }catch{if(epoch===authEpoch.current)setNotice('Unable to join this group. Please retry.');}
-  finally{inFlight.current=false;setBusy(false);}
- }
+  async function leaveGroup(){
+   if(!socialGroupCanLeave(userId,membership)||!groupId||!leaveConfirm||inFlight.current)return;
+   const epoch=authEpoch.current;
+   inFlight.current=true;setBusy(true);setNotice('');
+   try{
+    const result=await supabaseBrowser().from('community_group_memberships').delete()
+     .eq('group_id',groupId).eq('user_id',userId).eq('role','member').select('group_id').maybeSingle();
+    if(result.error||!result.data)throw Error('Membership not changed');
+    if(epoch!==authEpoch.current)return;
+    pendingFocus.current='left';
+    clearScopedDraft(userId,'group',groupId);
+    ++postLoadEpoch.current;setMembership(null);setPosts([]);setBody('');setLeaveConfirm(false);
+    setNotice('You left this group. Its members-only discussions are no longer displayed.');
+   }catch{if(epoch===authEpoch.current)setNotice('Unable to confirm that you left. Refresh membership before retrying.');}
+   finally{inFlight.current=false;setBusy(false);}
+  }
 
- async function leaveGroup(){
-  if(!socialGroupCanLeave(userId,membership)||!groupId||!leaveConfirm||inFlight.current)return;
-  const epoch=authEpoch.current;
-  inFlight.current=true;setBusy(true);setNotice('');
-  try{
-   const result=await supabaseBrowser().from('community_group_memberships').delete()
-    .eq('group_id',groupId).eq('user_id',userId).eq('role','member').select('group_id').maybeSingle();
-   if(result.error||!result.data)throw Error('Membership not changed');
-   if(epoch!==authEpoch.current)return;
-   pendingFocus.current='left';
-   ++postLoadEpoch.current;setMembership(null);setPosts([]);setBody('');setLeaveConfirm(false);
-   setNotice('You left this group. Its members-only discussions are no longer displayed.');
-  }catch{if(epoch===authEpoch.current)setNotice('Unable to confirm that you left. Refresh membership before retrying.');}
-  finally{inFlight.current=false;setBusy(false);}
- }
-
- async function publish(event:FormEvent){
-  event.preventDefault();
-  if(!groupId||inFlight.current||!socialGroupCanPublish(userId,groupId,membership,body))return;
-  const epoch=authEpoch.current;
-  inFlight.current=true;setBusy(true);setNotice('');
-  try{
-   const result=await supabaseBrowser().from('community_group_posts')
-    .insert({group_id:groupId,author_id:userId,body:body.trim(),visibility:'published'});
-   if(result.error)throw result.error;
-   if(epoch!==authEpoch.current)return;
-   setBody('');setPage(0);setPostsRevision(x=>x+1);
-   setNotice('Your group update was published. If the list does not refresh, do not repost it.');
-  }catch{if(epoch===authEpoch.current)setNotice('Could not publish the update. Check membership and connection, then retry.');}
-  finally{inFlight.current=false;setBusy(false);}
- }
+  async function publish(event:FormEvent){
+   event.preventDefault();
+   if(!groupId||inFlight.current||!socialGroupCanPublish(userId,groupId,membership,body))return;
+   const epoch=authEpoch.current;
+   inFlight.current=true;setBusy(true);setNotice('');
+   try{
+    const result=await supabaseBrowser().from('community_group_posts')
+     .insert({group_id:groupId,author_id:userId,body:body.trim(),visibility:'published'});
+    if(result.error)throw result.error;
+    if(epoch!==authEpoch.current)return;
+    clearScopedDraft(userId,'group',groupId);
+    setBody('');setPage(0);setPostsRevision(x=>x+1);
+    setNotice('Your group update was published. If the list does not refresh, do not repost it.');
+   }catch{if(epoch===authEpoch.current)setNotice('Could not publish the update. Check membership and connection, then retry.');}
+   finally{inFlight.current=false;setBusy(false);}
+  }
 
  return <main className="container">
   <div className="page-heading">
@@ -202,7 +212,7 @@ export default function SocialGroupConversation(){
       <form className="form" onSubmit={publish}>
        <label>Group update
         <textarea required minLength={8} maxLength={3000} disabled={busy} value={body}
-         onChange={event=>setBody(event.target.value)} aria-describedby="group-body-guidance"
+         onChange={event=>{const next=event.target.value;setBody(next);if(userId&&groupId)saveScopedDraft(userId,'group',groupId,next);}} aria-describedby="group-body-guidance"
          placeholder="Share an update or ask your fellow group members…"/>
        </label>
        <p id="group-body-guidance" className="muted-note">{body.length} / 3,000 characters. Minimum 8.</p>

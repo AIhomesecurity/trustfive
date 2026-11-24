@@ -13,6 +13,13 @@ import {
   parseSocialFeedParams,
   setAreaDraft,
 } from '../../../lib/social-feed-url';
+import {
+  clearAllSocialDrafts,
+  clearScopedDraft,
+  clearSocialDraftsForOtherUsers,
+  loadScopedDraft,
+  saveScopedDraft,
+} from '../../../lib/social-draft-storage';
 import SocialPostCard from '../../../components/social-post-card';
 import SocialAdviceBoard from '../../../components/social-advice-board';
 import SocialGroupDiscovery from '../../../components/social-group-discovery';
@@ -49,6 +56,7 @@ function SocialHub() {
 
   const [postingAreaId, setPostingAreaId] = useState('');
   const [draftsByArea, setDraftsByArea] = useState<Record<string, string>>({});
+  const [restoredDraftArea, setRestoredDraftArea] = useState('');
   const postBody = getAreaDraft(draftsByArea, postingAreaId);
 
   const [posting, setPosting] = useState(false);
@@ -112,6 +120,7 @@ function SocialHub() {
       if (!socialNeedsAuthRecheck(event, currentUserIdRef.current, session?.user?.id || '')) {
         return;
       }
+      if (event === 'SIGNED_OUT') clearAllSocialDrafts();
       authEpoch.current += 1;
       feedRequestRef.current += 1;
       setAuthRevision(value => value + 1);
@@ -130,6 +139,7 @@ function SocialHub() {
     setHasMore(false);
     setDraftsByArea({});
     setPostingAreaId('');
+    setRestoredDraftArea('');
     setPostNotice('');
     setPostNoticeIsError(false);
     setAccountLoading(true);
@@ -145,7 +155,11 @@ function SocialHub() {
         const nextUser = result.data.user;
         setSignedIn(Boolean(nextUser));
         setUserId(nextUser?.id || '');
-        if (!nextUser) return;
+        if (!nextUser) {
+          clearAllSocialDrafts();
+          return;
+        }
+        clearSocialDraftsForOtherUsers(nextUser.id);
         const areasResult = await s
           .from('service_areas')
           .select('id,area_name,city')
@@ -264,6 +278,26 @@ function SocialHub() {
     syncFeedUrl(next);
   }
 
+  function selectPostingArea(nextAreaId: string) {
+    setPostingAreaId(nextAreaId);
+    setPostNotice('');
+    setPostNoticeIsError(false);
+    if (!nextAreaId || !userId) {
+      setRestoredDraftArea('');
+      return;
+    }
+    const existing = getAreaDraft(draftsByArea, nextAreaId);
+    if (!existing) {
+      const recovered = loadScopedDraft(userId, 'feed', nextAreaId);
+      if (recovered) {
+        setDraftsByArea(prev => setAreaDraft(prev, nextAreaId, recovered));
+        setRestoredDraftArea(nextAreaId);
+        return;
+      }
+    }
+    setRestoredDraftArea('');
+  }
+
   function focusComposer() {
     if (postingAreaId) {
       composerBodyRef.current?.focus();
@@ -307,6 +341,8 @@ function SocialHub() {
 
       // Clear only the published neighbourhood's draft; switch feed to that neighbourhood.
       setDraftsByArea(prev => setAreaDraft(prev, targetAreaId, ''));
+      clearScopedDraft(userId, 'feed', targetAreaId);
+      setRestoredDraftArea('');
       const nextFeed = {areaId: targetAreaId, search: '', order: 'recent' as SocialFeedOrder, page: 0};
       setAreaId(targetAreaId);
       setQuery('');
@@ -471,11 +507,7 @@ function SocialHub() {
                         ref={composerAreaRef}
                         required
                         value={postingAreaId}
-                        onChange={event => {
-                          setPostingAreaId(event.target.value);
-                          setPostNotice('');
-                          setPostNoticeIsError(false);
-                        }}
+                        onChange={event => selectPostingArea(event.target.value)}
                         disabled={posting || areas.length === 0}
                       >
                         <option value="">Choose a neighbourhood</option>
@@ -499,6 +531,8 @@ function SocialHub() {
                         onChange={event => {
                           const nextVal = event.target.value;
                           setDraftsByArea(prev => setAreaDraft(prev, postingAreaId, nextVal));
+                          saveScopedDraft(userId, 'feed', postingAreaId, nextVal);
+                          if (restoredDraftArea === postingAreaId) setRestoredDraftArea('');
                           if (postNotice) {
                             setPostNotice('');
                             setPostNoticeIsError(false);
@@ -512,6 +546,11 @@ function SocialHub() {
                         }
                       />
                     </label>
+                    {restoredDraftArea === postingAreaId && postingAreaId ? (
+                      <p role="status" className="muted-note" style={{margin: 0}}>
+                        Draft recovered for {postingArea ? postingArea.area_name : 'this neighbourhood'}.
+                      </p>
+                    ) : null}
                     <p id="social-composer-guidance" className="muted-note" style={{margin: 0}}>
                       {!postingAreaId ? 'Choose a neighbourhood first. ' : ''}
                       {postBody.length.toLocaleString('en-GB')} / 3,000 characters. Minimum 8 characters. Avoid sharing private addresses or contact details.
@@ -540,9 +579,7 @@ function SocialHub() {
                           className="btn secondary"
                           disabled={posting}
                           onClick={() => {
-                            setPostingAreaId(browsingArea.id);
-                            setPostNotice('');
-                            setPostNoticeIsError(false);
+                            selectPostingArea(browsingArea.id);
                             window.requestAnimationFrame(() => composerBodyRef.current?.focus());
                           }}
                         >
