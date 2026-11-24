@@ -245,14 +245,18 @@ test('Health endpoint reports configured app without exposing credentials',async
 });
 
 
-test('Mobile TrustFive navigation reveals account and community routes without sideways scrolling',async({page})=>{
- await page.setViewportSize({width:390,height:844});
+test('Mobile TrustFive navigation reveals account and community routes with keyboard access and no sideways scrolling',async({page})=>{
+ await page.setViewportSize({width:360,height:844});
  await page.goto('/');
  const menu=page.getByRole('button',{name:'Open navigation menu'});
  await expect(menu).toBeVisible();
  await expect(menu).toHaveAttribute('aria-expanded','false');
  await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeHidden();
- await menu.click();
+ await page.keyboard.press('Tab');
+ await expect(page.getByRole('link',{name:'TrustFive home'})).toBeFocused();
+ await page.keyboard.press('Tab');
+ await expect(menu).toBeFocused();
+ await menu.press('Enter');
  await expect(page.getByRole('button',{name:'Close navigation menu'})).toHaveAttribute('aria-expanded','true');
  const mobile=page.getByRole('navigation',{name:'Mobile navigation'});
  await expect(mobile).toBeVisible();
@@ -260,10 +264,16 @@ test('Mobile TrustFive navigation reveals account and community routes without s
  await expect(mobile.getByRole('link',{name:'My dashboard'})).toBeVisible();
  await expect(mobile.getByRole('link',{name:'Groups'})).toHaveCount(0);
  await expect(mobile.getByRole('link',{name:'Notifications'})).toBeVisible();
- expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
- await mobile.getByRole('link',{name:'Find a professional'}).click();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+ await page.keyboard.press('Tab');
+ const find=mobile.getByRole('link',{name:'Find a professional'});
+ await expect(find).toBeFocused();
+ await find.press('Enter');
  await expect(page).toHaveURL(/\/services$/);
  await expect(page.getByRole('button',{name:'Open navigation menu'})).toHaveAttribute('aria-expanded','false');
+ await expect(mobile).toBeHidden();
+ await menu.press('Enter');
+ await expect(find).toHaveAttribute('aria-current','page');
 });
 
 test('Booking address lookups isolate an unavailable private-address RPC without hiding bookings',async()=>{

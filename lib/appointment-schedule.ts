@@ -141,3 +141,86 @@ export function retainAppointmentSelection(
  return matches.length===1&&(booking.customer_id===userId||booking.professional_id===userId)&&
   (booking.status==='booked'||booking.status==='awaiting_customer')?selected:'';
 }
+
+export type AvailabilityBusyWindow = {
+ bookingId: string;
+ startsAt: string;
+ endsAt: string;
+ timezoneName: string;
+ formattedWindow: string;
+};
+
+/**
+ * Detect overlapping confirmed appointments using the same half-open interval
+ * semantics `[starts_at, ends_at)` enforced in PostgreSQL `confirm_booking_appointment`.
+ * Adjacent slots (e.g. 10:00–11:00 and 11:00–12:00) do not overlap.
+ */
+export function findOverlappingAppointments(
+ candidate: {
+  bookingId: string;
+  startIso: string;
+  endIso: string;
+ },
+ appointments: readonly ScheduledAppointment[],
+ bookings: readonly {id: string; professional_id: string; status: string}[],
+ professionalId: string
+): ScheduledAppointment[] {
+ if (!professionalId) return [];
+ const startMs = new Date(candidate.startIso).getTime();
+ const endMs = new Date(candidate.endIso).getTime();
+ if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return [];
+
+ const activeProfessionalBookingIds = new Set(
+  bookings
+   .filter(
+    booking =>
+     booking.professional_id === professionalId &&
+     (booking.status === 'booked' || booking.status === 'awaiting_customer')
+   )
+   .map(booking => booking.id)
+ );
+
+ return appointments.filter(appt => {
+  if (appt.booking_id === candidate.bookingId) return false;
+  if (appt.status !== 'confirmed') return false;
+  if (!activeProfessionalBookingIds.has(appt.booking_id)) return false;
+  const existingStart = new Date(appt.starts_at).getTime();
+  const existingEnd = new Date(appt.ends_at).getTime();
+  if (!Number.isFinite(existingStart) || !Number.isFinite(existingEnd)) return false;
+  return existingStart < endMs && startMs < existingEnd;
+ });
+}
+
+export function buildAvailabilityBusyWindows(
+ appointments: readonly ScheduledAppointment[],
+ bookings: readonly {id: string; professional_id: string; status: string}[],
+ userId: string,
+ nowMs = Date.now()
+): AvailabilityBusyWindow[] {
+ if (!userId) return [];
+ const proBookingIds = new Set(
+  bookings
+   .filter(
+    booking =>
+     booking.professional_id === userId &&
+     (booking.status === 'booked' || booking.status === 'awaiting_customer')
+   )
+   .map(booking => booking.id)
+ );
+
+ return appointments
+  .filter(appt => {
+   if (appt.status !== 'confirmed') return false;
+   if (!proBookingIds.has(appt.booking_id)) return false;
+   const endMs = new Date(appt.ends_at).getTime();
+   return Number.isFinite(endMs) && endMs > nowMs;
+  })
+  .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+  .map(appt => ({
+   bookingId: appt.booking_id,
+   startsAt: appt.starts_at,
+   endsAt: appt.ends_at,
+   timezoneName: appt.timezone_name,
+   formattedWindow: formatAppointmentWindow(appt.starts_at, appt.ends_at, appt.timezone_name),
+  }));
+}

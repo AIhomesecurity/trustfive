@@ -11,7 +11,8 @@
     "dev:vinext": "vite dev --port 3001",
     "build:vinext": "vite build",
     "start:vinext": "vite preview",
-    "deploy:vinext": "vinext-cloudflare deploy"
+    "deploy:preview:dry-run": "node scripts/release/deploy-preview-gate.mjs --dry-run",
+    "deploy:vinext": "node scripts/release/deploy-preview-gate.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",

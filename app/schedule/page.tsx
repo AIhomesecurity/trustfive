@@ -5,6 +5,8 @@ import {supabaseBrowser} from '../../lib/supabase';
 import {executeBookingAction} from '../../lib/booking-lifecycle';
 import {bookingHistoryHref} from '../../lib/workflow-links';
 import {
+  buildAvailabilityBusyWindows,
+  findOverlappingAppointments,
   formatAppointmentWindow,
   resolveAppointmentBooking,
   retainAppointmentSelection,
@@ -138,6 +140,23 @@ export default function BookingSchedule(){
    timezoneName:zone,
   });
   if(validationError){setProposalError(validationError);return;}
+  const selectedBooking=bookings.find(b=>b.id===selected);
+  if(selectedBooking&&selectedBooking.professional_id===userId){
+   const conflicts=findOverlappingAppointments(
+    {bookingId:selected,startIso:begins.toISOString(),endIso:finishes.toISOString()},
+    appointments,
+    bookings,
+    userId
+   );
+   if(conflicts.length>0){
+    const first=conflicts[0];
+    setProposalError(
+     'This time overlaps your confirmed appointment for booking #'+first.booking_id.slice(0,8)+
+     ' ('+formatAppointmentWindow(first.starts_at,first.ends_at,first.timezone_name)+'). Choose a non-overlapping window.'
+    );
+    return;
+   }
+  }
   inFlight.current=true;setBusy(true);setNotice('');
   try{
    const result=await executeBookingAction({
@@ -203,6 +222,7 @@ export default function BookingSchedule(){
 
  const active=bookings.filter(b=>b.status==='booked'||b.status==='awaiting_customer');
  const summary=summarizeAppointments(appointments,userId);
+ const busyWindows=buildAvailabilityBusyWindows(appointments,bookings,userId);
 
  return <main className="container">
   <div className="page-heading">
@@ -222,6 +242,13 @@ export default function BookingSchedule(){
     <div className="card"><h3>{summary.awaitingYourConfirmation}</h3><p>Awaiting your confirmation</p></div>
     <div className="card"><h3>{summary.awaitingOtherParty}</h3><p>Awaiting other participant</p></div>
    </div>
+   {busyWindows.length>0&&<section className="card" style={{marginBottom:22}} aria-label="Confirmed busy windows">
+    <h2 style={{marginTop:0}}>Your confirmed busy windows</h2>
+    <p className="muted-note">Confirmed slots below block overlapping proposals on other bookings until cancelled or completed.</p>
+    <ul style={{margin:'10px 0 0',paddingLeft:20}}>
+     {busyWindows.map(win=><li key={win.bookingId}><strong>Booking #{win.bookingId.slice(0,8)}:</strong> {win.formattedWindow}</li>)}
+    </ul>
+   </section>}
    <div className="two-col">
     <section className="card">
      <h2>Propose or change a time</h2>
@@ -251,8 +278,17 @@ export default function BookingSchedule(){
         {!a?<p style={{marginTop:10}}>No time has been proposed yet.</p>:<>
          <p style={{marginTop:10}}><strong>Appointment:</strong> {a.status}</p>
          <p>{formatAppointmentWindow(a.starts_at,a.ends_at,a.timezone_name)}</p>
-         {a.status==='proposed'&&a.proposed_by!==userId&&
-          <button type="button" className="btn" style={{marginTop:10}} disabled={busy||Boolean(loadError)} onClick={()=>void action(b.id,'confirm_booking_appointment')}>Accept proposed time</button>}
+         {a.status==='proposed'&&a.proposed_by!==userId&&(()=>{
+          const confirmConflicts=b.professional_id===userId
+           ?findOverlappingAppointments({bookingId:b.id,startIso:a.starts_at,endIso:a.ends_at},appointments,bookings,userId)
+           :[];
+          return <>
+           {confirmConflicts.length>0&&<p role="alert" className="notice error" style={{marginTop:10}}>
+            Conflicts with your confirmed appointment for booking #{confirmConflicts[0].booking_id.slice(0,8)}. Propose another time or cancel the conflicting appointment first.
+           </p>}
+           <button type="button" className="btn" style={{marginTop:10}} disabled={busy||Boolean(loadError)||confirmConflicts.length>0} onClick={()=>void action(b.id,'confirm_booking_appointment')}>Accept proposed time</button>
+          </>;
+         })()}
          {a.status==='proposed'&&a.proposed_by===userId&&<p className="muted-note" style={{marginTop:8}}>Awaiting the other participant's confirmation.</p>}
          {(a.status==='confirmed'||a.status==='proposed')&&(
           confirmCancelId===b.id?

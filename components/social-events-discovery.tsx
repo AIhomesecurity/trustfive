@@ -1,9 +1,10 @@
 'use client';
-import {FormEvent,useEffect,useRef,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../lib/supabase';
 import {type SocialArea} from '../lib/social-discovery';
 import {socialDisplayedEventIds,socialEventDateLabel,socialEventRsvpStatus,socialEventViewKey,socialEventViewReady,socialFilterEventsByOwnRsvp,socialEventSearchPattern,socialRsvpKeepsEventVisible,type SocialEventAttendanceFilter,type SocialEventSummary,type SocialEventRsvp} from '../lib/social-events';
+import {buildEventIcsDataUri,upcomingRsvpReminders} from '../lib/social-event-reminders';
 
 /** Browse genuine upcoming events from existing authenticated community tables.
  * The dedicated /community/events page remains the only event publishing UI.
@@ -14,25 +15,27 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  const [attendanceFilter,setAttendanceFilter]=useState<SocialEventAttendanceFilter>('all');
  const [events,setEvents]=useState<SocialEventSummary[]>([]);
  const [responses,setResponses]=useState<SocialEventRsvp[]>([]);
- const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[noticeIsError,setNoticeIsError]=useState(false);
  // Prevent an old account's private RSVP state appearing during account or filter switches.
  const [loadedViewKey,setLoadedViewKey]=useState('');
  const [changingId,setChangingId]=useState(''),[revision,setRevision]=useState(0);
  const actionInFlight=useRef(false);
  const refreshButtonRef=useRef<HTMLButtonElement>(null);
  const attendanceFilterRef=useRef<HTMLSelectElement>(null);
+ const noticeRef=useRef<HTMLParagraphElement>(null);
  const viewKey=socialEventViewKey(userId,areaId,revision,search);
  const currentViewRef=useRef(viewKey);
  currentViewRef.current=viewKey;
  const isLoadingView=!socialEventViewReady(loadedViewKey,viewKey,loading);
  const visibleEvents=socialFilterEventsByOwnRsvp(events,responses,attendanceFilter);
+ const reminders=useMemo(()=>upcomingRsvpReminders(events,responses),[events,responses]);
 
  useEffect(()=>{
-  if(!userId){setEvents([]);setResponses([]);setNotice('');setLoading(false);return;}
+  if(!userId){setEvents([]);setResponses([]);setNotice('');setNoticeIsError(false);setLoading(false);return;}
   let active=true;
   const requestKey=socialEventViewKey(userId,areaId,revision,search);
   (async()=>{
-   setLoading(true);setError('');setNotice('');
+   setLoading(true);setError('');setNotice('');setNoticeIsError(false);
    try{
     const client=supabaseBrowser();
     let query=client.from('community_events')
@@ -77,7 +80,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
  async function respond(eventId:string,status:'going'|'interested'|'none'){
   if(!userId||actionInFlight.current||isLoadingView)return;
   const requestViewKey=viewKey;
-  actionInFlight.current=true;setChangingId(eventId);setNotice('');
+  actionInFlight.current=true;setChangingId(eventId);setNotice('');setNoticeIsError(false);
   try{
    const result=await supabaseBrowser().rpc('set_event_response',{p_event:eventId,p_status:status});
    if(result.error)throw result.error;
@@ -91,17 +94,43 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
    setResponses(old=>status==='none'
     ?old.filter(item=>item.event_id!==eventId)
     :[...old.filter(item=>item.event_id!==eventId),{event_id:eventId,status}]);
+   setNoticeIsError(false);
    setNotice(status==='none'?'Your RSVP was cancelled.':'Your RSVP was saved. Refresh if the event changes.');
   }catch{
-   if(currentViewRef.current===requestViewKey)
+   if(currentViewRef.current===requestViewKey){
+    setNoticeIsError(true);
     setNotice('Your RSVP could not be changed. Please retry after checking the event is still available.');
+    window.requestAnimationFrame(()=>noticeRef.current?.focus());
+   }
   }finally{actionInFlight.current=false;setChangingId('');}
  }
 
  return <section aria-labelledby="social-events-title">
   <h2 id="social-events-title">Community events</h2>
-  <p className="subtle">Discover genuine upcoming events shared with signed-in TrustFive members. Only your own RSVP is shown, never other attendees' identities. Times appear in your device's time zone. Event venues are published by organisers; choose public meeting places and do not share home addresses.</p>
+  <p className="subtle">Discover genuine upcoming events shared with signed-in TrustFive members. Only your own RSVP is shown, never other attendees&apos; identities. Times appear in your device&apos;s time zone. Event venues are published by organisers; choose public meeting places and do not share home addresses.</p>
   {!userId?<div className="card" role="status">Sign in to browse and respond to community events.</div>:<>
+   {!isLoadingView&&!error&&reminders.length>0&&<section className="social-reminder-panel" aria-labelledby="social-reminders-title" data-testid="social-event-reminders">
+    <div className="social-post-meta">
+     <h3 id="social-reminders-title" style={{margin:0,fontSize:17}}>Upcoming event reminders ({reminders.length})</h3>
+     <Link href="/notifications" className="job-related-link">Notification delivery status →</Link>
+    </div>
+    <p className="muted-note" style={{margin:0}}>
+     Reminders below reflect your own RSVPs. Download an .ics calendar file for a 60-minute device alarm — automated email, SMS and mobile push reminders are not yet enabled.
+    </p>
+    <ul className="social-reminder-list">
+     {reminders.map(item=><li className="social-reminder-row" key={item.event.id}>
+      <div>
+       <strong>{item.event.title}</strong>{' '}
+       <span className="pill">{item.status==='going'?'Going':'Interested'}</span>{' '}
+       <span className="muted-note">· {item.countdownLabel} · {item.event.venue_label}</span>
+      </div>
+      <a className="btn secondary" href={buildEventIcsDataUri(item.event,item.status)}
+       download={`trustfive-event-${item.event.id.slice(0,8)}.ics`}>
+       Save calendar reminder (.ics)
+      </a>
+     </li>)}
+    </ul>
+   </section>}
    <form className="card social-hub-filters" onSubmit={submitSearch}>
     <label>Search event titles<input type="search" maxLength={120} placeholder="Community repair café" value={searchInput} onChange={e=>setSearchInput(e.target.value)}/></label>
     <button type="submit" className="btn secondary">Search events</button>
@@ -123,7 +152,7 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
     <Link href="/community/events" className="btn secondary">Organise an event</Link>
    </form>
    {search&&<p className="muted-note" role="status">Searching event titles for “{search}”. Results include up to 60 matching upcoming events. Clear the search to browse others.</p>}
-   {notice&&<p className="notice" role="status">{notice}</p>}
+   {notice&&<p ref={noticeRef} tabIndex={-1} className={noticeIsError?'notice error':'notice'} role={noticeIsError?'alert':'status'}>{notice}</p>}
    {isLoadingView?<div className="card" role="status">Loading upcoming events…</div>
    :error?<div className="card" role="alert"><p>{error}</p><button className="btn secondary" type="button" onClick={()=>{refreshButtonRef.current?.focus();setRevision(v=>v+1);}}>Retry events</button></div>
    :<>
@@ -149,6 +178,8 @@ export default function SocialEventsDiscovery({userId,areas}:{userId:string;area
          aria-pressed={status==='interested'} onClick={()=>{void respond(event.id,'interested');}}>Interested</button>
         {status&&<button type="button" className="btn secondary" disabled={Boolean(changingId)}
          onClick={()=>{void respond(event.id,'none');}}>Cancel RSVP</button>}
+        {status&&<a className="btn secondary" href={buildEventIcsDataUri(event,status)}
+         download={`trustfive-event-${event.id.slice(0,8)}.ics`}>Add to calendar (.ics)</a>}
        </div>
       </article>;
      })}

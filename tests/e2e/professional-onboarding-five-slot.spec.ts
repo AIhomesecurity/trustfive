@@ -6,7 +6,7 @@ import {
 } from '../../lib/professional-onboarding';
 
 test('Onboarding stage cleanly distinguishes pending, under_review, active 1..5, waiting-list, rejected and suspended', () => {
-  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const future = '2030-06-15T12:00:00.000Z';
 
   expect(
     deriveProfessionalOnboardingStage({
@@ -62,7 +62,7 @@ test('Onboarding stage cleanly distinguishes pending, under_review, active 1..5,
       active_slots_filled: 4,
       latest_offer_status: 'offered',
       latest_offer_expires_at: future,
-    }).key
+    }, Date.parse(future) - 1).key
   ).toBe('offer_pending');
 
   expect(
@@ -149,4 +149,23 @@ test('Anonymous visitors are redirected away from professional onboarding, busin
   await page.goto('/admin');
   await expect(page).toHaveURL(/\/account\?next=%2Fadmin$/);
   await expect(page.getByRole('button', {name: /Suspend professional|Mark eligible following review/i})).toHaveCount(0);
+});
+
+test('Vacancy offers stop being actionable at the exact expiry time', () => {
+  const expiresAt = '2030-06-15T12:00:00.000Z';
+  const expiry = Date.parse(expiresAt);
+  const offer = {
+    application_status: 'eligible',
+    assessment_state: 'verified',
+    active_slot: null,
+    active_slots_filled: 4,
+    latest_offer_status: 'offered',
+    latest_offer_expires_at: expiresAt,
+  } as const;
+
+  expect(deriveProfessionalOnboardingStage(offer, expiry - 1).key).toBe('offer_pending');
+  expect(deriveProfessionalOnboardingStage(offer, expiry).key).toBe('eligible_unoffered');
+  expect(deriveProfessionalOnboardingStage(offer, expiry + 1).key).toBe('eligible_unoffered');
+  expect(deriveProfessionalOnboardingStage({...offer, latest_offer_expires_at: 'invalid'}, expiry).key)
+    .toBe('eligible_unoffered');
 });
