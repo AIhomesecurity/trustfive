@@ -7,21 +7,34 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "dev:vinext": "vite dev --port 3001",
+    "build:vinext": "vite build",
+    "start:vinext": "vite preview",
+    "deploy:preview:dry-run": "node scripts/release/deploy-preview-gate.mjs --dry-run",
+    "deploy:vinext": "node scripts/release/deploy-preview-gate.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.0",
+    "@vinext/cloudflare": "^1.4.0",
     "next": "^15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "stripe": "^23.1.0"
+    "react-server-dom-webpack": "^19.3.1",
+    "stripe": "^23.1.0",
+    "vinext": "^1.4.6"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^2.0.0-rc.3",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "@vitejs/plugin-rsc": "^0.5.39",
+    "cf": "^1.0.0-rc.2",
     "typescript": "^5.8.0",
-    "@playwright/test": "^1.65.1"
+    "vite": "^8.3.0"
   }
 }

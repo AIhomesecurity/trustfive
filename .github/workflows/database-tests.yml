@@ -38,6 +38,10 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client
           fi
+      - name: Test and run migration preflight
+        run: |
+          bash tests/db/check-migration-versions.sh
+          bash scripts/db/check-migration-versions.sh
       - name: Bootstrap Supabase auth compatibility
         run: psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql
       - name: Apply TrustFive migrations
@@ -46,6 +50,16 @@ jobs:
             echo "Applying $migration"
             psql -v ON_ERROR_STOP=1 -f "$migration"
           done
+      - name: Verify preview schema readiness after migration replay
+        run: |
+          checks=$(psql -XAt -v ON_ERROR_STOP=1 -f scripts/release/preview-schema-readiness.sql)
+          printf '%s\n' "$checks"
+          test -n "$checks"
+          if grep -qvE '^.+[|]t$' <<< "$checks"; then
+            echo "Preview schema readiness check failed" >&2
+            exit 1
+          fi
+
       - name: Test RLS, five-slot constraint and quote completion
         run: psql -v ON_ERROR_STOP=1 -f tests/db/flows.sql
 
@@ -88,3 +102,33 @@ jobs:
 
       - name: Enforce nationwide pending-area interest privacy and no self-approval
         run: psql -v ON_ERROR_STOP=1 -f tests/db/uk-area-interest-contract.sql
+
+      - name: Verify job contact preferences, quote availability, withdrawal and privacy contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/job-quote-booking-workflow-contract.sql
+
+      - name: Verify marketplace job lifecycle, security and abuse-prevention contract (Phase 7)
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/marketplace-security-abuse-contract.sql
+
+      - name: Verify professional onboarding, verification RLS, suspension and five-slot waiting list
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/professional-onboarding-five-slot-contract.sql
+
+      - name: Verify message participant entitlements with exact read counts
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/message-participant-entitlement-contract.sql
+
+      - name: Verify targeted marketplace FK indexes and EXPLAIN plans (Issue #13)
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/query-plan-indexes-contract.sql
+
+      - name: Verify professional collaboration registration, private interests and closed-request RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-trade-collaboration-contract.sql
+
+      - name: Verify private saved-post RLS, anonymous denial and hidden-post privacy
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-saved-posts-rls-contract.sql
+
+      - name: Verify showcase privacy, moderation and author permissions
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/completed-work-showcase-contract.sql
+
+      - name: Verify Social group membership, protected discussions and founder leave rules
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-group-conversations-rls-contract.sql
+
+      - name: Verify Social report resolution RPC, EXIF-stripped media RLS and Social notification paths
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-moderation-media-rls-contract.sql

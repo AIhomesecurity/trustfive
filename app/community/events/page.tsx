@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useState} from 'react';
+import {FormEvent,useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
 import {communityGroupLocationLabel} from '../../../lib/community-group-location';
@@ -18,7 +18,10 @@ export default function CommunityEvents(){
  const [pendingRsvpEventId,setPendingRsvpEventId]=useState<string|null>(null);
  const [loading,setLoading]=useState(true);
  const [loadError,setLoadError]=useState(false);
- async function refresh(){
+ const initialRetryRef=useRef<HTMLButtonElement>(null);
+ const headingRef=useRef<HTMLHeadingElement>(null);
+ const retryingInitialLoad=useRef(false);
+ const refresh=useCallback(async()=>{
   const s=supabaseBrowser();
   const [e,r]=await Promise.all([
    s.from('community_events').select('id,area_id,title,description,venue_label,starts_at,ends_at,host_id')
@@ -27,8 +30,10 @@ export default function CommunityEvents(){
   ]);
   if(e.error)throw e.error;if(r.error)throw r.error;
   setEvents(e.data||[]);setResponses(r.data||[]);setLoadError(false);
- }
- useEffect(()=>{(async()=>{try{
+ },[]);
+ const loadInitialEvents=useCallback(async()=>{
+  setLoading(true);setNotice('');setLoadError(false);
+  try{
   const s=supabaseBrowser();
   const [{data:{user},error},a]=await Promise.all([
    s.auth.getUser(),s.from('service_areas').select('id,area_name,city').order('city')
@@ -36,7 +41,16 @@ export default function CommunityEvents(){
   if(error)throw error;
   if(!user){setNotice('Sign in to view and join local events.');return;}
   if(a.error)throw a.error;setUserId(user.id);setAreas(a.data||[]);await refresh();
- }catch(e){setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setLoading(false);}})()},[]);
+  }catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}
+  finally{setLoading(false);}
+ },[refresh]);
+ useEffect(()=>{void loadInitialEvents();},[loadInitialEvents]);
+ useEffect(()=>{
+  if(loading||!retryingInitialLoad.current)return;
+  retryingInitialLoad.current=false;
+  if(loadError&&!userId)initialRetryRef.current?.focus();
+  else headingRef.current?.focus();
+ },[loading,loadError,userId]);
  async function retryEvents(){if(busy)return;setBusy(true);setNotice('');try{await refresh();}catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setBusy(false);}}
  async function publish(e:FormEvent){e.preventDefault();if(busy||!userId)return;setBusy(true);setNotice('');
   try{
@@ -70,10 +84,10 @@ export default function CommunityEvents(){
   finally{setPendingRsvpEventId(null);setBusy(false);}
  }
  return <main className="container">
-  <div className="page-heading"><span className="eyebrow">Bring neighbours together</span><h1>Local events</h1>
+  <div className="page-heading"><span className="eyebrow">Bring neighbours together</span><h1 ref={headingRef} tabIndex={-1}>Local events</h1>
    <p className="subtle">Find and organise community meetups, projects and neighbourhood activities.</p></div>
   {notice&&<p className="notice" role="status">{notice}</p>}
-  {loading?<p role="status">Loading local events…</p>:loadError&&!userId?<div className="card" role="alert"><p>We could not check your account or load neighbourhoods. Please try again before signing in.</p><button className="btn secondary" type="button" onClick={()=>window.location.reload()}>Retry loading local events</button></div>:!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
+  {loading?<p role="status">Loading local events…</p>:loadError&&!userId?<div className="card" role="alert"><p>We could not check your account or load neighbourhoods. Please try again before signing in.</p><button className="btn secondary" type="button" ref={initialRetryRef} onClick={()=>{retryingInitialLoad.current=true;void loadInitialEvents();}}>Retry loading local events</button></div>:!userId?<Link href="/account" className="btn">Sign in</Link>:<div className="two-col">
    <section className="card"><h2>Organise an event</h2>
     {areas.length===0&&<p role="status" className="muted-note">No neighbourhoods are available to select yet. Event publishing is unavailable until a neighbourhood is listed.</p>}
     <form className="form" onSubmit={publish}>
