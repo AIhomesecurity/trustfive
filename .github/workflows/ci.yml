@@ -22,6 +22,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Test official boundary inspection (never auto-approve geography)
         run: node --test tests/geo/inspect-boundary-geojson.test.mjs
+      - name: Test unattended OpenCode runner hygiene and workflow handoff
+        run: node --test tests/release/opencode-runner.test.mjs
       - name: Check types
         run: npx tsc --noEmit
       - name: Build application

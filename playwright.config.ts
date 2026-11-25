@@ -1,4 +1,6 @@
 import {defineConfig,devices} from '@playwright/test';
+const port=Number(process.env.PLAYWRIGHT_PORT||3112);
+const baseURL=`http://127.0.0.1:${port}`;
 export default defineConfig({
  testDir:'./tests/e2e',
  fullyParallel:true,
@@ -6,14 +8,14 @@ export default defineConfig({
  retries:process.env.CI?1:0,
  reporter:process.env.CI?'list':'html',
  use:{
-  baseURL:'http://127.0.0.1:3112',
+  baseURL,
   trace:'retain-on-failure',
   screenshot:'only-on-failure'
  },
  projects:[{name:'chromium',use:{...devices['Desktop Chrome']}}],
  webServer:{
-  command:'npm run start -- --port 3112',
-  url:'http://127.0.0.1:3112/api/health',
+  command:`npm run start -- --hostname 127.0.0.1 --port ${port}`,
+  url:`${baseURL}/api/health`,
   reuseExistingServer:!process.env.CI,
   timeout:90000
  }
