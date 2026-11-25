@@ -103,6 +103,8 @@ test('run-one.sh disables interactive Web Search, avoids port 3112 collisions, s
       cwd: sandbox,
       env: {
         ...process.env,
+        NEXT_PUBLIC_SUPABASE_URL: '',
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '',
         OPENROUTER_API_KEY: 'synthetic-test-key',
         OPENCODE_SKIP_QUOTA_CHECK: '1',
         OPENCODE_SKIP_NPM_INSTALL: '1',

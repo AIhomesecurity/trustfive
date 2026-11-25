@@ -147,11 +147,9 @@ cleanup() {
     rm -f opencode.json
   fi
 
-  # Terminate any stray local servers left on Playwright/fixture ports.
+  # Terminate any stray local servers left on this run's Playwright or loopback fixture ports.
+  # Never kill an unrelated pre-existing listener on 3112 if PLAYWRIGHT_PORT chose a different port.
   kill_port_listeners "$PLAYWRIGHT_PORT"
-  if [[ "$PLAYWRIGHT_PORT" != "3112" ]]; then
-    kill_port_listeners 3112
-  fi
   kill_port_listeners 54321
   if command -v pkill >/dev/null 2>&1; then
     pkill -TERM -f "next-server" >/dev/null 2>&1 || true
