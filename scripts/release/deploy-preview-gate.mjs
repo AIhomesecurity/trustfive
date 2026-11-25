@@ -30,6 +30,8 @@ const FORBIDDEN_EVIDENCE_KEYS = new Set([
   'password',
   'authorization',
 ]);
+const SECRET_LIKE_BINDING_NAME_RE = /(?:^|_)(SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL|PRIVATE)(?:_|$)/i;
+const SUPABASE_PUBLISHABLE_KEY_RE = /^sb_publishable_[A-Za-z0-9_-]+$/;
 const FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 function isNonEmptyString(value) {
@@ -556,6 +558,20 @@ export async function verifyPrebuiltWorkerArtifact({
         }
         if (binding.type === 'text') {
           const textValue = typeof binding.value === 'string' ? binding.value : '';
+          const isPublicSupabaseKey = bindingName === 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY' &&
+            SUPABASE_PUBLISHABLE_KEY_RE.test(textValue);
+          if (SECRET_LIKE_BINDING_NAME_RE.test(bindingName) && !isPublicSupabaseKey) {
+            reasons.push(
+              `Generated worker.config.json text binding "${bindingName}" has a secret-like name and must use the "secret" binding type, not "text".`
+            );
+          }
+          const connectionUrl = /^postgres(?:ql)?:\/\//i.test(textValue.trim()) ? URL.parse(textValue.trim()) : null;
+          if (connectionUrl && (connectionUrl.password ||
+              [...connectionUrl.searchParams].some(([name, value]) => name.toLowerCase() === 'password' && value))) {
+            reasons.push(
+              `Generated worker.config.json text binding "${bindingName}" contains a PostgreSQL connection password and must use the "secret" binding type.`
+            );
+          }
           if (LIVE_STRIPE_OR_SECRET_RE.test(textValue)) {
             reasons.push(
               `Generated worker.config.json text binding "${bindingName}" must not contain live Stripe keys or webhook secrets.`
