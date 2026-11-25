@@ -1,6 +1,9 @@
 /** Notification routes are untrusted data until validated. A link grants no
  * record access; account-scoped RLS and page guards remain authoritative. */
-const simpleRoutes=new Set(['/jobs','/bookings','/messages','/professional/apply']);
+const simpleRoutes=new Set([
+ '/jobs','/bookings','/messages','/professional/apply',
+ '/community/social','/community/events','/community/social?tab=events'
+]);
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Accept only canonical route and parameter spellings. Case-insensitive

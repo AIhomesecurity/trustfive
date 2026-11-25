@@ -124,11 +124,13 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
       if (leaf === 'service_areas') return reply(200, [areaA]);
       if (leaf === 'is_trustfive_admin') return reply(200, id === moderator.id);
       if (leaf === 'community_reports') return reply(200, communityReports);
-      if (leaf === 'moderate_community_post' && request.method === 'POST') {
+      if (leaf === 'moderate_community_report' && request.method === 'POST') {
         let raw = '';
         for await (const chunk of request) raw += chunk;
         const body = JSON.parse(raw);
-        hiddenCommunityPosts.push(body.p_post);
+        hiddenCommunityPosts.push(`${body.p_action}:${body.p_report}`);
+        const idx = communityReports.findIndex(r => r.id === body.p_report);
+        if (idx >= 0) communityReports.splice(idx, 1);
         return reply(200, null);
       }
 
@@ -217,7 +219,7 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
       );
       expect(mobileOverflow).toBeLessThanOrEqual(0);
 
-      // 5. Usable admin Community reports queue: category filter, Escape cancel, and confirmed hide.
+      // 5. Usable admin Community reports queue: category filter, Escape cancel, confirmed hide and dismiss.
       await signIn(adminPage, moderator);
       await adminPage.goto(`${app}/admin`);
       const communityQueue = adminPage.getByRole('region', {name: 'Community reports'});
@@ -237,11 +239,18 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
       await expect(communityQueue.getByRole('button', {name: 'Confirm hide community post'})).toHaveCount(0);
       expect(hiddenCommunityPosts).toHaveLength(0);
 
-      // Confirm hide invokes moderate_community_post RPC cleanly.
+      // Confirm hide invokes moderate_community_report RPC cleanly.
       await communityQueue.getByRole('button', {name: 'Hide reported post pending investigation'}).click();
       await communityQueue.getByRole('button', {name: 'Confirm hide community post'}).click();
-      await expect(adminPage.getByText('Post hidden.')).toBeVisible();
-      expect(hiddenCommunityPosts).toEqual([reportedPost2]);
+      await expect(adminPage.getByText('Post hidden and community report resolved.')).toBeVisible();
+
+      // Switch back to All and dismiss remaining spam report.
+      await catSelect.selectOption('all');
+      await expect(communityQueue.getByRole('article')).toHaveCount(1);
+      await communityQueue.getByRole('button', {name: 'Dismiss community report'}).click();
+      await communityQueue.getByRole('button', {name: 'Confirm dismiss community report'}).click();
+      await expect(adminPage.getByText('Community report dismissed and decision recorded.')).toBeVisible();
+      expect(hiddenCommunityPosts).toEqual([`hide:${report2}`, `dismiss:${report1}`]);
     } finally {
       await Promise.all([mobilePage.close(), adminPage.close()]);
       await new Promise<void>((resolve, reject) => {

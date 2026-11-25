@@ -3,7 +3,7 @@ with required_tables(name) as (
   values
     ('job_bookings'), ('booking_reviews'), ('booking_appointments'), ('community_reports'),
     ('professional_verification_submissions'), ('social_trade_requests'), ('social_trade_interests'),
-    ('social_saved_posts'), ('community_group_post_reports')
+    ('social_saved_posts'), ('community_group_post_reports'), ('community_post_media')
 ), catalogue as (
   select t.name, c.oid, c.relrowsecurity
   from required_tables t
@@ -35,7 +35,8 @@ from (values
   ('withdraw_job_quote(uuid)'),
   ('customer_job_activity(uuid)'),
   ('submit_professional_verification(uuid,text,text,date,text,text,text)'),
-  ('moderate_group_post_report(uuid,text)')
+  ('moderate_group_post_report(uuid,text)'),
+  ('moderate_community_report(uuid,text)')
 ) as required_functions(signature)
 union all
 select 'index:jobs_customer_created_idx',

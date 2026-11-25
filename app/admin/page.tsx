@@ -22,7 +22,7 @@ export default function Admin(){
  const [coverageApp,setCoverageApp]=useState(''),[coveragePoint,setCoveragePoint]=useState<SelectedLocation|null>(null);
  const [coverageRadius,setCoverageRadius]=useState('25'),[coverageEvidence,setCoverageEvidence]=useState('');
  const [reportCategoryFilter,setReportCategoryFilter]=useState('all');
- const [confirmHideReportId,setConfirmHideReportId]=useState<string|null>(null);
+ const [confirmReportDecision,setConfirmReportDecision]=useState<{id:string;action:'hide'|'dismiss'}|null>(null);
  async function refresh(){
   const s=supabaseBrowser();const r=await Promise.all([
    s.from('professional_applications').select('id,business_name,status,experience_years,about,submitted_at,trade_id,area_id').order('submitted_at',{ascending:false}).limit(150),
@@ -55,7 +55,7 @@ export default function Admin(){
   setMessage('Verified service coverage saved. Customer searches may now rank this approved professional by approximate distance.');
   setCoverageEvidence('');
  })}
- async function moderate(postId:string){await perform(async()=>{const {error}=await supabaseBrowser().rpc('moderate_community_post',{p_post:postId,p_visibility:'hidden'});if(error)throw error;setConfirmHideReportId(null);setMessage('Post hidden. Resolving the report status row requires a coordinated moderation RPC.')})}
+ async function resolveCommunityReport(reportId:string,action:'hide'|'dismiss'){await perform(async()=>{const {error}=await supabaseBrowser().rpc('moderate_community_report',{p_report:reportId,p_action:action});if(error)throw error;setConfirmReportDecision(null);setMessage(action==='hide'?'Post hidden and community report resolved.':'Community report dismissed and decision recorded.')})}
  const selectedVerification=verifications.find(v=>v.application_id===selected);
  const visibleCommunityReports=reportCategoryFilter==='all'?reports:reports.filter(r=>r.category===reportCategoryFilter);
  return <main className="container"><div className="page-heading"><span className="eyebrow">Restricted operations</span><h1>TrustFive admin</h1><p className="subtle">Protected by server-side database authorization, not a visual admin flag. <Link href="/admin/complaints">Review complaints and appeals →</Link> · <Link href="/admin/business">Review business pages →</Link> · <Link href="/admin/showcases">Review project showcases →</Link> · <Link href="/admin/territories">Review territory boundaries →</Link> · <Link href="/admin/readiness">Check launch readiness →</Link> · <Link href="/admin/release">Review legal and payment signoffs →</Link></p></div>{loading&&<p>Verifying access…</p>}{message&&<p className="notice" role="status">{message}</p>}
@@ -87,12 +87,12 @@ export default function Admin(){
  </section>
  <section className="card" aria-labelledby="community-reports-heading">
   <h2 id="community-reports-heading">Community reports</h2>
-  <p className="muted-note">Neighbourhood post reports queued for moderator review. Hiding sets the post visibility to hidden via auditable RPC; dismissing report rows requires a coordinated database RPC matching group moderation.</p>
+  <p className="muted-note">Neighbourhood post reports queued for moderator review. Hiding sets the post visibility to hidden and resolves the report; dismissing keeps the post visible — both decisions write an immutable audit event.</p>
   {reports.length>0&&<div className="social-hub-shortcuts">
    <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700}}>
     Category
     <select aria-label="Filter community reports by category" value={reportCategoryFilter} disabled={busy}
-     onChange={e=>{setReportCategoryFilter(e.target.value);setConfirmHideReportId(null);}}>
+     onChange={e=>{setReportCategoryFilter(e.target.value);setConfirmReportDecision(null);}}>
      <option value="all">All categories ({reports.length})</option>
      {(['spam','abuse','privacy','other'] as const).map(cat=><option key={cat} value={cat}>{cat} ({reports.filter(r=>r.category===cat).length})</option>)}
     </select>
@@ -103,11 +103,16 @@ export default function Admin(){
    :visibleCommunityReports.map(r=><article className="notice" key={r.id}>
     <p style={{margin:'0 0 6px'}}><strong>Report: {r.category}</strong> · {new Date(r.created_at).toLocaleString('en-GB')}</p>
     <p className="muted-note" style={{margin:'0 0 10px'}}>Post ID: {r.post_id}</p>
-    {confirmHideReportId===r.id?<div role="group" aria-label="Confirm hiding reported post" className="social-hub-shortcuts" style={{margin:0}}
-      onKeyDown={event=>{if(event.key==='Escape'&&!busy){event.preventDefault();setConfirmHideReportId(null);}}}>
-     <button type="button" className="btn" disabled={busy} onClick={()=>void moderate(r.post_id)}>Confirm hide community post</button>
-     <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmHideReportId(null)}>Cancel</button>
-    </div>:<button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmHideReportId(r.id)}>Hide reported post pending investigation</button>}
+    {confirmReportDecision?.id===r.id?<div role="group" aria-label="Confirm community report decision" className="social-hub-shortcuts" style={{margin:0}}
+      onKeyDown={event=>{if(event.key==='Escape'&&!busy){event.preventDefault();setConfirmReportDecision(null);}}}>
+     <button type="button" className="btn" disabled={busy} onClick={()=>void resolveCommunityReport(r.id,confirmReportDecision.action)}>
+      {confirmReportDecision.action==='hide'?'Confirm hide community post':'Confirm dismiss community report'}
+     </button>
+     <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmReportDecision(null)}>Cancel</button>
+    </div>:<div className="social-hub-shortcuts" style={{margin:0}}>
+     <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmReportDecision({id:r.id,action:'hide'})}>Hide reported post pending investigation</button>
+     <button type="button" className="btn secondary" disabled={busy} onClick={()=>setConfirmReportDecision({id:r.id,action:'dismiss'})}>Dismiss community report</button>
+    </div>}
    </article>)}
  </section>
  <GroupPostModeration/></>}</main>;

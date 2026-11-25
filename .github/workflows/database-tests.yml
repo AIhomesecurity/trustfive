@@ -129,3 +129,6 @@ jobs:
 
       - name: Verify Social group membership, protected discussions and founder leave rules
         run: psql -v ON_ERROR_STOP=1 -f tests/db/social-group-conversations-rls-contract.sql
+
+      - name: Verify Social report resolution RPC, EXIF-stripped media RLS and Social notification paths
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-moderation-media-rls-contract.sql
