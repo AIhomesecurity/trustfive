@@ -26,13 +26,20 @@ const genuineProtectedPreviewEvidence = {
 };
 
 function makeValidWorkerConfig(overrides = {}) {
+  const env = {
+    ASSETS: {type: 'assets'},
+    NEXT_PUBLIC_SUPABASE_URL: {type: 'text', value: previewUrl},
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: {type: 'text', value: 'sb_publishable_fixture'},
+    TRUSTFIVE_BUILD_SHA: {type: 'text', value: commitSha},
+    ...overrides.env,
+  };
   return {
     name: ALLOWED_PREVIEW_WORKER, compatibilityDate: '2026-11-22', workersDev: false, previewUrls: false,
     domains: [{hostname: ALLOWED_PREVIEW_DOMAIN, production: true, previews: false}],
     assets: {htmlHandling: 'none', notFoundHandling: 'none', runWorkerFirst: ['/*', '!/_next/static/*', '!/*/_next/static/*']},
-    env: {ASSETS: {type: 'assets'}},
     manifest: {type: 'partial', mainModule: 'index.mjs', modules: {}},
     ...overrides,
+    env,
   };
 }
 
@@ -111,4 +118,40 @@ test('allows non-secret text bindings (NEXT_PUBLIC_SUPABASE_URL, TRUSTFIVE_BUILD
   const fixture = await createValidFixture(t, {env: {ASSETS: {type: 'assets'}, NEXT_PUBLIC_SUPABASE_URL: {type: 'text', value: previewUrl}, TRUSTFIVE_BUILD_SHA: {type: 'text', value: commitSha}, APP_NAME: {type: 'text', value: 'TrustFive'}}});
   const decision = await evaluatePreviewDeployGate(makeBaseOptions(fixture));
   assert.equal(decision.ok, true, 'Non-secret text bindings should be allowed.');
+});
+
+test('allows only the exact public Supabase binding name with a publishable key', async t => {
+  const fixture = await createValidFixture(t, {env: {
+    ASSETS: {type: 'assets'},
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: {type: 'text', value: 'sb_publishable_fixture'},
+  }});
+  assert.equal((await evaluatePreviewDeployGate(makeBaseOptions(fixture))).ok, true);
+
+  for (const [name, value] of [
+    ['NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_secret_fixture'],
+    ['NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', SYNTHETIC_JWT],
+    ['NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY', 'sb_publishable_fixture'],
+  ]) {
+    const rejected = await createValidFixture(t, {env: {ASSETS: {type: 'assets'}, [name]: {type: 'text', value}}});
+    const decision = await evaluatePreviewDeployGate(makeBaseOptions(rejected));
+    assert.equal(decision.ok, false);
+    assert.match(decision.reasons.join('\n'), /secret-like name/);
+    assert.equal(decision.reasons.join('\n').includes(value), false);
+  }
+});
+
+test('rejects PostgreSQL passwords in text binding values without echoing them', async t => {
+  for (const url of [
+    'postgresql://fixture:fixture-password@db.example.test/app',
+    'postgres://fixture@db.example.test/app?password=fixture-password',
+  ]) {
+    const fixture = await createValidFixture(t, {env: {
+      ASSETS: {type: 'assets'},
+      DATABASE_URL: {type: 'text', value: url},
+    }});
+    const decision = await evaluatePreviewDeployGate(makeBaseOptions(fixture));
+    assert.equal(decision.ok, false);
+    assert.match(decision.reasons.join('\n'), /contains a PostgreSQL connection password/);
+    assert.doesNotMatch(decision.reasons.join('\n'), /fixture-password/);
+  }
 });
