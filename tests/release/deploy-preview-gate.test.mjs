@@ -830,3 +830,83 @@ test('rejects an artifact whose runtime database settings are absent', async t =
   assert.match(result.reasons.join(' '), /requires a Supabase publishable key text binding/);
   assert.match(result.reasons.join(' '), /requires a TRUSTFIVE_BUILD_SHA text binding/);
 });
+
+test('allows required NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY text binding while rejecting secret-like text bindings', async t => {
+  const validFixture = await createPrebuiltArtifactFixture(t);
+  const validDecision = await runPreviewDeployGate(makeBaseOptions(validFixture));
+  assert.equal(validDecision.ok, true, 'Required sb_publishable_ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY text binding must pass.');
+
+  const secretLikeCases = [
+    {name: 'SUPABASE_SERVICE_ROLE_KEY', value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.synthetic.sig'},
+    {name: 'STRIPE_SECRET_KEY', value: 'sk_test_51FakeTestKeyValue12345678901234567890'},
+    {name: 'SUPABASE_ANON_KEY', value: 'eyJhbGciOiJIUzI1NiJ9.synthetic'},
+    {name: 'CF_ACCESS_CLIENT_SECRET', value: 'access-secret-value'},
+    {name: 'DATABASE_PASSWORD', value: 'super-secret-password'},
+    {name: 'API_TOKEN', value: 'tok_aBcDeFgHiJkLmNoP'},
+    {name: 'PRIVATE_KEY', value: '-----BEGIN PRIVATE KEY-----\nfake'},
+    {name: 'SERVICE_CREDENTIAL', value: 'cred_abc123'},
+  ];
+  for (const tc of secretLikeCases) {
+    const fixture = await createPrebuiltArtifactFixture(t, {
+      workerConfig: makeValidWorkerConfig({
+        env: {
+          ASSETS: {type: 'assets'},
+          NEXT_PUBLIC_SUPABASE_URL: {type: 'text', value: previewUrl},
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: {type: 'text', value: 'sb_publishable_fixture'},
+          TRUSTFIVE_BUILD_SHA: {type: 'text', value: commitSha},
+          [tc.name]: {type: 'text', value: tc.value},
+        },
+      }),
+    });
+    const decision = await runPreviewDeployGate(makeBaseOptions(fixture));
+    assert.equal(decision.ok, false, `Gate must reject secret-like text binding "${tc.name}"`);
+    assert.match(decision.reasons.join('\n'), /secret.*binding type/i);
+  }
+});
+
+test('allows secret-typed bindings with secret-like names and rejects JWT or non-publishable NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY values', async t => {
+  const secretTypeFixture = await createPrebuiltArtifactFixture(t, {
+    workerConfig: makeValidWorkerConfig({
+      env: {
+        ASSETS: {type: 'assets'},
+        NEXT_PUBLIC_SUPABASE_URL: {type: 'text', value: previewUrl},
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: {type: 'text', value: 'sb_publishable_fixture'},
+        TRUSTFIVE_BUILD_SHA: {type: 'text', value: commitSha},
+        SUPABASE_SERVICE_ROLE_KEY: {type: 'secret'},
+        STRIPE_SECRET_KEY: {type: 'secret'},
+      },
+    }),
+  });
+  const okDecision = await runPreviewDeployGate(makeBaseOptions(secretTypeFixture));
+  assert.equal(okDecision.ok, true, 'Secret-typed bindings with secret-like names should be allowed.');
+
+  const badPublishableFixture = await createPrebuiltArtifactFixture(t, {
+    workerConfig: makeValidWorkerConfig({
+      env: {
+        ASSETS: {type: 'assets'},
+        NEXT_PUBLIC_SUPABASE_URL: {type: 'text', value: previewUrl},
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: {type: 'text', value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.synthetic.sig'},
+        TRUSTFIVE_BUILD_SHA: {type: 'text', value: commitSha},
+      },
+    }),
+  });
+  const badDecision = await runPreviewDeployGate(makeBaseOptions(badPublishableFixture));
+  assert.equal(badDecision.ok, false, 'Non-sb_publishable_ value in NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be rejected.');
+});
+
+test('rejects text bindings containing embedded URI credentials such as DATABASE_URL passwords', async t => {
+  const fixture = await createPrebuiltArtifactFixture(t, {
+    workerConfig: makeValidWorkerConfig({
+      env: {
+        ASSETS: {type: 'assets'},
+        NEXT_PUBLIC_SUPABASE_URL: {type: 'text', value: previewUrl},
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: {type: 'text', value: 'sb_publishable_fixture'},
+        TRUSTFIVE_BUILD_SHA: {type: 'text', value: commitSha},
+        DATABASE_URL: {type: 'text', value: 'postgresql://postgres:supersecret@db.example.internal:5432/postgres'},
+      },
+    }),
+  });
+  const decision = await runPreviewDeployGate(makeBaseOptions(fixture));
+  assert.equal(decision.ok, false, 'Gate must reject DATABASE_URL text binding with embedded password.');
+  assert.match(decision.reasons.join('\n'), /embedded URI credentials/i);
+});
