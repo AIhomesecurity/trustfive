@@ -18,6 +18,10 @@ const COMPAT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SUPABASE_ORIGIN_RE = /https?:\/\/[a-z]{20}\.supabase\.co(?![a-z0-9.%-])/gi;
 const LOCAL_SUPABASE_RE = /https?:\/\/(?:127\.0\.0\.1|localhost):54321(?![0-9])/i;
 const LIVE_STRIPE_OR_SECRET_RE = /\b(?:sk_live_|pk_live_|rk_live_|whsec_)[A-Za-z0-9_]+/;
+const SUPABASE_PUBLISHABLE_KEY_RE = /^sb_publishable_[A-Za-z0-9_-]+$/;
+const SECRET_LIKE_BINDING_NAME_RE = /(?:^|_)(SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL|PRIVATE)(?:_|$)/i;
+const ALLOWED_PUBLIC_TEXT_KEY_BINDINGS = new Set(['NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY']);
+const EMBEDDED_URI_CREDENTIALS_RE = /\b[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^/\s@]+@[^\s/]+/i;
 const HEALTH_SHA_LITERAL_RE = /['"`]([a-f0-9]{40})['"`]/g;
 const ALLOWED_ENV_BINDING_TYPES = new Set(['assets', 'text', 'secret', 'version-metadata']);
 const FORBIDDEN_EVIDENCE_KEYS = new Set([
@@ -547,7 +551,7 @@ export async function verifyPrebuiltWorkerArtifact({
         reasons.push('Prebuilt Worker requires a NEXT_PUBLIC_SUPABASE_URL text binding for the isolated preview project.');
       }
       if (publishableKey?.type !== 'text' || typeof publishableKey.value !== 'string' ||
-          !/^sb_publishable_[A-Za-z0-9_-]+$/.test(publishableKey.value)) {
+          !SUPABASE_PUBLISHABLE_KEY_RE.test(publishableKey.value)) {
         reasons.push('Prebuilt Worker requires a Supabase publishable key text binding.');
       }
       if (runtimeSha?.type !== 'text' || runtimeSha.value !== expectedCommitSha) {
@@ -571,6 +575,19 @@ export async function verifyPrebuiltWorkerArtifact({
         }
         if (binding.type === 'text') {
           const textValue = typeof binding.value === 'string' ? binding.value : '';
+          const isAllowedPublicPublishableKey =
+            ALLOWED_PUBLIC_TEXT_KEY_BINDINGS.has(bindingName) &&
+            SUPABASE_PUBLISHABLE_KEY_RE.test(textValue);
+          if (SECRET_LIKE_BINDING_NAME_RE.test(bindingName) && !isAllowedPublicPublishableKey) {
+            reasons.push(
+              `Generated worker.config.json text binding "${bindingName}" has a secret-like name and must use the "secret" binding type, not "text".`
+            );
+          }
+          if (EMBEDDED_URI_CREDENTIALS_RE.test(textValue)) {
+            reasons.push(
+              `Generated worker.config.json text binding "${bindingName}" must not contain embedded URI credentials.`
+            );
+          }
           if (LIVE_STRIPE_OR_SECRET_RE.test(textValue)) {
             reasons.push(
               `Generated worker.config.json text binding "${bindingName}" must not contain live Stripe keys or webhook secrets.`
