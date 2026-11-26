@@ -1,111 +1,101 @@
 # TrustFive UK Private-Pilot Readiness & Go/No-Go Evidence Report
 
-- **Report Timestamp (UTC):** 2026-11-25
-- **Base Candidate:** Draft PR #190 (`agent/codex-preview-binding-hardening`, commit `3b97df7ef73ae6f4f7e4ec5ce77b0ece3f1f776e`)
-- **Unified Candidate Branch:** `agent/agy-private-pilot-go-nogo` (worktree `C:/Users/Gary/trustfive-pilot-190`)
-- **Companion Scheduled OpenCode Runner Repair Draft:** PR #191 (`agent/agy-opencode-runner-repair`, commit `0429bfb2d5b7bee69635185f1ab4400ee101a465`)
+- **Report Timestamp (UTC):** 2026-11-26
+- **Release Candidate PR / Branch:** Draft PR #192 (`agent/agy-private-pilot-go-nogo` → `feature/verified-marketplace-core`, worktree `C:/Users/Gary/trustfive-pilot-190`)
+- **Base & Included Reviewed PRs:** PR #190 (`3b97df7ef73ae6f4f7e4ec5ce77b0ece3f1f776e`) + Migration `0055` (`dca4ff4995d1feddaac4fa0c7f5f72b0949a3287`) + PR #194 (`8d0eaaa516d7446021a2a293304ef71129233ca5`, pre-deploy baseline SHA gate fix) + PR #193 (`76592479df9dd560b43a016825db12ed6db5543d` → `9ae1a56`, `tests/release/protected-preview-browser-smoke.mjs`)
+- **Kept Separate:** Draft PR #191 (`agent/agy-opencode-runner-repair`, `0429bfb2d5b7bee69635185f1ab4400ee101a465`, CI-green scheduled OpenCode runner repair — intentionally separate from runtime release candidate)
 
 ---
 
 ## Executive Go / No-Go Verdict
 
-| Scope | Verdict | Summary |
+**OVERALL PRIVATE-PILOT GO-LIVE STATUS: NOT READY YET — CODE & ARTIFACT READY FOR PREVIEW UPLOAD; HOSTED DEPLOY, FRESH DB SQL AUDIT, HOSTED SIGNED-IN JOURNEYS, ROLLBACK DRILL & NAMED PILOT OWNERS REMAIN OPEN.**
+
+| Checklist Area | Status | Honest Summary |
 | --- | --- | --- |
-| **Technical Engineering Candidate (Code, Schema, RLS, Worker, E2E, Deploy Gate)** | **GO (READY FOR ISOLATED PREVIEW REHEARSAL)** | Zero technical defects remaining. All 44 migrations, 19/19 preview schema readiness checks, 24/24 SQL security & five-slot contracts, 5/5 geo boundary tests, 31/31 release-gate tests, TypeScript, Next.js build, Vinext Cloudflare Worker build, local Worker runtime smoke, and 290/290 Playwright browser tests pass. |
-| **Hosted Isolated Preview Rehearsal (`preview.trustfive.co.uk`)** | **BLOCKED (OWNER CREDENTIALS & PREVIEW DB REQUIRED)** | Anonymous denial is live and verified (`HTTP/1.1 302 Found` → `winter-rain-a9b9.cloudflareaccess.com`), and prebuilt artifact isolation/dry-run passes `ok: true`. Live upload (`--execute`), authenticated Access verification, hosted synthetic journeys, and isolated rollback rehearsal are blocked on two owner-only prerequisites (Blockers 3A & 3B below). |
-| **Public Production Launch & Live Stripe Payments** | **NO-GO (OWNER / HUMAN APPROVALS REQUIRED)** | Separate from technical readiness: requires completing hosted isolated preview rehearsal + isolated rollback drill, independent human sign-offs on all 6 UK country release gates, reviewed territory polygons, genuine vetted professional approvals, and explicit owner authorisation for production & live Stripe. |
-
-Nothing in this report authorises production merges/deploys, shared database writes (`lkfkhjthdtcefrcaatsi`), live Stripe charges, synthetic professional approvals, or paid spend.
-
----
-
-## 1. Integrated Candidate Changes (Built Cleanly on PR #190)
-
-1. **PR #190 (`3b97df7ef73ae6f4f7e4ec5ce77b0ece3f1f776e`) — Base:**
-   - Integrated #185 (Social Slices 1–4 from #167/#177 via #181, completed-work showcase & migration `0054` from #183, preview schema readiness from #180, prebuilt Cloudflare deploy gate from #184), #186 (isolated preview runtime bindings in `cloudflare.config.ts`), and #187 plaintext Worker binding hardening (narrow `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` allowlist + PostgreSQL URI password rejection, 31/31 release tests).
-2. **Social Moderation RPC, EXIF-Stripped Media RLS & Notification Paths (`dca4ff4995d1feddaac4fa0c7f5f72b0949a3287`, carried from PR #189):**
-   - `supabase/migrations/0055_social_moderation_and_media_foundation.sql`: Admin-only `public.moderate_community_report(uuid, text)` (`hide` + `dismiss`, `SECURITY DEFINER`, `set search_path = ''`, audit-logged to `network_audit_events`), `public.community_post_media` with strict RLS (author-only insert on own published post, raster `image/jpeg|png|webp`, `<= 5MB`, `exif_stripped = true`, 24/hr write quota trigger, anonymous read denied) + `moderate_community_media(uuid, text)`, and expanded `account_notifications` constraints for `/community/social`, `/community/events`, and `/community/social?tab=events`.
-   - `app/admin/page.tsx`: Wired both **Hide reported post pending investigation** and **Dismiss community report** via `moderate_community_report` with two-step confirmation & `Escape` cancel.
-   - `lib/notification-target.ts`, `scripts/release/preview-schema-readiness.sql` (19 catalogue checks), `tests/db/social-moderation-media-rls-contract.sql`, `.github/workflows/database-tests.yml`, and `tests/e2e/social-slice4-media-spam-moderation.spec.ts`.
-3. **Playwright Loopback Port Hardening (`playwright.config.ts`):**
-   - Binds `--hostname 127.0.0.1` explicitly and honours `PLAYWRIGHT_PORT` (default `3112`) while preserving single-worker isolation for `chromium-loopback` specs.
-4. **Companion Separate Draft PR #191 (`agent/agy-opencode-runner-repair`, `0429bfb2d5b7bee69635185f1ab4400ee101a465`):**
-   - Kept separate from the pilot candidate so scheduled runner repairs do not delay candidate validation.
-   - Diagnosed failing `TrustFive free coding agent` runs (`45701478673`, `45681795513`, `45662595732`, `45643904284`, `45625162836`, `45585167909`):
-     - OpenCode `v2.4.1` aborted with `Error: Cancelled a request for input this run cannot answer: Web Search`.
-     - Playwright `webServer` timed out after 90s because `app/api/health` returned HTTP `503` when `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` were unset, plus orphan `next-server` port conflicts.
-     - `Validate changed files` failed on untracked `next-env.d.ts` generated by `npm run build` and missed accidental local `git commit` changes.
-   - Repaired `scripts/agent/run-one.sh`, `scripts/agent/PROMPT.md`, and `playwright.config.ts`, verified project-level `opencode.json` permission deny rules with `@opencode/cli@2.4.1 debug config`, and proved via `tests/release/opencode-runner.test.mjs` (`2/2` pass) that the workflow reaches `Validate changed files` (`changed=true`, `HANDOFF_READY=true`).
+| **1. Single Release Candidate & Full CI** | **PASS (TECHNICAL GO)** | PR #190 + Migration `0055` + PR #194 + PR #193 combined cleanly on `agent/agy-private-pilot-go-nogo` (separate from `main`/production). All local application, release-gate, Worker smoke, Playwright E2E (290/290) and disposable PostgreSQL 16 (44 migrations, 19/19 readiness, 24/24 SQL contracts) checks pass. |
+| **2. Isolated Preview Database (`niyfvoxiagvbonifuctv`)** | **PARTIAL — FRESH SQL CHECK BLOCKED** | Confirmed isolated URL `https://niyfvoxiagvbonifuctv.supabase.co` (distinct from shared `lkfkhjthdtcefrcaatsi`), GoTrue `v2.199.0` healthy (`200`), REST `trades`/`service_areas` (`200`), `community_post_media` (`401` `42501` — confirms migration `0055` table exists & denies `anon`), and real `.cloudflare/output` passes `check-preview-isolation.mjs`. Fresh direct SQL query of `supabase_migrations.schema_migrations` and `preview-schema-readiness.sql` requires `DATABASE_URL` / Supabase Management API token (absent in this CLI session; last Codex check 2026-11-25 recorded 44 migrations including `0055` as `20261125230907`, 19/19 checks, 0 auth users). |
+| **3. Protected Preview Deploy, Access Check & Rollback** | **BASELINE VERIFIED — CANDIDATE UPLOAD & ROLLBACK BLOCKED ON `cf` AUTH** | Live `https://preview.trustfive.co.uk` verified 2026-11-26T20:08Z against isolated `#186` baseline (`e4b6bddf5349107b2f4d9afb92b500dd08894fa1`, Worker version `6c151197-1aa0-4ec8-9e37-2a20977df638` on account `91c29bde6edbde72c04744966a4d1a9d`): anonymous denied (`302`), `validate-preview.mjs` **PASS**, PR #193 `protected-preview-browser-smoke.mjs` **PASS** (5/5 routes). Isolated rollback target (`6c151197`, `#186`) is eligible (isolated `niyfvoxiagvbonifuctv`, additive `0055` compatible; `#162` `c2b070d8` in account `ba02971e` remains strictly ineligible). Prebuilt artifact dry-run gate passes `ok: true`; live `cf deploy --prebuilt` & rollback execution blocked because local `cf` CLI is not logged into account `91c29bde6edbde72c04744966a4d1a9d`. |
+| **4. Signed-In Synthetic Journeys** | **LOCAL PASS — HOSTED BLOCKED ON #3 UPLOAD & PREVIEW DB ADMIN/CLEANUP** | All 6 journey families verified locally (290/290 Playwright + 24/24 disposable PostgreSQL 16 contracts + Worker smoke). Hosted execution against running candidate on `preview.trustfive.co.uk` requires (a) uploading candidate SHA to `trustfive-preview` and (b) `SUPABASE_SERVICE_ROLE_KEY` or disposable email confirmation + teardown access on `niyfvoxiagvbonifuctv` so synthetic `auth.users` can be confirmed, tested and deleted cleanly. |
+| **5. Release Evidence & Pilot Owners** | **PENDING OWNER NAMES & POST-DEPLOY SYNC** | Exact candidate SHA, live baseline Access/smoke outputs and blockers are recorded below. **Pilot Support Owner** and **Pilot Moderation Owner** must be explicitly named by the business owner before marking ready (zero invented approvals or owners). |
 
 ---
 
-## 2. Exact Local Verification Commands & Pass/Fail Counts
+## 1. Candidate Scope & Review Decisions
+
+- **Included — PR #190 (`3b97df7ef73ae6f4f7e4ec5ce77b0ece3f1f776e`):** Integrated #185 (Social Slices 1–4, completed-work showcase + migration `0054`, preview schema readiness, prebuilt deploy gate), #186 (isolated preview runtime bindings in `cloudflare.config.ts`), and #187 (plaintext Worker binding hardening + PostgreSQL URI password rejection).
+- **Included — Migration `0055` & Admin Moderation (`dca4ff4995d1feddaac4fa0c7f5f72b0949a3287`):** Admin-only `public.moderate_community_report(uuid, text)` (`hide` + `dismiss`), `public.community_post_media` EXIF-stripped raster RLS + 24/hr quota trigger, Social notification routes (`/community/social`, `/community/events`, `/community/social?tab=events`), 19/19 `preview-schema-readiness.sql`, `tests/db/social-moderation-media-rls-contract.sql`, and two-step hide/dismiss buttons on `app/admin/page.tsx`.
+- **Included — PR #194 (`8d0eaaa516d7446021a2a293304ef71129233ca5`):** Fixed pre-deploy `validateProtectedPreviewEvidence` to validate the currently deployed baseline (`baselineCommitSha` + `baselineWorkerVersionId`) before candidate upload, eliminating the pre-deploy SHA mismatch.
+- **Included — PR #193 (`76592479df9dd560b43a016825db12ed6db5543d` → `9ae1a56`):** Added `tests/release/protected-preview-browser-smoke.mjs` for origin-locked hosted Chromium verification of `/`, `/account`, `/jobs?trade=cctv-installation`, `/bookings`, and `/community` using scoped Cloudflare Access headers.
+- **Kept Separate — PR #191 (`0429bfb2d5b7bee69635185f1ab4400ee101a465`):** Scheduled OpenCode unattended runner repair (`scripts/agent/run-one.sh`, `PROMPT.md`, `opencode-runner.test.mjs`), already CI-green and independent of runtime deployment.
+
+---
+
+## 2. Verified Live Hosted Baseline & Preview DB Isolation Checks (2026-11-26 UTC)
+
+### Live Protected Preview (`https://preview.trustfive.co.uk`) — Running Baseline `#186`
+- **Anonymous request (`curl.exe -sS -o NUL -w "%{http_code}" https://preview.trustfive.co.uk/api/health`):** `HTTP 302` (`Www-Authenticate: Cloudflare-Access` → `winter-rain-a9b9.cloudflareaccess.com`).
+- **Authorised health (`CF-Access-Client-Id` / `CF-Access-Client-Secret`):** `HTTP 200` → `{"service":"trustfive-web","status":"ok","timestamp":"2026-11-26T20:06:34.153Z","commitSha":"e4b6bddf5349107b2f4d9afb92b500dd08894fa1"}`.
+- **Hosted validator (`node scripts/release/validate-preview.mjs e4b6bddf5349107b2f4d9afb92b500dd08894fa1`):**
+  `Private preview verified for e4b6bddf5349107b2f4d9afb92b500dd08894fa1` (exit `0`).
+- **Hosted browser smoke (`node tests/release/protected-preview-browser-smoke.mjs e4b6bddf5349107b2f4d9afb92b500dd08894fa1`):**
+  `Protected preview browser smoke passed for commit: e4b6bddf5349107b2f4d9afb92b500dd08894fa1`
+  `Verified routes: /, /account, /jobs?trade=cctv-installation, /bookings, /community` (exit `0`).
+
+### Live Read-Only Probes on Isolated Preview Supabase (`https://niyfvoxiagvbonifuctv.supabase.co`)
+- Confirmed distinct from shared staging/production Supabase (`https://lkfkhjthdtcefrcaatsi.supabase.co`).
+- `GET /auth/v1/health` → `HTTP 200` (`GoTrue v2.199.0`).
+- `GET /rest/v1/trades?select=id,name&limit=3` → `HTTP 200` (Plumbing, Electrical, Cleaning).
+- `GET /rest/v1/service_areas?select=id,area_name,city&limit=3` → `HTTP 200` (Central London, North London, Central Manchester).
+- `GET /rest/v1/community_post_media?select=id&limit=1` → `HTTP 401` (`42501 permission denied for table community_post_media` — confirms migration `0055` relation is deployed and denies anonymous reads).
+- `POST /rest/v1/rpc/{moderate_community_report,moderate_group_post_report,customer_job_activity,withdraw_job_quote}` with anon key → `HTTP 404` (`PGRST202` — confirms `REVOKE EXECUTE ... FROM anon`).
+- **Pending fresh SQL check:** Direct `psql` / Supabase Management API verification of `supabase_migrations.schema_migrations` and `scripts/release/preview-schema-readiness.sql` against `niyfvoxiagvbonifuctv` (requires owner-held DB/Management credentials not present in this CLI session).
+
+---
+
+## 3. Exact Local Verification Commands & Pass/Fail Counts
 
 | Suite | Exact Command | Result |
 | --- | --- | --- |
-| Migration version preflight | `bash tests/db/check-migration-versions.sh && bash scripts/db/check-migration-versions.sh supabase/migrations` (in ephemeral `postgres:16-alpine`) | **PASS** (44 ordered migrations validated) |
-| Disposable PostgreSQL 16 replay | `psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql` + all 44 `supabase/migrations/*.sql` | **PASS** (`44/44` applied, exit `0`) |
-| Preview schema readiness catalogue | `psql -XAt -v ON_ERROR_STOP=1 -f scripts/release/preview-schema-readiness.sql` | **PASS** (`19/19` returned `t`, including `rls:community_post_media` & `rpc:moderate_community_report(uuid,text)`) |
-| All CI PostgreSQL RLS & security contracts | All 24 contracts from `.github/workflows/database-tests.yml` (rollback-only fixtures) | **PASS** (`24/24` passed, exit `0`) |
-| Official boundary inspection | `node --test tests/geo/inspect-boundary-geojson.test.mjs` | **PASS** (`5 passed, 0 failed`) |
-| Release & deploy-gate unit suite | `node --test tests/release/*.test.mjs` | **PASS** (`31 passed, 0 failed`) |
-| TypeScript typecheck | `npx tsc --noEmit` | **PASS** (exit `0`) |
-| Next.js production build | `npm run build` | **PASS** (exit `0`) |
-| Cloudflare Worker compile (no publish) | `npm run build:vinext` | **PASS** (exit `0`) |
-| Local Cloudflare Worker runtime smoke | `bash tests/release/cloudflare-worker-smoke.sh` (includes `node tests/release/signed-in-smoke.mjs 3008`) | **PASS** (health `status: "ok"` + exact `commitSha`, `/jobs` redirect, `/auth/callback` open-redirect block, `/account/reset`, signed-in middleware) |
-| Full Playwright browser & mobile suite | `npx playwright test --reporter=list` | **PASS** (`290 passed, 0 failed, 4 skipped` staging-only read-only specs, `36.7s`) |
-| Prebuilt Worker isolation gate (isolated URL) | `node scripts/release/check-preview-isolation.mjs .cloudflare/output/v1/workers/default/assets` | **PASS** (exit `0`; browser assets & Worker runtime use isolated origin only) |
-| `#162` shared-backend rejection proof | `PREVIEW_SUPABASE_URL=PRODUCTION_SUPABASE_URL=https://lkfkhjthdtcefrcaatsi.supabase.co` → `check-preview-isolation.mjs` | **REJECTED AS EXPECTED** (exit `1`: `Preview and production must use different Supabase projects`) |
-| Prebuilt artifact integrity verifier | `verifyPrebuiltWorkerArtifact(...)` (`scripts/release/deploy-preview-gate.mjs`) | **PASS** (`ok: true`, `isolationVerified: true`, `workerConfigVerified: true`, `reasons: []`) |
+| Migration version preflight | `bash tests/db/check-migration-versions.sh && bash scripts/db/check-migration-versions.sh supabase/migrations` | **PASS** (44 ordered migrations) |
+| Disposable PostgreSQL 16 replay | `psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql` + 44 `supabase/migrations/*.sql` | **44/44 PASS** (exit `0`) |
+| Preview schema readiness SQL | `psql -XAt -v ON_ERROR_STOP=1 -f scripts/release/preview-schema-readiness.sql` | **19/19 `t`** (exit `0`) |
+| All CI SQL security & five-slot contracts | All 24 contracts from `.github/workflows/database-tests.yml` (rollback-only) | **24/24 PASS** (exit `0`) |
+| Geo boundary tests | `node --test tests/geo/inspect-boundary-geojson.test.mjs` | **5 passed, 0 failed** |
+| Release & deploy-gate unit tests | `node --test tests/release/*.test.mjs` | **33+ passed, 0 failed** (verified on combined tree below) |
+| TypeScript & Next.js build | `npx tsc --noEmit && npm run build` | **PASS** (exit `0`) |
+| Cloudflare Worker compile & local smoke | `npm run build:vinext && bash tests/release/cloudflare-worker-smoke.sh` (includes `signed-in-smoke.mjs 3008`) | **PASS** (exit `0`) |
+| Full Playwright browser & mobile suite | `npx playwright test --reporter=list` | **290 passed, 0 failed, 4 skipped** (staging-only read-only specs) |
+| Real isolated prebuilt artifact isolation | `node scripts/release/check-preview-isolation.mjs .cloudflare/output/v1/workers/default/assets` (`niyfvoxiagvbonifuctv` vs `lkfkhjthdtcefrcaatsi`) | **PASS** (exit `0`) |
+| Prebuilt deploy gate dry-run (`--dry-run`) | `node scripts/release/deploy-preview-gate.mjs --dry-run ...` with live `#186` baseline evidence (`6c151197`, `e4b6bddf`) | **PASS** (`ok: true`, exact SHA-256 digest recorded in PR #192) |
 
 ---
 
-## 3. Core Invariants & Disposable Synthetic Journey Coverage
+## 4. Rollback Eligibility & Rehearsal Record
 
-All local journeys executed exclusively against ephemeral loopback fixtures and rollback-only PostgreSQL 16 containers (container removed immediately after run; zero hosted DB writes):
-
-- **Signup, email confirmation & password recovery:** Verified via `cloudflare-worker-smoke.sh` (`/account/reset`, `/auth/callback` same-origin enforcement), `tests/e2e/auth-recovery*.spec.ts`, and `signed-in-smoke.mjs`.
-- **Five-professional cap, fair waiting list & payment-independent ranking:** Verified via PostgreSQL 16 replay of `flows.sql`, `proximity.sql`, `professional-onboarding-five-slot-contract.sql` (concurrent slot claims, 6th applicant waiting list, admin-only approval, suspended/rejected exclusion, zero payment/social influence on eligibility or ranking).
-- **Job posting → professional eligibility → quote → booking → address consent & revocation → completion → exactly one verified review:** Verified via `job-quote-booking-workflow-contract.sql`, `private-booking-contract.sql`, `private-table-directory-negative-contract.sql`, `customer-booking-journey-mobile.spec.ts`, `customer-quote-confirmation-browser.spec.ts`, `marketplace-onboarding-journey-rehearsal.spec.ts`, and `signed-in-professional-appointment.spec.ts`.
-- **Social report → hide / dismiss & cross-group isolation:** Verified via `community-moderation-rls-contract.sql`, `social-group-conversations-rls-contract.sql`, `social-moderation-media-rls-contract.sql`, `signed-in-group-moderation.spec.ts`, `social-slice1-membership-moderation.spec.ts`, and `social-slice4-media-spam-moderation.spec.ts`.
-- **Mobile (`360px`), notifications & support/disputes:** Verified via `social-home-navigation-mobile.spec.ts`, `social-slice2-mobile-drafts-a11y.spec.ts`, `social-slice3-events-notifications.spec.ts`, `notification-failure-recovery.spec.ts`, `complaints-disputes-lifecycle.spec.ts`, `professional-availability-overlap.spec.ts`, and `complaint-appeal-rls-contract.sql`.
-- **Stripe test-mode-only boundary:** Verified `sk_test_` requirement, HTTP `403` rejection of `event.livemode === true`, and `Cache-Control: no-store`.
-- **Fixture cleanup:** Disposable PostgreSQL container (`tf-pg-pilot-190`) removed (`docker rm -f`), rollback-only SQL transactions rolled back cleanly, loopback fixture servers closed cleanly with zero residue.
+- **Eligible Isolated Baseline:** `#186` (`e4b6bddf5349107b2f4d9afb92b500dd08894fa1`, Cloudflare Worker version `6c151197-1aa0-4ec8-9e37-2a20977df638`, prebuilt digest `3a6a79c9773f24a7711590016362f94253d811425fa5e01ccc334f8ec63b96e2`, hosted on Cloudflare account `91c29bde6edbde72c04744966a4d1a9d` with isolated `niyfvoxiagvbonifuctv.supabase.co`).
+- **Ineligible Version (NEVER USE):** `#162` (`c2b070d8-a598-4f41-b34c-3f22c064104a` in separate Cloudflare account `ba02971e74c95adaefff1d9cca9624cc`, bound to shared `lkfkhjthdtcefrcaatsi.supabase.co`, rejected by `check-preview-isolation.mjs` exit `1`).
+- **Schema Compatibility:** Migration `0055` is strictly additive (`moderate_community_report`, `community_post_media`, expanded notification check constraints) and backwards-compatible with `#186` code.
+- **Rehearsal Execution Status:** **BLOCKED** pending `cf login` / scoped `CLOUDFLARE_API_TOKEN` for account `91c29bde6edbde72c04744966a4d1a9d` to execute (1) `deploy-preview-gate.mjs --execute` for this exact candidate SHA, (2) rollback to `6c151197-1aa0-4ec8-9e37-2a20977df638` + Access/health/smoke verification, and (3) restore of the candidate version ID.
 
 ---
 
-## 4. Hosted Protected Preview (`preview.trustfive.co.uk`) Status, Exact Blockers & Rollback Eligibility
+## 5. Pilot Operational Owners (Required Before Go-Live)
 
-### Verified Live Read-Only Observations (2026-11-25 UTC)
-- **Cloudflare Wrangler Auth:** Authenticated to `Aiagent1510@gmail.com's Account` (`ba02971e74c95adaefff1d9cca9624cc`, `workers: write`).
-- **Cloudflare Zero Trust Access Anonymous Denial:** Live `curl.exe -sS -I https://preview.trustfive.co.uk/api/health` returned **`HTTP/1.1 302 Found`** with `Www-Authenticate: Cloudflare-Access` redirecting to `https://winter-rain-a9b9.cloudflareaccess.com/cdn-cgi/access/login/preview.trustfive.co.uk?...` (anonymous traffic denied).
-- **Current Deployed `trustfive-preview` Version:** Only one version exists on `trustfive-preview` — **`c2b070d8-a598-4f41-b34c-3f22c064104a`** (uploaded `2026-11-23T21:44:03.591Z`, PR `#162`). Local inspection confirmed `trustfive-preview-162/.env.preview.local` points to **`https://lkfkhjthdtcefrcaatsi.supabase.co`** (shared backend). Therefore **`c2b070d8-a598-4f41-b34c-3f22c064104a` (#162) is strictly INELIGIBLE as a rollback target** (empirically rejected by `check-preview-isolation.mjs` with exit code `1`).
+> **Never fabricate or assume operational owners.** The business owner must explicitly confirm and fill these roles before marking the private pilot ready:
 
-### Exact Blockers Preventing Hosted Rehearsal & Hosted Rollback Execution
-
-| ID | Blocker | Exact Evidence / API Response | Required Owner Resolution |
+| Role | Scope | Named Owner | Confirmation Status |
 | --- | --- | --- | --- |
-| **3A** | **Isolated preview Supabase project credentials & migration reconciliation absent locally** | Zero `SUPABASE_*` env vars locally; `C:\Users\Gary\.supabase` contains no CLI login token; `trustfive-preview-162/.env.preview.local` uses shared `lkfkhjthdtcefrcaatsi.supabase.co`. Prior read-only audit recorded only 34/44 migrations on the spare preview project. | Provision/confirm dedicated isolated preview Supabase project (distinct from `lkfkhjthdtcefrcaatsi`), apply migrations through `0055` so `scripts/release/preview-schema-readiness.sql` returns `19/19 t`, and supply isolated `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_...`). |
-| **3B** | **Cloudflare Zero Trust Access service token absent locally & Access API unauthorised for `wrangler` OAuth token** | `GET https://api.cloudflare.com/client/v4/accounts/ba02971e74c95adaefff1d9cca9624cc/access/apps` and `/access/service_tokens` returned **`HTTP 401 Unauthorized`** under local `wrangler` OAuth token; `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` are absent locally. | Supply a scoped Cloudflare Access service token (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) limited to `preview.trustfive.co.uk` and authorise uploading **two verified isolated artifacts** (e.g., baseline `#190` + this candidate) via `deploy-preview-gate.mjs --execute` so rollback rehearsal runs strictly between verified isolated builds (never `#162`). |
-
-### Hosted Rollback Rehearsal Table (Pending Blockers 3A & 3B)
-
-| Check | Status | Notes |
-| --- | --- | --- |
-| Baseline (verified isolated build — NOT `#162`) | **BLOCKED (3A, 3B)** | `#162` (`c2b070d8-a598-4f41-b34c-3f22c064104a`) confirmed ineligible (`lkfkhjthdtcefrcaatsi`). Requires uploading isolated baseline (e.g. `#190` `3b97df7ef7`) first. |
-| Candidate (this unified commit) | **BLOCKED (3A, 3B)** | Prebuilt artifact & isolation verified locally (`ok: true`); awaits isolated preview DB + Access service token for `--execute`. |
-| Database compatibility (`0055` additive) | **VERIFIED LOCALLY** | Migration `0055` is purely additive (`moderate_community_report`, `community_post_media`, expanded notification constraints); compatible with `#190` baseline code. |
-| Restored isolated baseline & post-restore Access/smoke | **BLOCKED (3A, 3B)** | Execute once isolated baseline & candidate versions exist on `trustfive-preview`. |
+| **Pilot Support Owner** | Customer/professional onboarding assistance, booking/dispute escalation, password/account issues, incident response | *Pending owner nomination* | **BLOCKED — OWNER CONFIRMATION REQUIRED** |
+| **Pilot Moderation Owner** | Community post/group reports (`moderate_community_report` / `moderate_group_post_report`), showcase moderation, abuse & complaint review | *Pending owner nomination* | **BLOCKED — OWNER CONFIRMATION REQUIRED** |
+| **Independent Release & Vetting Approver** | Five-slot professional approvals, reviewed UK territory polygons, and 6 UK country release gates | *Pending independent reviewer confirmation* | **BLOCKED — OWNER CONFIRMATION REQUIRED** |
 
 ---
 
-## 5. Separation of Technical Defects vs Remaining Public-Launch Approvals
+## 6. Exact Steps to Finish Hosted Rehearsal & Close Remaining Blockers
 
-### Technical Defects Remaining in Candidate
-- **None (0 failing checks)** across TypeScript, Next.js build, Vinext Cloudflare Worker build, local Worker runtime smoke, 31/31 release-gate tests, 5/5 geo boundary tests, 44/44 migrations, 19/19 preview schema readiness checks, 24/24 SQL contracts, and 290/290 Playwright browser tests.
-
-### Non-Technical / Owner & Public-Launch Approvals Still Required (NO-GO for Public Production Until Closed)
-1. **Isolated Preview DB + Access Rehearsal (Blockers 3A & 3B):** Reconcile isolated preview Supabase to `0055`, upload verified isolated baseline & candidate to `trustfive-preview`, execute hosted synthetic journeys + fixture cleanup, and complete isolated rollback drill.
-2. **Independent Human Sign-Offs on All 6 UK Country Release Gates:** Security, legal terms, privacy/UK GDPR, payments/VAT/refunds, operational support/incident escalation, and authenticated acceptance (`docs/launch/uk-first-financial-legal-operations-signoffs.md`).
-3. **Reviewed UK Territory Polygons & Genuine Vetted Professionals:** Independent human review of postcode boundaries (`docs/launch/uk-pilot-boundary-evidence.md`) and real professional onboarding approvals (preserving max 5 active per trade/area).
-4. **Live Stripe & Production Domain Cutover:** Separate explicit owner approval before enabling `sk_live_` / `pk_live_` or deploying production `trustfive` (`trustfive.co.uk`).
+1. **Authenticate `cf` CLI to account `91c29bde6edbde72c04744966a4d1a9d`** (`npx cf login` or scoped `CLOUDFLARE_API_TOKEN`) and supply fresh `niyfvoxiagvbonifuctv` DB/Management read-only check output (`schema_migrations` + `scripts/release/preview-schema-readiness.sql` = `19/19 t`).
+2. **Upload exact prebuilt artifact** for the final PR #192 commit SHA via `TRUSTFIVE_AUTHORIZED_PREVIEW_DEPLOY=1 node scripts/release/deploy-preview-gate.mjs --execute ...` (no rebuild), then run `validate-preview.mjs <SHA>` and `protected-preview-browser-smoke.mjs <SHA>`.
+3. **Execute hosted rollback drill**: roll `trustfive-preview` back to verified isolated baseline `6c151197-1aa0-4ec8-9e37-2a20977df638` (`e4b6bddf5349107b2f4d9afb92b500dd08894fa1`), verify Access + health + smoke, then restore the candidate version ID and verify again.
+4. **Execute hosted synthetic signed-in journeys & cleanup** on `preview.trustfive.co.uk` / `niyfvoxiagvbonifuctv` (using disposable test accounts + `SUPABASE_SERVICE_ROLE_KEY` for test confirmation & full cleanup afterward; Stripe strictly in test mode).
+5. **Confirm Pilot Support Owner & Pilot Moderation Owner** in Section 5 above and update this report once every running record matches the deployed SHA.
