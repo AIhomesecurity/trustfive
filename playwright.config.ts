@@ -18,6 +18,7 @@ const loopbackSpecs = [
  '**/social-slice4-media-spam-moderation.spec.ts',
  '**/social-showcases-and-referrals.spec.ts',
  '**/ideabooks-and-quote-itemiser.spec.ts',
+ '**/account-oauth-provider-guard.spec.ts',
 ];
 const port=Number(process.env.PLAYWRIGHT_PORT||3112);
 const baseURL=`http://127.0.0.1:${port}`;
