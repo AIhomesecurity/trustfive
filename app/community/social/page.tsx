@@ -28,10 +28,43 @@ import SocialGroupDiscovery from '../../../components/social-group-discovery';
 import SocialTradeCollaboration from '../../../components/social-trade-collaboration';
 import SocialShowcasesFeed from '../../../components/social-showcases-feed';
 import SocialTradeReferrals from '../../../components/social-trade-referrals';
+import SocialProfileRail from '../../../components/social-profile-rail';
+import SocialPulseRail from '../../../components/social-pulse-rail';
 import SocialSavedPosts from '../../../components/social-saved-posts';
 import SocialEventsDiscovery from '../../../components/social-events-discovery';
 import {socialNeedsAuthRecheck} from '../../../lib/social-auth-identity';
 import {SOCIAL_SECTIONS,socialSectionFromQuery,socialSectionHref} from '../../../lib/social-sections';
+
+const SOCIAL_POST_STARTERS = [
+  {
+    id: 'trade-question',
+    chip: '❓ Ask a trade question',
+    title: 'Ask neighbours about a local trade',
+    hint: 'Get practical advice before requesting written quotes',
+    template: 'Has anyone locally had experience with [CCTV / boiler / roofing] work on a similar property? Looking for practical tips on what to watch out for before getting quotes.',
+  },
+  {
+    id: 'trade-tip',
+    chip: '🛠️ Share a completed job or tip',
+    title: 'Share a practical home or trade tip',
+    hint: 'Show local expertise (no phones or links)',
+    template: 'Quick practical tip for local homeowners this season: [share what to check, typical causes, or maintenance advice]. Happy to answer general questions in the comments.',
+  },
+  {
+    id: 'quote-check',
+    chip: '💡 Quote sanity check',
+    title: 'Sense-check project scope & timing',
+    hint: 'Ask what should be included in a fair written quote',
+    template: 'Planning a [project type] soon — what key checks, materials or warranties should I make sure are written into quotes before booking?',
+  },
+  {
+    id: 'street-update',
+    chip: '🏘️ Neighbourhood update',
+    title: 'Share a local neighbourhood update',
+    hint: 'Roadworks, bin schedules, community news or safety',
+    template: 'Heads up for neighbours in the area: [share useful local update without private addresses].',
+  },
+] as const;
 
 export default function TrustFiveSocial() {
   return (
@@ -386,6 +419,38 @@ function SocialHub() {
   const postSafety = useMemo(() => assessSocialPostSafety(postBody), [postBody]);
   const hasActiveFilters = Boolean(areaId || search || order !== 'recent' || page > 0);
   const signInReturnHref = tab === 'neighbourhood' ? currentFeedHref : socialSectionHref(tab);
+  const activeRailAreaLabel = browsingArea
+    ? `${browsingArea.area_name}, ${browsingArea.city}`
+    : postingArea
+      ? `${postingArea.area_name}, ${postingArea.city}`
+      : areas[0]
+        ? `${areas[0].area_name}, ${areas[0].city}`
+        : 'All UK pilot areas';
+
+  function applyStarterPrompt(template: string) {
+    const targetId = postingAreaId || browsingArea?.id || areas[0]?.id || '';
+    if (!targetId) {
+      focusComposer();
+      return;
+    }
+    if (targetId !== postingAreaId) {
+      selectPostingArea(targetId);
+    }
+    setDraftsByArea(prev => setAreaDraft(prev, targetId, template));
+    saveScopedDraft(userId, 'feed', targetId, template);
+    setRestoredDraftArea('');
+    setPostNotice('');
+    setPostNoticeIsError(false);
+    window.requestAnimationFrame(() => composerBodyRef.current?.focus());
+  }
+
+  function selectPulseTopic(topicQuery: string) {
+    setQuery(topicQuery);
+    setSearch(topicQuery);
+    setPage(0);
+    syncFeedUrl({areaId, search: topicQuery, order, page: 0});
+    window.requestAnimationFrame(() => feedHeadingRef.current?.focus());
+  }
 
   return (
     <main className="container social-hub">
@@ -474,7 +539,9 @@ function SocialHub() {
           </div>
         </section>
       ) : (
-        <>
+        <div className="social-linkedin-shell" data-testid="social-linkedin-shell">
+          <SocialProfileRail userId={userId} activeAreaLabel={activeRailAreaLabel} />
+          <div className="social-linkedin-main">
           {tab === 'neighbourhood' ? (
             <section aria-labelledby="social-neighbourhood-title">
               <div className="social-scope-bar" data-testid="social-scope-bar">
@@ -503,11 +570,26 @@ function SocialHub() {
                 data-testid="social-composer"
               >
                 <h2 id="social-share-title" className="social-card-title">
-                  Share with your neighbours
+                  Share with your neighbours &amp; local trades
                 </h2>
                 <p className="muted-note" style={{margin: '0 0 12px'}}>
                   Posting location is chosen separately from the neighbourhood you browse. Changing neighbourhoods never carries your draft across areas.
                 </p>
+                {areas.length > 0 ? (
+                  <div className="social-composer-starters" role="group" aria-label="Quick post templates">
+                    {SOCIAL_POST_STARTERS.map(starter => (
+                      <button
+                        key={starter.id}
+                        type="button"
+                        className="tf-chip-btn"
+                        disabled={posting}
+                        onClick={() => applyStarterPrompt(starter.template)}
+                      >
+                        {starter.chip}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 {areas.length === 0 ? (
                   <p role="status" className="notice" style={{margin: 0}}>
                     No neighbourhoods are available to select yet. Posting will open once local areas are listed.
@@ -738,6 +820,21 @@ function SocialHub() {
                                 ? `No published posts in ${browsingArea.area_name} yet.`
                                 : 'No published posts in the neighbourhood feed yet.'}
                         </p>
+                        {!search && page === 0 && areas.length > 0 ? (
+                          <div className="social-starter-grid" aria-label="Start a conversation">
+                            {SOCIAL_POST_STARTERS.map(starter => (
+                              <button
+                                key={starter.id}
+                                type="button"
+                                className="social-starter-card"
+                                onClick={() => applyStarterPrompt(starter.template)}
+                              >
+                                <strong>{starter.title}</strong>
+                                <span>{starter.hint}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                         <div className="social-hub-shortcuts" style={{margin: 0}}>
                           <button type="button" className="btn" onClick={focusComposer}>
                             Write the first post
@@ -822,7 +919,9 @@ function SocialHub() {
           {tab === 'saved' ? (
             <SocialSavedPosts key={'saved-' + userId} userId={userId} />
           ) : null}
-        </>
+          </div>
+          <SocialPulseRail onSelectTopic={tab === 'neighbourhood' ? selectPulseTopic : undefined} />
+        </div>
       )}
     </main>
   );

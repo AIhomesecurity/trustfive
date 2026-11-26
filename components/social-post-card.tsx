@@ -13,6 +13,13 @@ export type SocialPostCardProps = {
   hidePermalink?: boolean;
 };
 
+function areaInitials(areaLabel: string): string {
+  const words = areaLabel.replace(/,/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'TF';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
 export default function SocialPostCard({
   post,
   areaLabel,
@@ -29,18 +36,28 @@ export default function SocialPostCard({
       data-testid={`social-post-card-${post.id}`}
       data-post-kind={kind}
     >
-      <div className="social-post-meta">
-        <div className="social-post-badges">
-          <span className="pill">{areaLabel}</span>
-          <span className={`social-kind-badge is-${kind}`}>
-            {kind === 'question' ? '? ' : ''}
-            {kindLabel}
+      <header className="social-post-header">
+        <div className="social-post-author-row">
+          <span className={`social-avatar-sm is-${kind}`} aria-hidden="true">
+            {kind === 'question' ? '?' : areaInitials(areaLabel)}
           </span>
+          <div className="social-post-author-meta">
+            <strong className="social-post-author-label">
+              {kind === 'question' ? 'Local Neighbour Question' : 'Neighbourhood Update'}
+            </strong>
+            <div className="social-post-submeta">
+              <span className="pill">{areaLabel}</span>
+              <span className={`social-kind-badge is-${kind}`}>
+                {kind === 'question' ? '? ' : ''}
+                {kindLabel}
+              </span>
+              <time className="muted-note social-post-time" dateTime={post.created_at}>
+                · {readablePostDate(post.created_at)}
+              </time>
+            </div>
+          </div>
         </div>
-        <time className="muted-note social-post-time" dateTime={post.created_at}>
-          {readablePostDate(post.created_at)}
-        </time>
-      </div>
+      </header>
 
       <p className="social-post-body">{post.body}</p>
 
