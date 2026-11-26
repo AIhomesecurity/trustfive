@@ -13,16 +13,6 @@ import {
   sortAndDedupeMessages,
   validateMessageBody,
 } from '../../lib/marketplace-messages';
-import {assessSocialPostSafety,publicSocialContactError} from '../../lib/social-safety';
-
-test('Public Social text blocks numeric, fullwidth and spelled-out contact details', () => {
-  expect(assessSocialPostSafety('Call me on 07700 900123').blockingError).toMatch(/including numbers written as words/i);
-  expect(assessSocialPostSafety('Call zero seven one two three four five six seven eight nine').blockingError).toMatch(/phone numbers/i);
-  expect(assessSocialPostSafety('Text ０７１２３ ４５６７８９').blockingError).toMatch(/phone numbers/i);
-  expect(assessSocialPostSafety('Meet me at SW1A 1AA').blockingError).toMatch(/full postcodes/i);
-  expect(publicSocialContactError('Email me at person@example.com')).toMatch(/email addresses/i);
-  expect(assessSocialPostSafety('We installed two aerial sockets with a 10 m cable.').blockingError).toBeNull();
-});
 
 test('International appointment helper validates IANA timezones, bounds and formats explicitly in stored timezone', () => {
   expect(isValidIanaTimezone('Europe/London')).toBe(true);

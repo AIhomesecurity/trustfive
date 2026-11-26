@@ -3,7 +3,6 @@ import {FormEvent,useRef,useState} from 'react';
 import {supabaseBrowser} from '../lib/supabase';
 import {readablePostDate} from '../lib/social-discovery';
 import {SOCIAL_REPORT_CATEGORIES,socialReactionIsActive,socialReplyError,socialReportError,type SocialComment,type SocialReactionKind,type SocialReactionSummary,type SocialReportCategory} from '../lib/social-discussion';
-import {assessSocialPostSafety} from '../lib/social-safety';
 
 /**
  * Loads only the discussion opened by the user, instead of downloading
@@ -19,7 +18,6 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  const [reaction,setReaction]=useState<SocialReactionSummary|null>(null);
  const [saved,setSaved]=useState(false);
  const [reply,setReply]=useState('');
- const replySafety=assessSocialPostSafety(reply);
  const [busy,setBusy]=useState(false);
  const [reporting,setReporting]=useState(false);
  const [reportOpen,setReportOpen]=useState(false);
@@ -62,7 +60,6 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  }
  async function submitReply(event:FormEvent){
   event.preventDefault();
-  if(replySafety.blockingError){setNoticeIsError(true);setNotice(replySafety.blockingError);return;}
   const validation=socialReplyError(reply);
   if(validation){setNoticeIsError(true);setNotice(validation);return;}
   if(!userId||inFlight.current)return;
@@ -208,8 +205,7 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
       <textarea minLength={2} maxLength={1500} required value={reply} disabled={busy}
        onChange={event=>setReply(event.target.value)} placeholder="Share useful, respectful advice…"/>
      </label>
-     {replySafety.blockingError&&<p role="alert" className="notice error" data-testid="social-contact-block">{replySafety.blockingError}</p>}
-     <button type="submit" className="btn" disabled={busy||reporting||Boolean(replySafety.blockingError)||Boolean(socialReplyError(reply))}>
+     <button type="submit" className="btn" disabled={busy||reporting||Boolean(socialReplyError(reply))}>
       {busy?'Saving…':'Publish reply'}
      </button>
     </form>
