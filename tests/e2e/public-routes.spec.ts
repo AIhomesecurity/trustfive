@@ -419,3 +419,14 @@ test('Quick trade chooser uses only genuine taxonomy rows, never Lovable demo pr
  expect(popularTradeChoices(available,2)).toHaveLength(2);
  expect(popularTradeChoices(available).every(x=>available.includes(x))).toBe(true);
 });
+
+test('Anonymous community visitors are redirected to sign in without mobile overflow',async({page})=>{
+ await page.goto('/community');
+ await expect(page).toHaveURL(url=>url.pathname==='/account'&&url.searchParams.get('next')==='/community');
+ await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
+ for(const width of [1440,768,390,360]){
+  await page.setViewportSize({width,height:900});
+  const dimensions=await page.evaluate(()=>({viewport:document.documentElement.clientWidth,content:document.documentElement.scrollWidth}));
+  expect(dimensions.content,`Sign-in page overflow at ${width}px`).toBeLessThanOrEqual(dimensions.viewport+1);
+ }
+});
