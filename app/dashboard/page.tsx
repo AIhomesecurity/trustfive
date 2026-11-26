@@ -15,20 +15,24 @@ const initialData:DashboardData={profile:null,jobs:[],bookings:[],applications:[
 const customerLinks=[
  {icon:'🔎',name:'Find a professional',description:'Compare approved professionals near you',href:'/services'},
  {icon:'📋',name:'Post a job',description:'Get quotes from eligible local trades',href:'/jobs'},
+ {icon:'📌',name:'Project Ideabooks',description:'Save showcases, track room budgets & build job briefs',href:'/ideabooks'},
+ {icon:'💷',name:'UK Cost Guides',description:'Check indicative UK job ranges across 20 trades',href:'/cost-guides'},
  {icon:'📅',name:'My bookings',description:'Manage work, address sharing and reviews',href:'/bookings'},
  {icon:'💬',name:'Messages',description:'Discuss quotes and your bookings',href:'/messages'}
 ];
 const professionalLinks=[
  {icon:'🛡️',name:'Applications and approval',description:'Apply for one of five local trade places',href:'/professional/apply'},
- {icon:'💷',name:'Leads and quotes',description:'Respond to eligible customer job requests',href:'/quotes'},
- {icon:'🏢',name:'Business profile',description:'Manage your independently reviewed business page',href:'/professional/business'},
- {icon:'🗓️',name:'Appointments',description:'Propose and confirm booking times',href:'/schedule'}
+ {icon:'💷',name:'Leads & itemised quotes',description:'Respond with Labour/Materials/VAT quotes & CSV export',href:'/quotes'},
+ {icon:'🏢',name:'Business profile & showcases',description:'Publish completed-work portfolios to TrustFive Social',href:'/professional/business'},
+ {icon:'🤝',name:'Trade-to-trade referrals',description:'Recommend approved trades via customer-consented links',href:'/community/social?tab=trade'},
+ {icon:'🗓️',name:'Appointments & calendar',description:'Propose times and export .ics reminders',href:'/schedule'},
+ {icon:'💬',name:'Messages',description:'Reply to customer quote enquiries',href:'/messages'}
 ];
 const communityLinks=[
- {icon:'🏘️',name:'Neighbourhood feed',description:'Ask questions and help local neighbours',href:'/community'},
+ {icon:'🏘️',name:'TrustFive Social',description:'Neighbourhood feed, Q&A and zero-spam local chat',href:'/community/social'},
+ {icon:'🛠️',name:'Installer Showcases',description:'Browse completed work from approved local pros',href:'/community/social?tab=showcases'},
  {icon:'👥',name:'Groups',description:'Join interest and community groups',href:'/community/groups'},
- {icon:'📆',name:'Events',description:'Find neighbourhood activities',href:'/community/events'},
- {icon:'🛡️',name:'Trust and support',description:'Raise concerns or follow up on a booking',href:'/support/complaints'}
+ {icon:'📆',name:'Events',description:'Find neighbourhood activities & export reminders',href:'/community/events'}
 ];
 const safeNotificationPaths=new Set(['/jobs','/bookings','/messages','/professional/apply','/notifications']);
 
@@ -174,7 +178,7 @@ export default function Dashboard(){
      <div className="dashboard-section-heading"><h2 id="dashboard-community">Your local community</h2></div>
      <div className="dashboard-action-grid">{communityLinks.map(link=><ActionCard key={link.href} {...link}/>)}</div>
     </section>
-    <div className="dashboard-bottom-links"><Link href="/profile">⚙️ Profile and settings</Link><Link href="/schedule">🗓️ Appointments</Link><Link href="/how-it-works">How independent selection works</Link></div>
+    <div className="dashboard-bottom-links"><Link href="/profile">⚙️ Profile and settings</Link><Link href="/schedule">🗓️ Appointments</Link><Link href="/support/complaints">🛡️ Trust and support</Link><Link href="/how-it-works">How independent selection works</Link></div>
     <p className="muted-note dashboard-footnote">Status figures are private to your signed-in account and reflect available records. A professional application is not an approval. Never share private customer addresses outside the booking consent flow.</p>
    </>}
  </main>;

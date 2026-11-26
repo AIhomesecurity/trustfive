@@ -41,7 +41,7 @@ export default function Account(){
     const {data,error}=await s.auth.signUp({email,password,options:{emailRedirectTo:location.origin+'/auth/callback?next='+encodeURIComponent(jobReturnPath()),data:{full_name:name.trim(),phone:phone.trim(),requested_role:role}}});
     if(error)throw error;
     if(data.session){location.assign(jobReturnPath());return}
-    setMessage('Account created. Check your email for the confirmation link before signing in.');
+    setMessage('Account created. Click the confirmation link in your email, then return here and use Sign in if your browser does not redirect back automatically.');
   }else{
     const {error}=await s.auth.signInWithPassword({email,password});
     if(error)throw error;
