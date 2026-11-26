@@ -127,6 +127,9 @@ jobs:
       - name: Verify showcase privacy, moderation and author permissions
         run: psql -v ON_ERROR_STOP=1 -f tests/db/completed-work-showcase-contract.sql
 
+      - name: Verify public Social contact-sharing guard
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-public-contact-guard-contract.sql
+
       - name: Verify Social group membership, protected discussions and founder leave rules
         run: psql -v ON_ERROR_STOP=1 -f tests/db/social-group-conversations-rls-contract.sql
 

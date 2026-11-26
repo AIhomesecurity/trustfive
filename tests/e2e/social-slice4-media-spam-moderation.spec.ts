@@ -65,13 +65,13 @@ test.describe('Slice 4 media privacy, spam and quota helper unit tests', () => {
     const linkSpam = assessSocialPostSafety(
       'Check https://a.example https://b.example and https://c.example for cheap deals!'
     );
-    expect(linkSpam.blockingError).toContain('no more than two web links');
+    expect(linkSpam.blockingError).toContain('web links');
 
     const flood = assessSocialPostSafety('Hello neighbours!!!!!!!!!!!!!!!!');
     expect(flood.blockingError).toContain('repeated characters');
 
     const leaky = assessSocialPostSafety('Pop round to M20 2WS or ring 07700 900123 anytime.');
-    expect(leaky.blockingError).toBeNull();
+    expect(leaky.blockingError).toContain('full postcodes');
     expect(leaky.privacyWarnings).toHaveLength(2);
 
     expect(
@@ -169,18 +169,23 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
       await mobilePage.getByLabel('Neighbourhood to post in').selectOption(areaA.id);
       const bodyInput = mobilePage.getByLabel('Write your community post');
 
-      // 1. Live privacy warning for UK postcode & telephone number.
+      // 1. Live privacy warnings plus a hard block for postcode and phone sharing.
       await bodyInput.fill('Pop over to M20 2WS or call 07700 900123 for spare tiles.');
       const privacyWarn = mobilePage.getByTestId('social-privacy-warning');
       await expect(privacyWarn).toContainText('full UK postcode');
       await expect(privacyWarn).toContainText('telephone number');
+      await expect(mobilePage.getByTestId('social-contact-block')).toBeVisible();
+      await expect(mobilePage.getByRole('button', {name: 'Publish neighbourhood post'})).toBeDisabled();
+      await bodyInput.fill('Call zero seven one two three four five six seven eight nine');
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText('including numbers written as words');
+      await expect(mobilePage.getByRole('button', {name: 'Publish neighbourhood post'})).toBeDisabled();
+      expect(insertAttempts).toBe(0);
 
-      // 2. Client-side spam guard blocks >2 links without hitting database.
+      // 2. Public links are held by the privacy guard; repeated-character spam is also blocked locally.
       await bodyInput.fill('Look at https://one.example https://two.example https://three.example right now');
-      await mobilePage.getByRole('button', {name: 'Publish neighbourhood post'}).click();
-      await expect(mobilePage.getByTestId('social-composer').getByRole('alert')).toContainText(
-        'no more than two web links'
-      );
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText('web links');
+      await bodyInput.fill(`Repeated ${'x'.repeat(12)} sequence should be removed`);
+      await expect(mobilePage.getByTestId('social-composer').getByRole('alert')).toContainText('repeated characters');
       expect(insertAttempts).toBe(0);
 
       // 3. Valid post hitting DB 0011_account_write_quotas.sql (P0001) shows honest hourly limit & preserves draft.
