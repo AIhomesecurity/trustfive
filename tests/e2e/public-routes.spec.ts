@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 6038)
+Total output lines: 421
+
 import {test,expect} from '@playwright/test';
 import {jobAddressLabel} from '../../lib/job-address';
 import {popularTradeChoices} from '../../components/trade-quick-pick';
@@ -61,6 +64,8 @@ test('TrustFive landing page offers original service search and balanced trade n
  await page.goto('/');
  await expect(page).toHaveTitle(/TrustFive/i);
  await expect(page.getByRole('heading',{level:1})).toContainText(/people you can trust/i);
+ await expect(page.getByRole('heading',{name:'A clear, fair way to find local help.'})).toBeVisible();
+ await expect(page.locator('.home-hero-proof')).toContainText('Payment never changes approval or position.');
  await expect(page.getByRole('searchbox',{name:'What do you need help with?'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Find a professional'})).toBeVisible();
  const categories=page.locator('.service-grid .service-tile');
@@ -83,14 +88,21 @@ test('CCTV search routes to the camera-installation trade and keeps the category
  await expect(page.locator('.service-grid a[href="/services?trade=cctv-installation"]')).toBeVisible();
 });
 
-test('Homepage trade grid uses four columns at desktop and two on phones',async({page})=>{
+test('Homepage layout adapts from desktop to tablet and narrow phones without horizontal overflow',async({page})=>{
  await page.setViewportSize({width:1440,height:900});
  await page.goto('/');
+ const hero=page.locator('.home-hero-layout');
  const grid=page.locator('.service-grid');
+ await expect(hero).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px/);
  await expect(grid).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px [0-9.]+px [0-9.]+px/);
+ await page.setViewportSize({width:900,height:900});
+ await expect(hero).toHaveCSS('grid-template-columns',/[0-9.]+px$/);
+ await expect(grid).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px [0-9.]+px/);
  await page.setViewportSize({width:390,height:844});
  await expect(grid).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px/);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await page.setViewportSize({width:360,height:800});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
 });
 
 test('Professional directory offers filtering and an honest empty result state',async({page})=>{
@@ -148,80 +160,7 @@ test('Address suggestions render untrusted labels as text and never leak the pro
  await page.goto('/services');
  const input=page.getByLabel('Your postcode or street address');
  await input.fill('10 Test Street London');
- const option=page.getByRole('option',{name:/10 Test Street/});
- await expect(option).toBeVisible();
- await expect(option).toContainText(malicious);
- await expect(option.locator('img')).toHaveCount(0);
- await input.press('Enter');
- await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toContainText('10 Test Street');
- expect(page.url()).not.toContain('Test%20Street');
- expect(page.url()).not.toContain('10%20Test');
- expect(page.url()).not.toContain('img');
-});
-
-test('Changing a selected property clears location-based sorting and selection',async({page})=>{
- await page.route('**/api/address/search',async route=>{
-  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({suggestions:[{
-   label:'10 Test Street, London',latitude:51.5,longitude:-0.12,postcode:'SW1A 1AA',precision:'address',country:'GB'
-  }]})});
- });
- await page.goto('/services');
- const input=page.getByLabel('Your postcode or street address');
- await input.fill('10 Test Street London');
- await expect(page.getByRole('option',{name:/10 Test Street/})).toBeVisible();
- await page.getByRole('option',{name:/10 Test Street/}).click();
- await expect(page.getByLabel('Sort results')).toHaveValue('recommended');
- await page.getByRole('button',{name:'Change'}).click();
- await expect(page.getByRole('status').filter({hasText:'Searching near:'})).toHaveCount(0);
- await expect(page.getByLabel('Sort results')).toHaveValue('quality');
- await expect(input).toHaveValue('');
-});
-
-test('Address search endpoint rejects invalid input without leaking an API key',async({request})=>{
- const response=await request.post('/api/address/search',{data:{query:'X'}});
- expect(response.status()).toBe(400);
- const body=await response.json() as {suggestions:unknown[];message:string};
- expect(body.suggestions).toHaveLength(0);
- expect(JSON.stringify(body)).not.toContain('GEOAPIFY_API_KEY');
-});
-
-test('Address lookup is not a nested form and Enter cannot publish a job',async({page})=>{
- await page.goto('/jobs?trade=plumbing');
- // Anonymous customers are redirected before the protected job form renders.
- await expect(page).toHaveURL(/\/account\?next=/);
- // The shared address finder uses an explicit button, not a nested form,
- // so the customer job form can own submission and validation.
- await page.goto('/services');
- const search=page.getByRole('search',{name:''}).filter({has:page.getByLabel('Your postcode or street address')});
- await expect(search.locator('form')).toHaveCount(0);
- await expect(page.getByRole('button',{name:'Find address'})).toHaveAttribute('type','button');
-});
-
-test('How TrustFive works explains the five-place rule without promising unavailable guarantees',async({page})=>{
- await page.goto('/how-it-works');
- await expect(page.getByRole('heading',{name:'Less searching. More confidence.'})).toBeVisible();
- await expect(page.getByRole('heading',{name:'What the five-place rule actually means'})).toBeVisible();
- await page.getByText('Are tradespeople employees of TrustFive?').click();
- await expect(page.getByText('The professionals are independent businesses.')).toBeVisible();
- await expect(page.getByRole('link',{name:'Browse trusted trades'})).toBeVisible();
-});
-
-test('Job selection is preserved when an anonymous customer signs in',async({page})=>{
- await page.goto('/jobs?trade=plumbing&area=test-area');
- await expect(page).toHaveURL(/\/account\?next=/);
- const redirected=new URL(page.url());
- expect(redirected.searchParams.get('next')).toBe('/jobs?trade=plumbing&area=test-area');
- await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
-});
-
-test('Registration and sign-in tabs switch without a backend account',async({page})=>{
- await page.goto('/account');
- await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
- await expect(page.getByLabel('I am joining as')).toBeVisible();
- await page.getByRole('button',{name:'Sign in',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Sign in to TrustFive'})).toBeVisible();
- await expect(page.getByRole('link',{name:'Forgot your password?'})).toBeVisible();
- await page.getByRole('button',{name:'Create account',exact:true}).click();
+ const option=page.getByRol…1038 tokens truncated…account',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
 });
 
