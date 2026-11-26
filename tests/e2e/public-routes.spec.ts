@@ -61,6 +61,8 @@ test('TrustFive landing page offers original service search and balanced trade n
  await page.goto('/');
  await expect(page).toHaveTitle(/TrustFive/i);
  await expect(page.getByRole('heading',{level:1})).toContainText(/people you can trust/i);
+ await expect(page.getByRole('heading',{name:'A clear, fair way to find local help.'})).toBeVisible();
+ await expect(page.locator('.home-hero-proof')).toContainText('Payment never changes approval or position.');
  await expect(page.getByRole('searchbox',{name:'What do you need help with?'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Find a professional'})).toBeVisible();
  const categories=page.locator('.service-grid .service-tile');
@@ -83,14 +85,21 @@ test('CCTV search routes to the camera-installation trade and keeps the category
  await expect(page.locator('.service-grid a[href="/services?trade=cctv-installation"]')).toBeVisible();
 });
 
-test('Homepage trade grid uses four columns at desktop and two on phones',async({page})=>{
+test('Homepage layout adapts from desktop to tablet and narrow phones without horizontal overflow',async({page})=>{
  await page.setViewportSize({width:1440,height:900});
  await page.goto('/');
+ const hero=page.locator('.home-hero-layout');
  const grid=page.locator('.service-grid');
+ await expect(hero).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px/);
  await expect(grid).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px [0-9.]+px [0-9.]+px/);
+ await page.setViewportSize({width:900,height:900});
+ await expect(hero).toHaveCSS('grid-template-columns',/[0-9.]+px$/);
+ await expect(grid).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px [0-9.]+px/);
  await page.setViewportSize({width:390,height:844});
  await expect(grid).toHaveCSS('grid-template-columns',/[0-9.]+px [0-9.]+px/);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await page.setViewportSize({width:360,height:800});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
 });
 
 test('Professional directory offers filtering and an honest empty result state',async({page})=>{
