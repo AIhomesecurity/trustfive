@@ -573,6 +573,11 @@ function SocialHub() {
                         <strong>Privacy reminder:</strong> {postSafety.privacyWarnings.join(' ')}
                       </div>
                     ) : null}
+                    {postSafety.blockingError ? (
+                      <p className="notice error" role="alert" data-testid="social-contact-block">
+                        {postSafety.blockingError}
+                      </p>
+                    ) : null}
                     <p id="social-composer-guidance" className="muted-note" style={{margin: 0}}>
                       {!postingAreaId ? 'Choose a neighbourhood first. ' : ''}
                       {postBody.length.toLocaleString('en-GB')} / 3,000 characters. Minimum 8 characters. Avoid sharing private addresses or contact details.
@@ -583,6 +588,7 @@ function SocialHub() {
                         className="btn"
                         disabled={
                           posting ||
+                          Boolean(postSafety.blockingError) ||
                           Boolean(
                             socialPostValidationError({
                               authorId: userId,

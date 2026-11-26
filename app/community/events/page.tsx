@@ -3,6 +3,7 @@ import {FormEvent,useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../../lib/supabase';
 import {communityGroupLocationLabel} from '../../../lib/community-group-location';
+import {publicSocialContactError} from '../../../lib/social-safety';
 type Area={id:string;area_name:string;city:string};
 type Event={id:string;area_id:string;title:string;description:string;venue_label:string;starts_at:string;ends_at:string;host_id:string};
 type RSVP={event_id:string;status:string};
@@ -18,6 +19,7 @@ export default function CommunityEvents(){
  const [pendingRsvpEventId,setPendingRsvpEventId]=useState<string|null>(null);
  const [loading,setLoading]=useState(true);
  const [loadError,setLoadError]=useState(false);
+ const eventContactError=publicSocialContactError(`${title} ${description} ${venue}`);
  const initialRetryRef=useRef<HTMLButtonElement>(null);
  const headingRef=useRef<HTMLHeadingElement>(null);
  const retryingInitialLoad=useRef(false);
@@ -54,6 +56,7 @@ export default function CommunityEvents(){
  async function retryEvents(){if(busy)return;setBusy(true);setNotice('');try{await refresh();}catch{setLoadError(true);setNotice('Unable to load local events. Please try again.');}finally{setBusy(false);}}
  async function publish(e:FormEvent){e.preventDefault();if(busy||!userId)return;setBusy(true);setNotice('');
   try{
+   if(eventContactError){setNotice(eventContactError);return;}
    if(!areas.some(a=>a.id===area)||title.trim().length<5||description.trim().length<15||venue.trim().length<3){
     setNotice('Choose a neighbourhood and enter a meaningful title, description and public meeting place.');return;
    }
@@ -98,10 +101,11 @@ export default function CommunityEvents(){
      <label>About the event<textarea minLength={15} maxLength={2000} required value={description} onChange={e=>setDescription(e.target.value)}/></label>
      <label>Public meeting place<input minLength={3} maxLength={160} required aria-describedby="event-venue-privacy-help" value={venue} onChange={e=>setVenue(e.target.value)} placeholder="Community centre"/></label>
      <p id="event-venue-privacy-help" className="muted-note">This meeting place is visible to community members. Use a public venue, not your home address or another private address.</p>
+     {eventContactError&&<p role="alert" className="notice error" data-testid="social-contact-block">{eventContactError}</p>}
      <label>Starts<input type="datetime-local" required value={start} onChange={e=>{const next=e.target.value;setStart(next);if(end&&next&&end<=next){setEnd('');setEndResetNotice('The finish time was cleared because it must be after the new start time. Choose a new finish time.');}else{setEndResetNotice('');}}}/></label>
      <label>Ends<input type="datetime-local" required min={start||undefined} aria-describedby={endResetNotice?'event-end-reset-notice':undefined} value={end} onChange={e=>{setEnd(e.target.value);setEndResetNotice('');}}/></label>
      {endResetNotice&&<p id="event-end-reset-notice" className="muted-note" role="status">{endResetNotice}</p>}
-     <button className="btn" type="submit" disabled={busy||areas.length===0} aria-busy={busy}>Publish event</button>
+     <button className="btn" type="submit" disabled={busy||Boolean(eventContactError)||areas.length===0} aria-busy={busy}>Publish event</button>
     </form>
     <p className="muted-note">Dates are shown in your device's local time. Events are member-visible and require moderation before wider public launch.</p>
    </section>

@@ -14,6 +14,31 @@ const URL_RE = /(?:https?:\/\/|www\.)\S+/gi;
 const REPEATED_CHAR_RE = /(\S)\1{11,}/;
 const UK_FULL_POSTCODE_RE = /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i;
 const UK_PHONE_RE = /(?:\+44\s?7\d{3}|\b07\d{3}|\b0[12]\d{2,3})[\s-]?\d{3}[\s-]?\d{3,4}\b/;
+const CONTACT_BLOCK_MESSAGE =
+  'Remove phone numbers (including numbers written as words), email addresses, messaging handles, web links and full postcodes before publishing public community content. Use TrustFive booking to contact a professional.';
+const PHONE_DIGIT_RUN_RE = /(?<!\d)\+?\d(?:[\s()./-]*\d){7,14}(?!\d)/;
+const PHONE_WORD = '(?:zero|oh|nought|one|two|three|four|five|six|seven|eight|nine|[0-9])';
+const SPELLED_PHONE_RE = new RegExp(`\\b${PHONE_WORD}(?:[\\s,./()_-]+${PHONE_WORD}){6,}\\b`, 'i');
+const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const CONTACT_HANDLE_RE = /(?:whats[\s-]*app|telegram|signal\s+(?:me|on))/i;
+
+/** Mirrors the database's public showcase contact guard for fast, accessible feedback. */
+export function publicSocialContactError(value: string): string | null {
+  const normalized = value
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
+    .toLowerCase();
+  const hasContact =
+    URL_RE.test(normalized) ||
+    normalized.includes('@') ||
+    /\b[a-z0-9-]+\.(?:co\.uk|org\.uk|com|net|org|uk|me)\b/i.test(normalized) ||
+    PHONE_DIGIT_RUN_RE.test(normalized) ||
+    SPELLED_PHONE_RE.test(normalized) ||
+    UK_FULL_POSTCODE_RE.test(normalized) ||
+    CONTACT_HANDLE_RE.test(normalized);
+  URL_RE.lastIndex = 0;
+  return hasContact ? CONTACT_BLOCK_MESSAGE : null;
+}
 
 export const MEDIA_STORAGE_COORDINATION_NOTE =
   'Photo uploads require a coordinated private storage bucket, EXIF/GPS stripping pipeline and moderator-only media RLS migration before activation. No file is uploaded from this check.';
@@ -60,8 +85,13 @@ export function assessSocialPostSafety(body: string): SocialPostSafetyAssessment
   }
   if (UK_PHONE_RE.test(text)) {
     privacyWarnings.push(
-      'This looks like a telephone number — avoid publishing personal or customer contact numbers.'
+      'This looks like a telephone number. Public community content cannot include phone numbers.'
     );
+  }
+
+  const contactError = publicSocialContactError(text);
+  if (contactError) {
+    return {blockingError: contactError, privacyWarnings};
   }
 
   const urls = text.match(URL_RE) ?? [];

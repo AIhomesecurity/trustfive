@@ -178,6 +178,7 @@ export default function SocialGroupConversation(){
    finally{inFlight.current=false;setBusy(false);}
   }
 
+ const groupPostSafety=assessSocialPostSafety(body);
  return <main className="container">
   <div className="page-heading">
    <span className="eyebrow">TrustFive Social · Community group</span>
@@ -219,7 +220,8 @@ export default function SocialGroupConversation(){
          placeholder="Share an update or ask your fellow group members…"/>
        </label>
        <p id="group-body-guidance" className="muted-note">{body.length} / 3,000 characters. Minimum 8.</p>
-       <button type="submit" className="btn" disabled={busy||!socialGroupCanPublish(userId,groupId||'',membership,body)}>
+       {groupPostSafety.blockingError&&<p role="alert" className="notice error" data-testid="social-contact-block">{groupPostSafety.blockingError}</p>}
+       <button type="submit" className="btn" disabled={busy||Boolean(groupPostSafety.blockingError)||!socialGroupCanPublish(userId,groupId||'',membership,body)}>
         {busy?'Publishing…':'Publish group update'}
        </button>
       </form>
