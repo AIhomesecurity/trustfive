@@ -99,6 +99,25 @@ export default async function CostGuidesPage({searchParams}: {searchParams: Sear
                   <Link className="btn secondary" href={'/services?trade=' + encodeURIComponent(guide.tradeSlug)}>
                     Find {guide.tradeLabel} pros
                   </Link>
+                  <Link
+                    className="btn secondary"
+                    href={
+                      '/ideabooks?addGuide=' +
+                      encodeURIComponent(guide.tradeSlug) +
+                      '&title=' +
+                      encodeURIComponent(`${guide.tradeLabel}: ${guide.jobs[0]?.title ?? 'Project estimate'}`) +
+                      '&est=' +
+                      encodeURIComponent(
+                        String(
+                          guide.jobs[0]
+                            ? Math.round((guide.jobs[0].baseLowGbp + guide.jobs[0].baseHighGbp) / 2)
+                            : 0
+                        )
+                      )
+                    }
+                  >
+                    Save to Ideabook
+                  </Link>
                   <Link className="service-view-all" href={'/jobs?trade=' + encodeURIComponent(guide.tradeSlug)}>
                     Post {guide.tradeLabel} job →
                   </Link>

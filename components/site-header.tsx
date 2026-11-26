@@ -13,6 +13,7 @@ const mainLinks=[
 ];
 const accountLinks=[
  {href:'/dashboard',label:'My dashboard'},
+ {href:'/ideabooks',label:'Project Ideabooks'},
  {href:'/cost-guides',label:'UK cost guides'},
  {href:'/messages',label:'Messages'},
  {href:'/notifications',label:'Notifications'},

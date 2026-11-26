@@ -46,6 +46,10 @@ export default function JobBriefHelper({tradeSlug, onApplySnippet}: Props) {
 
       {open && (
         <div className="tf-brief-panel">
+          <p className="notice" style={{marginTop: 0, marginBottom: 12}}>
+            <strong>Protected by TrustFive&apos;s 5-Approved-Pro Cap:</strong> Only up to five independently approved
+            local professionals per trade and area can see your brief — zero mass lead-selling and zero cold calls.
+          </p>
           <p className="muted-note" style={{marginTop: 0}}>
             Tradespeople give faster, tighter written quotes when your brief includes property type, timing and access
             notes. Pick options below to add them into your job description.

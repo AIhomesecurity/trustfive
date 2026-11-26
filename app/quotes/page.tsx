@@ -7,6 +7,7 @@ import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/prof
 import {createSingleFlightLock,executeBookingAction} from '../../lib/booking-lifecycle';
 import {validateQuoteAvailability} from '../../lib/quote-comparison';
 import {buildPrintableQuoteDocument,buildQuotesAccountingCsv} from '../../lib/tradesman-utilities';
+import QuoteItemisedBuilder from '../../components/quote-itemised-builder';
 
 type Lead={job_id:string;title:string;description:string;budget_pence:number|null;trade_name:string;area_name:string;allocation_id:string;created_at:string};
 type Quote={quote_id:string;job_id:string;job_title:string;amount_pence:number;message:string;availability_note?:string|null;status:string;created_at:string};
@@ -228,6 +229,13 @@ export default function Quotes(){
        <p className="muted-note">{chosen.trade_name} · {chosen.area_name}</p>
        {existingForChosen?<div className="notice">A quote has already been submitted for this job. <Link href={quoteMessagesHref(existingForChosen.quote_id)}>Open conversation</Link>.</div>:
        <form className="form" onSubmit={submit}>
+        <QuoteItemisedBuilder
+         onApply={(nextAmount,nextScope)=>{
+          setAmount(nextAmount);
+          setMessage(nextScope);
+          setQuoteError('');
+         }}
+        />
         <label>Your quote (£)<input type="number" min="1" max="10000000" step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)}/></label>
         <label>Earliest availability and timeframe (optional)<input maxLength={240} value={availability} onChange={e=>setAvailability(e.target.value)} placeholder="e.g. Available from Tuesday morning; approx. 1 day"/></label>
         <label>Message and scope of work<textarea minLength={10} maxLength={3000} required value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe materials, timing, exclusions and assumptions"/></label>

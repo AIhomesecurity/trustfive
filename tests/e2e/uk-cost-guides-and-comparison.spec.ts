@@ -101,8 +101,10 @@ test.describe('Homepage, /cost-guides and /how-it-works reverse-engineered featu
     await expect(comp).toContainText('MyJobQuote');
     await expect(comp).toContainText('TrustATrader');
     await expect(comp).toContainText('Which? Trusted Traders');
+    await expect(comp).toContainText('Rated People');
+    await expect(comp).toContainText('Houzz UK');
     await comp.getByRole('button', {name: 'vs Pay-per-lead sites'}).click();
-    await expect(comp.locator('tbody tr')).toHaveCount(4);
+    await expect(comp.locator('tbody tr')).toHaveCount(5);
 
     // 6-stage vetting cards visible.
     await expect(page.getByTestId('vetting-charter').locator('.tf-vetting-card')).toHaveCount(6);
