@@ -26,6 +26,8 @@ import SocialPostCard from '../../../components/social-post-card';
 import SocialAdviceBoard from '../../../components/social-advice-board';
 import SocialGroupDiscovery from '../../../components/social-group-discovery';
 import SocialTradeCollaboration from '../../../components/social-trade-collaboration';
+import SocialShowcasesFeed from '../../../components/social-showcases-feed';
+import SocialTradeReferrals from '../../../components/social-trade-referrals';
 import SocialSavedPosts from '../../../components/social-saved-posts';
 import SocialEventsDiscovery from '../../../components/social-events-discovery';
 import {socialNeedsAuthRecheck} from '../../../lib/social-auth-identity';
@@ -575,7 +577,7 @@ function SocialHub() {
                     ) : null}
                     <p id="social-composer-guidance" className="muted-note" style={{margin: 0}}>
                       {!postingAreaId ? 'Choose a neighbourhood first. ' : ''}
-                      {postBody.length.toLocaleString('en-GB')} / 3,000 characters. Minimum 8 characters. Avoid sharing private addresses or contact details.
+                      {postBody.length.toLocaleString('en-GB')} / 3,000 characters. Minimum 8 characters. Phone numbers, websites, email addresses and full postcodes are blocked — keep enquiries inside TrustFive.
                     </p>
                     <div className="social-composer-actions">
                       <button
@@ -792,11 +794,20 @@ function SocialHub() {
             </section>
           ) : null}
 
+          {tab === 'showcases' ? (
+            <SocialShowcasesFeed key={'showcases-' + userId} userId={userId} />
+          ) : null}
+
           {tab === 'trade' ? (
             <>
               <SocialGroupDiscovery key={'groups-' + userId} userId={userId} areas={areas} />
               <SocialTradeCollaboration
                 key={'collaboration-' + userId}
+                userId={userId}
+                areas={areas}
+              />
+              <SocialTradeReferrals
+                key={'referrals-' + userId}
                 userId={userId}
                 areas={areas}
               />

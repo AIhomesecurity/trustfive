@@ -1,5 +1,6 @@
 export const SOCIAL_SECTIONS = [
   {id: 'neighbourhood', label: 'Feed', description: 'Neighbourhood feed'},
+  {id: 'showcases', label: 'Showcases', description: 'Completed installer work showcases'},
   {id: 'trade', label: 'Groups', description: 'Local groups & Trade Network'},
   {id: 'events', label: 'Events', description: 'Local community events'},
   {id: 'advice', label: 'Advice', description: 'Questions & local advice'},

@@ -10,6 +10,7 @@ import {jobPublishBlocker} from '../../lib/job-publish-readiness';
 import TradeQuickPick from '../../components/trade-quick-pick';
 import JobBriefHelper from '../../components/job-brief-helper';
 import {parseJobsPrefillParams} from '../../lib/uk-cost-guides';
+import {parseReferralCodeParam} from '../../lib/trade-referrals';
 import {acceptedQuoteBookingHref,canConfirmJobQuote,customerJobBookingLinks} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
 import {
@@ -40,6 +41,7 @@ const money=(pence:number)=>'£'+(pence/100).toFixed(2);
 export default function Jobs(){
  const [jobs,setJobs]=useState<Job[]>([]),[quotes,setQuotes]=useState<Quote[]>([]),[trades,setTrades]=useState<Trade[]>([]),[areas,setAreas]=useState<Area[]>([]);
  const [title,setTitle]=useState(''),[description,setDescription]=useState(''),[trade,setTrade]=useState(''),[area,setArea]=useState(''),[budget,setBudget]=useState('');
+ const [referralCode,setReferralCode]=useState('');
  const [contactPreference,setContactPreference]=useState<ContactPreference>('in_app_messages');
  const [quoteSort,setQuoteSort]=useState<QuoteSortMode>('lowest_price');
  const [userId,setUserId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[initialLoading,setInitialLoading]=useState(true);
@@ -176,6 +178,8 @@ export default function Jobs(){
  const [initialLoadFailed,setInitialLoadFailed]=useState(false);
  const [loadAttempt,setLoadAttempt]=useState(0);
  useEffect(()=>{(async()=>{try{
+  const refCode=parseReferralCodeParam(window.location.search);
+  if(refCode)setReferralCode(refCode);
   const s=supabaseBrowser();
   const [u,t,a]=await Promise.all([
    s.auth.getUser(),
@@ -362,6 +366,9 @@ export default function Jobs(){
    <h1>My jobs and quotes</h1>
    <p className="subtle">Post a job step-by-step, manage open or cancelled requests, inspect genuine activity history, and compare quotations from independently approved local professionals.</p>
   </div>
+  {referralCode&&<div className="notice" role="status" data-testid="trade-referral-disclosure">
+   <strong>Trade recommendation link ({referralCode}):</strong> You arrived via a TrustFive tradesperson recommendation. There is no extra fee for homeowners, your private address is never pre-shared, and you remain completely free to compare quotes from all eligible independently approved local professionals.
+  </div>}
   {message&&<p className="notice" role="status">{message}</p>}
   {confirmedBookingHref&&userId&&<p><Link ref={confirmedBookingLink} className="btn" href={confirmedBookingHref}>Open your confirmed booking →</Link></p>}
   {initialLoading?<p className="notice" role="status" aria-live="polite">Checking your account and loading jobs…</p>:

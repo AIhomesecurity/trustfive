@@ -61,18 +61,29 @@ test.describe('Slice 4 media privacy, spam and quota helper unit tests', () => {
     expect(huge.ok).toBe(false);
   });
 
-  test('detects link spam, repeated-character flooding, UK private-data patterns and P0001 write quotas', () => {
+  test('blocks websites, phones, emails, full UK postcodes, repeated-character flooding and classifies 23514 & P0001 errors', () => {
     const linkSpam = assessSocialPostSafety(
-      'Check https://a.example https://b.example and https://c.example for cheap deals!'
+      'Check https://a.example or mytrade.co.uk for cheap deals!'
     );
-    expect(linkSpam.blockingError).toContain('no more than two web links');
+    expect(linkSpam.blockingError).toContain('cannot be posted in TrustFive Social');
+    expect(linkSpam.privacyWarnings.some(w => /Websites and external web links/i.test(w))).toBe(true);
 
     const flood = assessSocialPostSafety('Hello neighbours!!!!!!!!!!!!!!!!');
     expect(flood.blockingError).toContain('repeated characters');
 
     const leaky = assessSocialPostSafety('Pop round to M20 2WS or ring 07700 900123 anytime.');
-    expect(leaky.blockingError).toBeNull();
+    expect(leaky.blockingError).toContain('cannot be posted in TrustFive Social');
     expect(leaky.privacyWarnings).toHaveLength(2);
+
+    const emailBypass = assessSocialPostSafety('Email me at plumber@example.co.uk or WhatsApp me');
+    expect(emailBypass.blockingError).toContain('cannot be posted in TrustFive Social');
+
+    expect(
+      classifySocialWriteError(
+        {code: '23514', message: 'new row violates check constraint "community_posts_contact_free"'},
+        'fallback'
+      )
+    ).toContain('blocked in TrustFive Social');
 
     expect(
       classifySocialWriteError(
@@ -85,7 +96,7 @@ test.describe('Slice 4 media privacy, spam and quota helper unit tests', () => {
 });
 
 test.describe('Slice 4 media upload privacy, spam controls and usable moderation queue', () => {
-  test('360px resident sees privacy warnings, spam blocks, DB quota message, media pre-check; moderator filters and confirms hiding reported posts', async ({
+  test('360px resident sees anti-bypass blocks for phones/links/postcodes, DB quota message, media pre-check; moderator filters and confirms hiding reported posts', async ({
     browser,
   }) => {
     test.skip(
@@ -169,17 +180,22 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
       await mobilePage.getByLabel('Neighbourhood to post in').selectOption(areaA.id);
       const bodyInput = mobilePage.getByLabel('Write your community post');
 
-      // 1. Live privacy warning for UK postcode & telephone number.
+      // 1. Live anti-bypass notice & hard block for UK postcode & telephone number.
       await bodyInput.fill('Pop over to M20 2WS or call 07700 900123 for spare tiles.');
       const privacyWarn = mobilePage.getByTestId('social-privacy-warning');
-      await expect(privacyWarn).toContainText('full UK postcode');
-      await expect(privacyWarn).toContainText('telephone number');
-
-      // 2. Client-side spam guard blocks >2 links without hitting database.
-      await bodyInput.fill('Look at https://one.example https://two.example https://three.example right now');
+      await expect(privacyWarn).toContainText('Full UK postcodes');
+      await expect(privacyWarn).toContainText('Telephone numbers');
       await mobilePage.getByRole('button', {name: 'Publish neighbourhood post'}).click();
       await expect(mobilePage.getByTestId('social-composer').getByRole('alert')).toContainText(
-        'no more than two web links'
+        'cannot be posted in TrustFive Social'
+      );
+      expect(insertAttempts).toBe(0);
+
+      // 2. Client-side anti-bypass guard blocks external websites/domains without hitting database.
+      await bodyInput.fill('Look at https://one.example or mybuilder.co.uk right now');
+      await mobilePage.getByRole('button', {name: 'Publish neighbourhood post'}).click();
+      await expect(mobilePage.getByTestId('social-composer').getByRole('alert')).toContainText(
+        'cannot be posted in TrustFive Social'
       );
       expect(insertAttempts).toBe(0);
 

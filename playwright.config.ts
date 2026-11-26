@@ -16,6 +16,7 @@ const loopbackSpecs = [
  '**/social-slice2-mobile-drafts-a11y.spec.ts',
  '**/social-slice3-events-notifications.spec.ts',
  '**/social-slice4-media-spam-moderation.spec.ts',
+ '**/social-showcases-and-referrals.spec.ts',
 ];
 const port=Number(process.env.PLAYWRIGHT_PORT||3112);
 const baseURL=`http://127.0.0.1:${port}`;

@@ -3,7 +3,8 @@ with required_tables(name) as (
   values
     ('job_bookings'), ('booking_reviews'), ('booking_appointments'), ('community_reports'),
     ('professional_verification_submissions'), ('social_trade_requests'), ('social_trade_interests'),
-    ('social_saved_posts'), ('community_group_post_reports'), ('community_post_media')
+    ('social_saved_posts'), ('community_group_post_reports'), ('community_post_media'),
+    ('social_trade_referrals')
 ), catalogue as (
   select t.name, c.oid, c.relrowsecurity
   from required_tables t
@@ -53,5 +54,14 @@ select 'policy:community_group_posts membership',
     where schemaname = 'public' and tablename = 'community_group_posts'
       and policyname = 'group members read approved posts'
       and qual like '%community_group_memberships%'
+  )
+union all
+select 'constraint:community_posts_contact_free',
+  exists (
+    select 1
+    from pg_constraint
+    where conrelid = to_regclass('public.community_posts')
+      and conname = 'community_posts_contact_free'
+      and contype = 'c'
   )
 order by check_name;

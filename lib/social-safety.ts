@@ -10,10 +10,16 @@ export type SocialPostSafetyAssessment = {
   privacyWarnings: string[];
 };
 
-const URL_RE = /(?:https?:\/\/|www\.)\S+/gi;
+const URL_OR_DOMAIN_RE =
+  /(?:https?\s*:|www\.|[a-z0-9-]+\.(?:co\.uk|org\.uk|gov\.uk|ac\.uk|com|net|org|uk|me|io|info|biz|shop|app)\b|wa\.me\/|t\.me\/|linktr\.ee\/)/i;
+const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|@/i;
+const MESSAGING_APP_RE = /\b(?:whats[\s-]*app|telegram|dm\s+me\s+on\s+(?:insta|facebook|fb))\b/i;
 const REPEATED_CHAR_RE = /(\S)\1{11,}/;
 const UK_FULL_POSTCODE_RE = /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i;
-const UK_PHONE_RE = /(?:\+44\s?7\d{3}|\b07\d{3}|\b0[12]\d{2,3})[\s-]?\d{3}[\s-]?\d{3,4}\b/;
+const UK_PHONE_RE = /(?:\+44\s?7\d{3}|\b07\d{3}|\b0[1238]\d{2,3})[\s.-]?\d{3}[\s.-]?\d{3,4}\b/;
+const GENERIC_PHONE_DIGITS_RE = /(?:\d[\s.()+/-]*){7,}/;
+const SPELLED_DIGITS_RE =
+  /(?:\b(?:zero|oh|nought|one|two|three|four|five|six|seven|eight|nine|\d)\b[^a-z0-9]+){6}\b(?:zero|oh|nought|one|two|three|four|five|six|seven|eight|nine|\d)\b/i;
 
 export const MEDIA_STORAGE_COORDINATION_NOTE =
   'Photo uploads require a coordinated private storage bucket, EXIF/GPS stripping pipeline and moderator-only media RLS migration before activation. No file is uploaded from this check.';
@@ -50,28 +56,46 @@ export function validateSocialMediaFile(file: {
 }
 
 export function assessSocialPostSafety(body: string): SocialPostSafetyAssessment {
-  const text = body.trim();
+  const normalized = body
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
+    .trim();
   const privacyWarnings: string[] = [];
 
-  if (UK_FULL_POSTCODE_RE.test(text)) {
+  if (UK_FULL_POSTCODE_RE.test(normalized)) {
     privacyWarnings.push(
-      'This looks like a full UK postcode — use your neighbourhood name instead of a home or job-site address.'
+      'Full UK postcodes are not allowed in public Social posts — use your neighbourhood name instead.'
     );
   }
-  if (UK_PHONE_RE.test(text)) {
+  if (
+    UK_PHONE_RE.test(normalized) ||
+    GENERIC_PHONE_DIGITS_RE.test(normalized) ||
+    SPELLED_DIGITS_RE.test(normalized)
+  ) {
     privacyWarnings.push(
-      'This looks like a telephone number — avoid publishing personal or customer contact numbers.'
+      'Telephone numbers are not allowed in TrustFive Social — keep all enquiries inside the app.'
+    );
+  }
+  if (URL_OR_DOMAIN_RE.test(normalized)) {
+    privacyWarnings.push(
+      'Websites and external web links are not allowed in TrustFive Social — all quotes and profiles stay inside the app.'
+    );
+  }
+  if (EMAIL_RE.test(normalized) || MESSAGING_APP_RE.test(normalized)) {
+    privacyWarnings.push(
+      'Email addresses and off-platform messaging handles are not allowed in TrustFive Social.'
     );
   }
 
-  const urls = text.match(URL_RE) ?? [];
-  if (urls.length > 2) {
+  if (privacyWarnings.length > 0) {
     return {
-      blockingError: 'Please include no more than two web links in a single post to prevent spam.',
+      blockingError:
+        'Phone numbers, websites, email addresses, messaging handles and full postcodes cannot be posted in TrustFive Social. Keep enquiries and quotes safely inside the app.',
       privacyWarnings,
     };
   }
-  if (REPEATED_CHAR_RE.test(text)) {
+
+  if (REPEATED_CHAR_RE.test(normalized)) {
     return {
       blockingError: 'Please remove long runs of repeated characters before publishing.',
       privacyWarnings,
@@ -88,6 +112,9 @@ export function classifySocialWriteError(
   const errObj = error as {code?: unknown; message?: unknown} | null | undefined;
   const code = typeof errObj?.code === 'string' ? errObj.code : '';
   const msg = typeof errObj?.message === 'string' ? errObj.message : '';
+  if (code === '23514' || /contact_free/i.test(msg)) {
+    return 'Phone numbers, websites, email addresses and full postcodes are blocked in TrustFive Social. Remove them and keep enquiries inside the app.';
+  }
   if (code === 'P0001' || /posting limit reached/i.test(msg)) {
     return 'You have reached the hourly posting limit designed to prevent spam. Your draft is preserved — please try again later.';
   }

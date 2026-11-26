@@ -3,6 +3,7 @@ import {FormEvent,useRef,useState} from 'react';
 import {supabaseBrowser} from '../lib/supabase';
 import {readablePostDate} from '../lib/social-discovery';
 import {SOCIAL_REPORT_CATEGORIES,socialReactionIsActive,socialReplyError,socialReportError,type SocialComment,type SocialReactionKind,type SocialReactionSummary,type SocialReportCategory} from '../lib/social-discussion';
+import {assessSocialPostSafety,classifySocialWriteError} from '../lib/social-safety';
 
 /**
  * Loads only the discussion opened by the user, instead of downloading
@@ -62,6 +63,8 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
   event.preventDefault();
   const validation=socialReplyError(reply);
   if(validation){setNoticeIsError(true);setNotice(validation);return;}
+  const safety=assessSocialPostSafety(reply);
+  if(safety.blockingError){setNoticeIsError(true);setNotice(safety.blockingError);return;}
   if(!userId||inFlight.current)return;
   inFlight.current=true;setBusy(true);setNotice('');setNoticeIsError(false);
   try{
@@ -77,7 +80,7 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
     .order('created_at',{ascending:true}).limit(100);
    if(result.error){setNotice('Your reply was published, but refreshing failed. Use Refresh discussion to load it.');}
    else setComments(result.data||[]);
-  }catch{setNoticeIsError(true);setNotice('Could not publish your reply. Check the connection and try again.');}
+  }catch(err){setNoticeIsError(true);setNotice(classifySocialWriteError(err,'Could not publish your reply. Check the connection and try again.'));}
   finally{inFlight.current=false;setBusy(false);}
  }
  async function react(kind:SocialReactionKind){

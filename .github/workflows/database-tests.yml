@@ -132,3 +132,6 @@ jobs:
 
       - name: Verify Social report resolution RPC, EXIF-stripped media RLS and Social notification paths
         run: psql -v ON_ERROR_STOP=1 -f tests/db/social-moderation-media-rls-contract.sql
+
+      - name: Verify Social anti-bypass contact/link constraints and zero-PII trade referrals RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-anti-bypass-referrals-contract.sql
