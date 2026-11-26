@@ -419,3 +419,16 @@ test('Quick trade chooser uses only genuine taxonomy rows, never Lovable demo pr
  expect(popularTradeChoices(available,2)).toHaveLength(2);
  expect(popularTradeChoices(available).every(x=>available.includes(x))).toBe(true);
 });
+
+test('Community landing stays readable without horizontal overflow from desktop to small mobile',async({page})=>{
+ await page.goto('/community');
+ await expect(page.locator('.community-home-heading')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'TrustFive Community'})).toBeVisible();
+ await expect(page.locator('.community-home-actions .btn')).toHaveCount(3);
+ for(const width of [1440,768,390,360]){
+  await page.setViewportSize({width,height:900});
+  await expect(page.locator('.community-home-heading')).toBeVisible();
+  const dimensions=await page.evaluate(()=>({viewport:document.documentElement.clientWidth,content:document.documentElement.scrollWidth}));
+  expect(dimensions.content,`Community page overflow at ${width}px`).toBeLessThanOrEqual(dimensions.viewport+1);
+ }
+});
