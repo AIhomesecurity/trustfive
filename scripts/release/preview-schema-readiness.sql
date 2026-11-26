@@ -54,4 +54,14 @@ select 'policy:community_group_posts membership',
       and policyname = 'group members read approved posts'
       and qual like '%community_group_memberships%'
   )
+union all
+select 'triggers:social_public_contact_guard',
+  (select count(*) = 5
+   from pg_trigger t
+   join pg_class c on c.oid = t.tgrelid
+   join pg_namespace n on n.oid = c.relnamespace
+   join pg_proc p on p.oid = t.tgfoid
+   where n.nspname = 'public' and not t.tgisinternal
+     and p.proname = 'enforce_public_social_contact_free'
+     and c.relname in ('community_posts','community_comments','community_group_posts','community_groups','community_events'))
 order by check_name;

@@ -143,7 +143,8 @@ export default function SocialAdviceBoard({userId,areas}:{userId:string;areas:So
        onChange={event=>updateQuestion(event.target.value)} aria-describedby="social-advice-note"/></label>
      {restoredArea===postArea&&postArea&&<p role="status" className="muted-note" style={{margin:0}}>Draft recovered for your selected neighbourhood.</p>}
      <p className="muted-note" id="social-advice-note">Your question will be published with the heading “Question about {topic}:” and visible to signed-in community members. Never include private customer jobs, addresses or personal contact details.</p>
-     <button type="submit" className="btn" disabled={sending||!areas.some(item=>item.id===postArea)||!preview}>{sending?'Publishing question…':'Publish question'}</button>
+     {safety.blockingError&&<p role="alert" className="notice error" data-testid="social-contact-block">{safety.blockingError}</p>}
+     <button type="submit" className="btn" disabled={sending||Boolean(safety.blockingError)||!areas.some(item=>item.id===postArea)||!preview}>{sending?'Publishing question…':'Publish question'}</button>
     </form>
     {notice&&<p role={noticeIsError?'alert':'status'} className={noticeIsError?'notice error':'notice'}>{notice}</p>}
    </section>

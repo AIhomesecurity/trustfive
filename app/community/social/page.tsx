@@ -194,625 +194,46 @@ function SocialHub() {
     }
     let active = true;
     const requestId = ++feedRequestRef.current;
-    const epoch = authEpoch.current;
-
-    // Immediately clear previous neighbourhood posts so switching areas never
-    // flashes another neighbourhood's feed while loading.
-    setPosts([]);
-    setHasMore(false);
-    setLoading(true);
-    setError('');
-
-    (async () => {
-      try {
-        const s = supabaseBrowser();
-        const bounds = socialPageBounds(page);
-        let request = s
-          .from('community_posts')
-          .select('id,area_id,body,visibility,created_at')
-          .eq('visibility', 'published')
-          .order('created_at', {ascending: order === 'oldest'})
-          .order('id', {ascending: true})
-          .range(bounds.from, bounds.to);
-        if (areaId) request = request.eq('area_id', areaId);
-        if (search.trim()) request = request.ilike('body', socialSearchPattern(search));
-        const {data, error: readError} = await request;
-        if (readError) throw readError;
-        if (!active || requestId !== feedRequestRef.current || epoch !== authEpoch.current) return;
-        const result = socialPageRows((data || []) as SocialPostSummary[]);
-        setPosts(result.items);
-        setHasMore(result.hasMore);
-      } catch {
-        if (active && requestId === feedRequestRef.current && epoch === authEpoch.current) {
-          setPosts([]);
-          setHasMore(false);
-          setError('Could not load matching neighbourhood posts. Please retry.');
-        }
-      } finally {
-        if (active && requestId === feedRequestRef.current && epoch === authEpoch.current) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [signedIn, accountLoading, accountError, areaId, order, search, page, refreshKey]);
-
-  function changeArea(value: string) {
-    const next = {areaId: value, search, order, page: 0};
-    setPage(0);
-    setAreaId(value);
-    syncFeedUrl(next);
-  }
-
-  function changeOrder(value: SocialFeedOrder) {
-    const next = {areaId, search, order: value, page: 0};
-    setPage(0);
-    setOrder(value);
-    syncFeedUrl(next);
-  }
-
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-    const cleaned = query.trim().slice(0, 120);
-    const next = {areaId, search: cleaned, order, page: 0};
-    setPage(0);
-    setSearch(cleaned);
-    syncFeedUrl(next);
-  }
-
-  function resetFilters() {
-    const next = {areaId: '', search: '', order: 'recent' as SocialFeedOrder, page: 0};
-    setPage(0);
-    setAreaId('');
-    setQuery('');
-    setSearch('');
-    setOrder('recent');
-    syncFeedUrl(next);
-  }
-
-  function changePage(nextPage: number) {
-    const bounded = Math.max(0, Math.min(500, nextPage));
-    const next = {areaId, search, order, page: bounded};
-    setPage(bounded);
-    syncFeedUrl(next);
-  }
-
-  function selectPostingArea(nextAreaId: string) {
-    setPostingAreaId(nextAreaId);
-    setPostNotice('');
-    setPostNoticeIsError(false);
-    if (!nextAreaId || !userId) {
-      setRestoredDraftArea('');
-      return;
-    }
-    const existing = getAreaDraft(draftsByArea, nextAreaId);
-    if (!existing) {
-      const recovered = loadScopedDraft(userId, 'feed', nextAreaId);
-      if (recovered) {
-        setDraftsByArea(prev => setAreaDraft(prev, nextAreaId, recovered));
-        setRestoredDraftArea(nextAreaId);
-        return;
-      }
-    }
-    setRestoredDraftArea('');
-  }
-
-  function focusComposer() {
-    if (postingAreaId) {
-      composerBodyRef.current?.focus();
-    } else {
-      composerAreaRef.current?.focus();
-    }
-  }
-
-  async function publishNeighbourhoodPost(event: FormEvent) {
-    event.preventDefault();
-    if (publishingRef.current) return;
-    const targetAreaId = postingAreaId;
-    const draftText = getAreaDraft(draftsByArea, targetAreaId);
-    const problem = socialPostValidationError({
-      authorId: userId,
-      areaId: targetAreaId,
-      availableAreaIds: areas.map(item => item.id),
-      body: draftText,
-    });
-    if (problem) {
-      setPostNotice(problem);
-      setPostNoticeIsError(true);
-      return;
-    }
-    const safety = assessSocialPostSafety(draftText);
-    if (safety.blockingError) {
-      setPostNotice(safety.blockingError);
-      setPostNoticeIsError(true);
-      return;
-    }
-
-    publishingRef.current = true;
-    setPosting(true);
-    setPostNotice('');
-    setPostNoticeIsError(false);
-    const currentAuthEpoch = authEpoch.current;
-
-    try {
-      const {error: publishError} = await supabaseBrowser().from('community_posts').insert({
-        author_id: userId,
-        area_id: targetAreaId,
-        body: draftText.trim(),
-        visibility: 'published',
-      });
-      if (publishError) throw publishError;
-      if (authEpoch.current !== currentAuthEpoch) return;
-
-      // Clear only the published neighbourhood's draft; switch feed to that neighbourhood.
-      setDraftsByArea(prev => setAreaDraft(prev, targetAreaId, ''));
-      clearScopedDraft(userId, 'feed', targetAreaId);
-      setRestoredDraftArea('');
-      const nextFeed = {areaId: targetAreaId, search: '', order: 'recent' as SocialFeedOrder, page: 0};
-      setAreaId(targetAreaId);
-      setQuery('');
-      setSearch('');
-      setPage(0);
-      setOrder('recent');
-      syncFeedUrl(nextFeed);
-      setRefreshKey(value => value + 1);
-      setPostNotice(
-        'Your neighbourhood post was published. If it does not appear immediately, refresh the feed. Do not repost it.'
-      );
-      setPostNoticeIsError(false);
-    } catch (err) {
-      if (authEpoch.current === currentAuthEpoch) {
-        setPostNotice(
-          classifySocialWriteError(
-            err,
-            'Your post could not be published â€” your draft is preserved above so you can retry safely.'
-          )
-        );
-        setPostNoticeIsError(true);
-      }
-    } finally {
-      publishingRef.current = false;
-      setPosting(false);
-    }
-  }
-
-  const browsingArea = findSocialArea(areas, areaId);
-  const postingArea = findSocialArea(areas, postingAreaId);
-  const postSafety = useMemo(() => assessSocialPostSafety(postBody), [postBody]);
-  const hasActiveFilters = Boolean(areaId || search || order !== 'recent' || page > 0);
-  const signInReturnHref = tab === 'neighbourhood' ? currentFeedHref : socialSectionHref(tab);
-
-  return (
-    <main className="container social-hub">
-      <div className="page-heading social-home-head">
-        <div>
-          <span className="eyebrow">TrustFive Social Â· UK neighbourhood network</span>
-          <h1>TrustFive Social</h1>
-          <p className="subtle">
-            Find your neighbourhood, ask for local advice, discover community events, and join local groups safely. Only published, authorised content is shown.
-          </p>
-        </div>
-        {signedIn && tab === 'neighbourhood' ? (
-          <div className="social-home-head-actions">
-            <button type="button" className="btn" onClick={focusComposer}>
-              Write a post
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      <nav aria-label="Social network sections" className="social-hub-tabs">
-        {SOCIAL_SECTIONS.map(item => (
-          <Link
-            key={item.id}
-            href={
-              item.id === 'neighbourhood'
-                ? buildSocialFeedHref('neighbourhood', {areaId, search, order, page})
-                : socialSectionHref(item.id)
-            }
-            scroll={false}
-            className={item.id === tab ? 'social-hub-tab active' : 'social-hub-tab'}
-            aria-current={item.id === tab ? 'page' : undefined}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
-      {accountLoading ? (
-        <div className="card" role="status" aria-live="polite" data-testid="social-account-loading">
-          Checking your community accountâ€¦
-        </div>
-      ) : accountError ? (
-        <div className="card" role="alert" data-testid="social-account-error">
-          <p style={{margin: '0 0 12px'}}>{accountError}</p>
-          <button
-            className="btn secondary"
-            type="button"
-            onClick={() => setAuthRevision(value => value + 1)}
-          >
-            Retry account check
-          </button>
-        </div>
-      ) : !signedIn ? (
-        <section
-          className="card social-signed-out-card"
-          aria-labelledby="social-signed-out-heading"
-          data-testid="social-signed-out"
-        >
-          <span className="eyebrow">Signed-in residents only</span>
-          <h2 id="social-signed-out-heading">Join your local neighbourhood on TrustFive Social</h2>
-          <p className="subtle">
-            Sign in to browse local conversations, ask neighbours for advice, RSVP to community events, join member groups, and save helpful posts privately.
-          </p>
-          <ul className="social-signed-out-features">
-            <li>
-              <strong>Neighbourhood Feed:</strong> local updates and questions without public home addresses or private job details.
-            </li>
-            <li>
-              <strong>Groups &amp; Events:</strong> member-only group discussions and local event RSVPs.
-            </li>
-            <li>
-              <strong>Advice &amp; Saved:</strong> community Q&amp;A kept separate from marketplace lead allocation.
-            </li>
-          </ul>
-          <div className="social-hub-shortcuts" style={{marginBottom: 0}}>
-            <Link
-              className="btn"
-              href={'/account?next=' + encodeURIComponent(signInReturnHref)}
-            >
-              Sign in to TrustFive Social
-            </Link>
-            <Link className="btn secondary" href="/services">
-              Find an approved professional
-            </Link>
-          </div>
-        </section>
-      ) : (
-        <>
-          {tab === 'neighbourhood' ? (
-            <section aria-labelledby="social-neighbourhood-title">
-              <div className="social-scope-bar" data-testid="social-scope-bar">
-                <div className="social-scope-pills">
-                  <span className="social-scope-chip">
-                    <strong>Browsing:</strong>{' '}
-                    {browsingArea
-                      ? `${browsingArea.area_name}, ${browsingArea.city}`
-                      : 'All pilot neighbourhoods'}
-                  </span>
-                  <span className="social-scope-chip">
-                    <strong>Posting to:</strong>{' '}
-                    {postingArea
-                      ? `${postingArea.area_name}, ${postingArea.city}`
-                      : 'Choose a neighbourhood below'}
-                  </span>
-                </div>
-                <p className="muted-note" style={{margin: 0}}>
-                  <strong>Pilot discovery:</strong> signed-in members can browse listed neighbourhoods until verified resident membership launches. Exact home addresses, customer job details and private quotes never appear here.
-                </p>
-              </div>
-
-              <section
-                className="card social-composer-card"
-                aria-labelledby="social-share-title"
-                data-testid="social-composer"
-              >
-                <h2 id="social-share-title" className="social-card-title">
-                  Share with your neighbours
-                </h2>
-                <p className="muted-note" style={{margin: '0 0 12px'}}>
-                  Posting location is chosen separately from the neighbourhood you browse. Changing neighbourhoods never carries your draft across areas.
-                </p>
-                {areas.length === 0 ? (
-                  <p role="status" className="notice" style={{margin: 0}}>
-                    No neighbourhoods are available to select yet. Posting will open once local areas are listed.
-                  </p>
-                ) : (
-                  <form className="form" onSubmit={publishNeighbourhoodPost}>
-                    <label htmlFor="social-post-area">
-                      Neighbourhood to post in
-                      <select
-                        id="social-post-area"
-                        ref={composerAreaRef}
-                        required
-                        value={postingAreaId}
-                        onChange={event => selectPostingArea(event.target.value)}
-                        disabled={posting || areas.length === 0}
-                      >
-                        <option value="">Choose a neighbourhood</option>
-                        {areas.map(item => (
-                          <option key={item.id} value={item.id}>
-                            {item.area_name}, {item.city}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label htmlFor="social-post-body">
-                      Write your community post
-                      <textarea
-                        id="social-post-body"
-                        ref={composerBodyRef}
-                        required
-                        minLength={8}
-                        maxLength={3000}
-                        value={postBody}
-                        disabled={posting || !postingAreaId}
-                        onChange={event => {
-                          const nextVal = event.target.value;
-                          setDraftsByArea(prev => setAreaDraft(prev, postingAreaId, nextVal));
-                          saveScopedDraft(userId, 'feed', postingAreaId, nextVal);
-                          if (restoredDraftArea === postingAreaId) setRestoredDraftArea('');
-                          if (postNotice) {
-                            setPostNotice('');
-                            setPostNoticeIsError(false);
-                          }
-                        }}
-                        aria-describedby="social-composer-guidance"
-                        placeholder={
-                          postingAreaId
-                            ? 'Ask neighbours a question, share local advice or recommend something usefulâ€¦'
-                            : 'Choose a neighbourhood above to start writingâ€¦'
-                        }
-                      />
-                    </label>
-                    {restoredDraftArea === postingAreaId && postingAreaId ? (
-                      <p role="status" className="muted-note" style={{margin: 0}}>
-                        Draft recovered for {postingArea ? postingArea.area_name : 'this neighbourhood'}.
-                      </p>
-                    ) : null}
-                    {postSafety.privacyWarnings.length > 0 ? (
-                      <div
-                        className="notice notice-warn"
-                        role="status"
-                        data-testid="social-privacy-warning"
-                        style={{margin: 0}}
-                      >
-                        <strong>Privacy reminder:</strong> {postSafety.privacyWarnings.join(' ')}
-                      </div>
-                    ) : null}
-                    <p id="social-composer-guidance" className="muted-note" style={{margin: 0}}>
-                      {!postingAreaId ? 'Choose a neighbourhood first. ' : ''}
-                      {postBody.length.toLocaleString('en-GB')} / 3,000 characters. Minimum 8 characters. Avoid sharing private addresses or contact details.
-                    </p>
-                    <div className="social-composer-actions">
-                      <button
-                        type="submit"
-                        className="btn"
-                        disabled={
-                          posting ||
-                          Boolean(
-                            socialPostValidationError({
-                              authorId: userId,
-                              areaId: postingAreaId,
-                              availableAreaIds: areas.map(item => item.id),
-                              body: postBody,
-                            })
-                          )
-                        }
-                      >
-                        {posting ? 'Publishingâ€¦' : 'Publish neighbourhood post'}
-                      </button>
-                      {browsingArea && browsingArea.id !== postingAreaId ? (
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          disabled={posting}
-                          onClick={() => {
-                            selectPostingArea(browsingArea.id);
-                            window.requestAnimationFrame(() => composerBodyRef.current?.focus());
-                          }}
-                        >
-                          Post in {browsingArea.area_name}
-                        </button>
-                      ) : null}
-                    </div>
-                  </form>
-                )}
-                <SocialMediaPrivacyNotice />
-                {postNotice ? (
-                  <p
-                    role={postNoticeIsError ? 'alert' : 'status'}
-                    className={postNoticeIsError ? 'notice error' : 'notice'}
-                    style={{marginBottom: 0}}
-                  >
-                    {postNotice}
-                  </p>
-                ) : null}
-              </section>
-
-              <div className="social-feed-header">
-                <h2
-                  id="social-neighbourhood-title"
-                  ref={feedHeadingRef}
-                  tabIndex={-1}
-                  style={{margin: 0}}
-                >
-                  Neighbourhood conversations
-                </h2>
-                <Link className="job-related-link" href="/community/groups">
-                  Browse groups â†’
-                </Link>
-              </div>
-
-              <form
-                className="card social-hub-filters"
-                aria-label="Filter neighbourhood feed"
-                onSubmit={submitSearch}
-              >
-                <label htmlFor="social-filter-query">
-                  Search published posts
-                  <input
-                    id="social-filter-query"
-                    type="search"
-                    value={query}
-                    maxLength={120}
-                    onChange={e => setQuery(e.target.value)}
-                    placeholder="e.g. CCTV, gardening, renovation"
-                  />
-                </label>
-                <label htmlFor="social-filter-area">
-                  Neighbourhood
-                  <select
-                    id="social-filter-area"
-                    value={areaId}
-                    onChange={e => changeArea(e.target.value)}
-                  >
-                    <option value="">All available areas</option>
-                    {areas.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.area_name}, {a.city}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label htmlFor="social-filter-order">
-                  Order
-                  <select
-                    id="social-filter-order"
-                    value={order}
-                    onChange={e => changeOrder(e.target.value as SocialFeedOrder)}
-                  >
-                    <option value="recent">Newest first</option>
-                    <option value="oldest">Oldest first</option>
-                  </select>
-                </label>
-                <button className="btn" type="submit" disabled={loading}>
-                  Search posts
-                </button>
-                <button
-                  className="btn secondary"
-                  type="button"
-                  disabled={!hasActiveFilters && !query}
-                  onClick={resetFilters}
-                >
-                  Clear filters
-                </button>
-              </form>
-
-              {loading ? (
-                <div
-                  className="card"
-                  role="status"
-                  aria-live="polite"
-                  data-testid="social-feed-loading"
-                >
-                  Loading matching neighbourhood postsâ€¦
-                </div>
-              ) : error ? (
-                <div className="card" role="alert" data-testid="social-feed-error">
-                  <p style={{margin: '0 0 12px'}}>{error}</p>
-                  <button
-                    className="btn secondary"
-                    type="button"
-                    onClick={() => {
-                      feedHeadingRef.current?.focus();
-                      setRefreshKey(v => v + 1);
-                    }}
-                  >
-                    Retry loading posts
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p role="status" aria-live="polite" className="muted-note">
-                    Page {page + 1}: showing {posts.length} published{' '}
-                    {posts.length === 1 ? 'post' : 'posts'}
-                    {browsingArea ? ` in ${browsingArea.area_name}` : ''}
-                    {search ? ` matching â€œ${search}â€` : ''}
-                    {hasMore ? '; more posts are available.' : '.'}
-                  </p>
-                  <div className="list" data-testid="social-feed-list">
-                    {posts.length === 0 ? (
-                      <div className="card" role="status" data-testid="social-feed-empty">
-                        <p style={{margin: '0 0 12px'}}>
-                          {page > 0
-                            ? 'No posts on this page. Go back to the previous page.'
-                            : search
-                              ? `No published posts match â€œ${search}â€.`
-                              : browsingArea
-                                ? `No published posts in ${browsingArea.area_name} yet.`
-                                : 'No published posts in the neighbourhood feed yet.'}
-                        </p>
-                        <div className="social-hub-shortcuts" style={{margin: 0}}>
-                          <button type="button" className="btn" onClick={focusComposer}>
-                            Write the first post
-                          </button>
-                          {hasActiveFilters ? (
-                            <button
-                              type="button"
-                              className="btn secondary"
-                              onClick={resetFilters}
-                            >
-                              Show all neighbourhoods
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : (
-                      posts.map(post => {
-                        const postArea = findSocialArea(areas, post.area_id);
-                        const label = postArea
-                          ? `${postArea.area_name}, ${postArea.city}`
-                          : 'Community area';
-                        return (
-                          <SocialPostCard
-                            key={post.id}
-                            post={post}
-                            areaLabel={label}
-                            userId={userId}
-                            returnHref={currentFeedHref}
-                          />
-                        );
-                      })
-                    )}
-                  </div>
-                  <nav aria-label="Neighbourhood feed pages" className="social-hub-shortcuts">
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      disabled={page === 0}
-                      onClick={() => changePage(page - 1)}
-                    >
-                      Previous page
-                    </button>
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      disabled={!hasMore || page >= 500}
-                      onClick={() => changePage(page + 1)}
-                    >
-                      Next page
-                    </button>
-                  </nav>
-                </>
-              )}
-            </section>
-          ) : null}
-
-          {tab === 'trade' ? (
-            <>
-              <SocialGroupDiscovery key={'groups-' + userId} userId={userId} areas={areas} />
-              <SocialTradeCollaboration
-                key={'collaboration-' + userId}
-                userId={userId}
-                areas={areas}
-              />
-            </>
-          ) : null}
-          {tab === 'advice' ? (
-            <SocialAdviceBoard key={'advice-' + userId} userId={userId} areas={areas} />
-          ) : null}
-          {tab === 'events' ? (
-            <SocialEventsDiscovery key={'events-' + userId} userId={userId} areas={areas} />
-          ) : null}
-          {tab === 'saved' ? (
-            <SocialSavedPosts key={'saved-' + userId} userId={userId} />
-          ) : null}
-        </>
-      )}
-    </main>
-  );
-}
+    const epoch = authEçİ8¶‰ËkºwµçH‚ˆ™ZYÚ›İ\šÛÙÛÛ™\œØ][ÛœÂˆÚ‚ˆ[šÈÛ\ÜÓ˜[YOHš›Ø‹\™[]Y[[šÈˆ™YH‹ØÛÛ[][š]KÙÜ›İ\È‚ˆœ›İÜÙHÜ›İ\È8¡¤‚ˆÓ[šÏ‚ˆÙ]‚‚ˆ›Ü›BˆÛ\ÜÓ˜[YOH˜Ø\™ÛØÚX[ZX‹Yš[\œÈ‚ˆ\šXK[X™[H‘š[\ˆ™ZYÚ›İ\šÛÙ™YY‚ˆÛ”İX›Z]^ÜİX›Z]ÙX\˜ÚBˆ‚ˆX™[[›ÜHœÛØÚX[Yš[\‹\]Y\H‚ˆÙX\˜ÚX›\ÚYÜİÂˆ[œ]ˆYHœÛØÚX[Yš[\‹\]Y\H‚ˆ\OHœÙX\˜Ú‚ˆ˜[YO^Ü]Y\_BˆX^[™İ^ÌLŒBˆÛÚ[™ÙO^ÙHOˆÙ]]Y\JK\™Ù]˜[YJ_BˆXÙZÛ\H™K™ËˆĞÕ‹Ø\™[š[™Ë™[›İ˜][Ûˆ‚ˆÏ‚ˆÛX™[‚ˆX™[[›ÜHœÛØÚX[Yš[\‹X\™XH‚ˆ™ZYÚ›İ\šÛÙˆÙ[XİˆYHœÛØÚX[Yš[\‹X\™XH‚ˆ˜[YO^Ø\™XRYBˆÛÚ[™ÙO^ÙHOˆÚ[™ÙP\™XJK\™Ù]˜[YJ_Bˆ‚ˆÜ[Ûˆ˜[YOHˆ[]˜Z[X›H\™X\ÏÛÜ[Û‚ˆØ\™X\Ë›X\
+HOˆ
+ˆÜ[ÛˆÙ^O^ØKšYH˜[YO^ØKšYO‚ˆØK˜\™XWÛ˜[Y_KØK˜Ú]_BˆÛÜ[Û‚ˆ
+J_BˆÜÙ[Xİ‚ˆÛX™[‚ˆX™[[›ÜHœÛØÚX[Yš[\‹[Ü™\ˆ‚ˆÜ™\‚ˆÙ[XİˆYHœÛØÚX[Yš[\‹[Ü™\ˆ‚ˆ˜[YO^ÛÜ™\ŸBˆÛÚ[™ÙO^ÙHOˆÚ[™ÙSÜ™\ŠK\™Ù]˜[YH\ÈÛØÚX[™YYÜ™\Š_Bˆ‚ˆÜ[Ûˆ˜[YOHœ™XÙ[“™]Ù\İš\œİÛÜ[Û‚ˆÜ[Ûˆ˜[YOH›Û\İ“Û\İš\œİÛÜ[Û‚ˆÜÙ[Xİ‚ˆÛX™[‚ˆ]ÛˆÛ\ÜÓ˜[YOH˜ˆˆ\OHœİX›Z]ˆ\ØX›Y^ÛØY[™ßO‚ˆÙX\˜ÚÜİÂˆØ]Û‚ˆ]Û‚ˆÛ\ÜÓ˜[YOH˜ˆÙXÛÛ™\H‚ˆ\OH˜]Ûˆ‚ˆ\ØX›Y^ÈZ\ĞXİ]™Qš[\œÈ	‰ˆ\]Y\_BˆÛÛXÚÏ^Ü™\Ù]š[\œßBˆ‚ˆÛX\ˆš[\œÂˆØ]Û‚ˆÙ›Ü›O‚‚ˆÛØY[™ÈÈ
+ˆ]‚ˆÛ\ÜÓ˜[YOH˜Ø\™‚ˆ›ÛOHœİ]\È‚ˆ\šXK[]™OHœÛ]H‚ˆ]K]\İYHœÛØÚX[Y™YY[ØY[™È‚ˆ‚ˆØY[™ÈX]Ú[™È™ZYÚ›İ\šÛÙÜİø )‚ˆÙ]‚ˆ
+Hˆ\œ›ÜˆÈ
+ˆ]ˆÛ\ÜÓ˜[YOH˜Ø\™ˆ›ÛOH˜[\ˆ]K]\İYHœÛØÚX[Y™YYY\œ›Üˆ‚ˆİ[O^ŞÛX\™Ú[ˆ	ÌLœ	ß_OÙ\œ›ÜŸOÜ‚ˆ]Û‚ˆÛ\ÜÓ˜[YOH˜ˆÙXÛÛ™\H‚ˆ\OH˜]Ûˆ‚ˆÛÛXÚÏ^Ê
+HOˆÂˆ™YYXY[™Ô™Y‹˜İ\œ™[Ë™›Øİ\Ê
+NÂˆÙ]™Yœ™\ÚÙ^JˆOˆˆ
+ÈJNÂˆ_Bˆ‚ˆ™]HØY[™ÈÜİÂˆØ]Û‚ˆÙ]‚ˆ
+Hˆ
+ˆ‚ˆ›ÛOHœİ]\Èˆ\šXK[]™OHœÛ]HˆÛ\ÜÓ˜[YOH›]]Y[›İH‚ˆYÙHÜYÙH
+È_NˆÚİÚ[™ÈÜÜİË›[™İHX›\ÚYÉÈ	ßBˆÜÜİË›[™İOOHHÈ	ÜÜİ	Èˆ	ÜÜİÉßBˆØœ›İÜÚ[™Ğ\™XHÈ[ˆ	Øœ›İÜÚ[™Ğ\™XK˜\™XWÛ˜[Y_Xˆ	ÉßBˆÜÙX\˜ÚÈX]Ú[™È8 '	ÜÙX\˜Úx 'Xˆ	ÉßBˆÚ\Ó[Ü™HÈ	ÎÈ[Ü™HÜİÈ\™H]˜Z[X›K‰Èˆ	Ë‰ßBˆÜ‚ˆ]ˆÛ\ÜÓ˜[YOH›\İˆ]K]\İYHœÛØÚX[Y™YY[\İ‚ˆÜÜİË›[™İOOHÈ
+ˆ]ˆÛ\ÜÓ˜[YOH˜Ø\™ˆ›ÛOHœİ]\Èˆ]K]\İYHœÛØÚX[Y™YYY[\H‚ˆİ[O^ŞÛX\™Ú[ˆ	ÌLœ	ß_O‚ˆÜYÙHˆˆÈ	Ó›ÈÜİÈÛˆ\ÈYÙKˆÛÈ˜XÚÈÈH™]š[İ\ÈYÙK‰ÂˆˆÙX\˜ÚˆÈ›ÈX›\ÚYÜİÈX]Ú8 '	ÜÙX\˜Úx 'K˜ˆˆœ›İÜÚ[™Ğ\™XBˆÈ›ÈX›\ÚYÜİÈ[ˆ	Øœ›İÜÚ[™Ğ\™XK˜\™XWÛ˜[Y_HY]˜ˆˆ	Ó›ÈX›\ÚYÜİÈ[ˆH™ZYÚ›İ\šÛÙ™YYY]‰ßBˆÜ‚ˆ]ˆÛ\ÜÓ˜[YOHœÛØÚX[ZX‹\ÚÜİ]Èˆİ[O^ŞÛX\™Ú[ˆ_O‚ˆ]Ûˆ\OH˜]ÛˆˆÛ\ÜÓ˜[YOH˜ˆˆÛÛXÚÏ^Ù›Øİ\ĞÛÛ\ÜÙ\ŸO‚ˆÜš]HHš\œİÜİˆØ]Û‚ˆÚ\ĞXİ]™Qš[\œÈÈ
+ˆ]Û‚ˆ\OH˜]Ûˆ‚ˆÛ\ÜÓ˜[YOH˜ˆÙXÛÛ™\H‚ˆÛÛXÚÏ^Ü™\Ù]š[\œßBˆ‚ˆÚİÈ[™ZYÚ›İ\šÛÙÂˆØ]Û‚ˆ
+Hˆ[BˆÙ]‚ˆÙ]‚ˆ
+Hˆ
+ˆÜİË›X\
+ÜİOˆÂˆÛÛœİÜİ\™XHHš[™ÛØÚX[\™XJ\™X\ËÜİ˜\™XWÚY
+NÂˆÛÛœİX™[HÜİ\™XBˆÈ	ÜÜİ\™XK˜\™XWÛ˜[Y_K	ÜÜİ\™XK˜Ú]_Xˆˆ	ĞÛÛ[][š]H\™XIÎÂˆ™]\›ˆ
+ˆÛØÚX[ÜİØ\™ˆÙ^O^ÜÜİšYBˆÜİ^ÜÜİBˆ\™XSX™[^ÛX™[Bˆ\Ù\’Y^İ\Ù\’YBˆ™]\›’™Y^Øİ\œ™[™YY™YŸBˆÏ‚ˆ
+NÂˆJBˆ
+_BˆÙ]‚ˆ˜]ˆ\šXK[X™[H“™ZYÚ›İ\šÛÙ™YYYÙ\ÈˆÛ\ÜÓ˜[YOHœÛØÚX[ZX‹\ÚÜİ]È‚ˆ]Û‚ˆ\OH˜]Ûˆ‚ˆÛ\ÜÓ˜[YOH˜ˆÙXÛÛ™\H‚ˆ\ØX›Y^ÜYÙHOOHBˆÛÛXÚÏ^Ê
+HOˆÚ[™ÙTYÙJYÙHHJ_Bˆ‚ˆ™]š[İ\ÈYÙBˆØ]Û‚ˆ]Û‚ˆ\OH˜]Ûˆ‚ˆÛ\ÜÓ˜[YOH˜ˆÙXÛÛ™\H‚ˆ\ØX›Y^ÈZ\Ó[Ü™HYÙHHLBˆÛÛXÚÏ^Ê
+HOˆÚ[™ÙTYÙJYÙH
+ÈJ_Bˆ‚ˆ™^YÙBˆØ]Û‚ˆÛ˜]‚ˆÏ‚ˆ
+_BˆÜÙXİ[Û‚ˆ
+Hˆ[B‚ˆİXˆOOH	İ˜YIÈÈ
+ˆ‚ˆÛØÚX[Ü›İ\\ØÛİ™\HÙ^O^ÉÙÜ›İ\ËIÈ
+È\Ù\’YH\Ù\’Y^İ\Ù\’YH\™X\Ï^Ø\™X\ßHÏ‚ˆÛØÚX[˜YPÛÛX›Ü˜][Û‚ˆÙ^O^ÉØÛÛX›Ü˜][Û‹IÈ
+È\Ù\’YBˆ\Ù\’Y^İ\Ù\’YBˆ\™X\Ï^Ø\™X\ßBˆÏ‚ˆÏ‚ˆ
+Hˆ[BˆİXˆOOH	ØYšXÙIÈÈ
+ˆÛØÚX[YšXÙP›Ø\™Ù^O^ÉØYšXÙKIÈ
+È\Ù\’YH\Ù\’Y^İ\Ù\’YH\™X\Ï^Ø\™X\ßHÏ‚ˆ
+Hˆ[BˆİXˆOOH	Ù]™[ÉÈÈ
+ˆÛØÚX[]™[Ñ\ØÛİ™\HÙ^O^ÉÙ]™[ËIÈ
+È\Ù\’YH\Ù\’Y^İ\Ù\’YH\™X\Ï^Ø\™X\ßHÏ‚ˆ
+Hˆ[BˆİXˆOOH	ÜØ]™Y	ÈÈ
+ˆÛØÚX[Ø]™YÜİÈÙ^O^ÉÜØ]™YIÈ
+È\Ù\’YH\Ù\’Y^İ\Ù\’YHÏ‚ˆ
+Hˆ[BˆÏ‚ˆ
+_BˆÛXZ[‚ˆ
+NÂŸB
