@@ -36,9 +36,16 @@ are disabled or protected. The preview database must contain synthetic data only
    permitted destinations; raw model output, unreviewed patches, stale or
    mismatched prebuilt artifacts, wrong targets/bindings, and accidental public
    URL exposure (`workersDev`, `previewUrls`, extra domains, or fetch triggers)
-   are rejected. Authorized `--execute` requires genuine protected-preview
-   evidence (`--protected-preview-evidence`) and deploys ONLY the verified
-   prebuilt `.cloudflare/output/v1` artifact using the installed Cloudflare CLI
+   are rejected. Authorized `--execute` requires fresh Access evidence for the
+   **currently deployed baseline** (`--protected-preview-evidence`): record its
+   full health SHA and Cloudflare version ID, plus the anonymous Access denial,
+   authorized service-token success, and disabled alternate URLs. The baseline
+   SHA is expected to differ from the candidate before upload; candidate SHA is
+   checked from the isolated prebuilt artifact here and against `/api/health`
+   after upload. Never treat an old baseline as an eligible rollback unless its
+   database binding and schema compatibility are independently verified.
+   Authorized execution deploys ONLY the verified prebuilt
+   `.cloudflare/output/v1` artifact using the installed Cloudflare CLI
    (`cf deploy --prebuilt --mode production --worker trustfive-preview --no-provision --tag EXPECTED_COMMIT_SHA`) without rebuilding:
 
    ```sh

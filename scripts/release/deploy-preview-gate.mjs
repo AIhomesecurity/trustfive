@@ -14,6 +14,7 @@ export const ALLOWED_SOURCE_KIND = 'reviewed_commit';
 export const DEFAULT_PROTECTED_PREVIEW_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const FULL_SHA_RE = /^[a-f0-9]{40}$/;
+const WORKER_VERSION_ID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const COMPAT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SUPABASE_ORIGIN_RE = /https?:\/\/[a-z]{20}\.supabase\.co(?![a-z0-9.%-])/gi;
 const LOCAL_SUPABASE_RE = /https?:\/\/(?:127\.0\.0\.1|localhost):54321(?![0-9])/i;
@@ -215,7 +216,6 @@ export function validateProtectedPreviewEvidence(
     expectedWorker = ALLOWED_PREVIEW_WORKER,
     expectedHostname = ALLOWED_PREVIEW_HOSTNAME,
     expectedDomain = ALLOWED_PREVIEW_DOMAIN,
-    expectedCommitSha,
     now = Date.now(),
     maxAgeMs = DEFAULT_PROTECTED_PREVIEW_MAX_AGE_MS,
   } = {}
@@ -238,11 +238,14 @@ export function validateProtectedPreviewEvidence(
     reasons.push(`Protected-preview evidence hostname must be "${expectedHostname}".`);
   }
 
-  if (
-    !FULL_SHA_RE.test(evidence.candidateCommitSha ?? '') ||
-    (FULL_SHA_RE.test(expectedCommitSha ?? '') && evidence.candidateCommitSha !== expectedCommitSha)
-  ) {
-    reasons.push('Protected-preview evidence candidateCommitSha must match the candidate commit SHA.');
+  if ('candidateCommitSha' in evidence) {
+    reasons.push('Pre-deployment Access evidence must describe the current baseline, not the candidate SHA.');
+  }
+  if (!FULL_SHA_RE.test(evidence.baselineCommitSha ?? '')) {
+    reasons.push('Protected-preview evidence must include the full commit SHA observed on the current baseline.');
+  }
+  if (!WORKER_VERSION_ID_RE.test(evidence.baselineWorkerVersionId ?? '')) {
+    reasons.push('Protected-preview evidence must include the Cloudflare version ID observed on the current baseline.');
   }
 
   if (!isNonEmptyString(evidence.verifiedBy)) {
@@ -877,7 +880,6 @@ export async function evaluatePreviewDeployGate(options) {
     expectedWorker: ALLOWED_PREVIEW_WORKER,
     expectedHostname: ALLOWED_PREVIEW_HOSTNAME,
     expectedDomain: ALLOWED_PREVIEW_DOMAIN,
-    expectedCommitSha: commitSha,
     now,
     maxAgeMs: protectedPreviewMaxAgeMs,
   });

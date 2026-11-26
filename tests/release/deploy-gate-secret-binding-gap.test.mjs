@@ -18,7 +18,8 @@ const fixedNow = Date.parse('2026-11-24T19:00:00.000Z');
 
 const passingReview = {reviewedBy: 'Release Lead', commitSha, testsPassed: true, databaseReplayPassed: true, ciStatus: 'passed'};
 const genuineProtectedPreviewEvidence = {
-  worker: ALLOWED_PREVIEW_WORKER, hostname: ALLOWED_PREVIEW_HOSTNAME, candidateCommitSha: commitSha,
+  worker: ALLOWED_PREVIEW_WORKER, hostname: ALLOWED_PREVIEW_HOSTNAME,
+  baselineCommitSha: '2'.repeat(40), baselineWorkerVersionId: 'c2b070d8-a598-4f41-b34c-3f22c064104a',
   verifiedBy: 'scripts/release/validate-preview.mjs', verifiedAt: '2026-11-24T18:30:00.000Z',
   anonymousProbe: {url: `${ALLOWED_PREVIEW_HOSTNAME}/api/health`, status: 403},
   accessPolicy: {applicationHostname: ALLOWED_PREVIEW_DOMAIN, applicationId: 'access-app-preview-trustfive', serviceTokenAuthorized: true},

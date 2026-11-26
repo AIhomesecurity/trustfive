@@ -35,7 +35,8 @@ const passingReview = {
 const genuineProtectedPreviewEvidence = {
   worker: ALLOWED_PREVIEW_WORKER,
   hostname: ALLOWED_PREVIEW_HOSTNAME,
-  candidateCommitSha: commitSha,
+  baselineCommitSha: staleCommitSha,
+  baselineWorkerVersionId: 'c2b070d8-a598-4f41-b34c-3f22c064104a',
   verifiedBy: 'scripts/release/validate-preview.mjs',
   verifiedAt: '2026-11-24T18:30:00.000Z',
   anonymousProbe: {
@@ -601,12 +602,28 @@ test('blocks --execute without genuine protected-preview evidence and accepts va
       pattern: /stale/i,
     },
     {
-      label: 'mismatched candidateCommitSha in protected-preview evidence',
+      label: 'candidate SHA incorrectly used as pre-deployment Access evidence',
       evidence: {
         ...genuineProtectedPreviewEvidence,
-        candidateCommitSha: staleCommitSha,
+        candidateCommitSha: commitSha,
       },
-      pattern: /candidateCommitSha/,
+      pattern: /current baseline, not the candidate SHA/,
+    },
+    {
+      label: 'missing baseline SHA',
+      evidence: {
+        ...genuineProtectedPreviewEvidence,
+        baselineCommitSha: 'not-a-full-sha',
+      },
+      pattern: /full commit SHA observed on the current baseline/,
+    },
+    {
+      label: 'missing baseline Worker version ID',
+      evidence: {
+        ...genuineProtectedPreviewEvidence,
+        baselineWorkerVersionId: 'unknown',
+      },
+      pattern: /Cloudflare version ID observed on the current baseline/,
     },
     {
       label: 'unscoped Access policy hostname',
@@ -661,9 +678,10 @@ test('blocks --execute without genuine protected-preview evidence and accepts va
         location: 'https://trustfive.cloudflareaccess.com/cdn-cgi/access/login/preview.trustfive.co.uk',
       },
     },
-    {expectedCommitSha: commitSha, now: fixedNow}
+    {now: fixedNow}
   );
   assert.deepEqual(redirectReasons, []);
+  assert.notEqual(genuineProtectedPreviewEvidence.baselineCommitSha, commitSha);
 });
 
 test('blocks raw model output, dirty trees, failed evidence, shared Supabase projects and never echoes secrets in CLI', async t => {
