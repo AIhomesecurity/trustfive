@@ -514,3 +514,82 @@
  .booking-section{padding:12px}
 }
 @media(prefers-reduced-motion:reduce){.booking-row,.job-filter-btn{transition:none}}
+
+/* Reverse-engineered UK marketplace tools (strictly using existing TrustFive palette tokens). */
+.tf-estimator{padding:24px}
+.tf-estimator-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr);gap:24px;align-items:start}
+.tf-estimator-controls{display:grid;gap:14px;min-width:0}
+.tf-estimator-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.tf-estimator-row label{display:grid;gap:6px;font-size:14px;font-weight:750;min-width:0}
+.tf-estimator-result{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:0}
+.tf-estimator-price{font-size:clamp(28px,3.2vw,38px);font-weight:900;color:var(--green);letter-spacing:-.03em;margin:10px 0 8px}
+.tf-estimator-meta{font-size:13.5px;color:var(--dark);margin:6px 0}
+.tf-estimator-checklist{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:13.5px}
+.tf-estimator-checklist ul{margin:8px 0 0;padding-left:18px;color:var(--muted);display:grid;gap:4px}
+.tf-estimator-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.tf-jump-pills{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 24px}
+.tf-jump-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;background:#fff;border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:700;color:var(--dark)}
+.tf-jump-pill:hover,.tf-jump-pill:focus-visible{border-color:var(--green);background:#edf8f1;color:var(--green)}
+.tf-guides-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.tf-guide-card{display:flex;flex-direction:column;gap:14px;min-width:0}
+.tf-guide-head{display:flex;align-items:flex-start;gap:12px}
+.tf-guide-head h3{margin:0 0 4px}
+.tf-guide-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.tf-guide-list li{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #e7efe9}
+.tf-guide-list li:last-child{border-bottom:none;padding-bottom:0}
+.tf-guide-list li>div{display:grid;gap:2px;min-width:0}
+.tf-guide-list li strong{font-size:14px;color:var(--dark)}
+.tf-guide-list .pill{white-space:nowrap;flex-shrink:0}
+.tf-guide-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+.tf-compare-wrap{display:grid;gap:20px}
+.tf-compare-filters{display:flex;flex-wrap:wrap;gap:10px}
+.tf-table-scroll{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:16px}
+.tf-compare-table{width:100%;border-collapse:collapse;text-align:left;font-size:14px}
+.tf-compare-table th,.tf-compare-table td{padding:14px 16px;border-bottom:1px solid #e7efe9;vertical-align:top}
+.tf-compare-table thead th{background:#edf8f1;color:var(--dark);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+.tf-compare-table tbody tr:last-child th,.tf-compare-table tbody tr:last-child td{border-bottom:none}
+.tf-compare-highlight{background:#f2faf4}
+.tf-compare-highlight th{color:var(--green)}
+.tf-compare-cards{display:none;gap:14px}
+.tf-compare-card-highlight{border-color:var(--green);background:#f2faf4}
+.tf-compare-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.tf-compare-card-head h3{margin:0}
+.tf-compare-dl{display:grid;gap:8px;margin:0}
+.tf-compare-dl dt{font-size:12px;color:var(--muted);font-weight:700}
+.tf-compare-dl dd{margin:2px 0 0;font-size:13.5px;color:var(--dark)}
+.tf-savings-box{background:#fff}
+.tf-savings-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,1fr);gap:24px;align-items:center}
+.tf-savings-sliders{display:grid;gap:14px}
+.tf-savings-sliders label{display:grid;gap:6px;font-size:14px;font-weight:700}
+.tf-savings-sliders input[type="range"]{padding:0;border:none;accent-color:var(--green)}
+.tf-savings-summary{background:#eaf8f0;border:1px solid #bcdac8;border-radius:14px;padding:20px}
+.tf-savings-metric{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid #cde5d7}
+.tf-savings-metric strong{font-size:26px;color:var(--green)}
+.tf-vetting-wrap{display:grid;gap:20px}
+.tf-vetting-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.tf-vetting-card h3{margin:8px 0 6px;font-size:18px}
+.tf-charter-box h3{margin:0 0 16px;font-size:22px}
+.tf-charter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.tf-charter-item h4{margin:0 0 6px;font-size:16px;color:var(--dark)}
+.tf-charter-item p{margin:0;color:var(--muted);font-size:14px}
+.tf-brief-helper{display:grid;gap:10px}
+.tf-brief-panel{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;display:grid;gap:10px}
+.tf-brief-presets{display:grid;gap:8px;margin-top:4px}
+.tf-brief-chips{display:flex;flex-wrap:wrap;gap:8px}
+.tf-chip-btn{width:auto;padding:7px 12px;background:#fff;border:1px solid #b4d4c2;border-radius:999px;font-size:13px;font-weight:700;color:var(--dark);text-align:left}
+.tf-chip-btn:hover,.tf-chip-btn:focus-visible{background:#e4f4eb;border-color:var(--green);color:var(--green)}
+.tf-review-dist{display:grid;gap:8px;margin:14px 0}
+.tf-review-bar-row{display:grid;grid-template-columns:52px minmax(0,1fr) 44px;align-items:center;gap:10px;font-size:13px}
+.tf-review-track{height:10px;background:#e4eee8;border-radius:999px;overflow:hidden}
+.tf-review-fill{height:100%;background:var(--green);border-radius:999px}
+.tf-util-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0 16px}
+@media(max-width:960px){
+ .tf-estimator-grid,.tf-guides-grid,.tf-savings-grid,.tf-vetting-grid,.tf-charter-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+ .tf-estimator-row{grid-template-columns:1fr}
+ .tf-table-scroll{display:none}
+ .tf-compare-cards{display:grid}
+ .tf-estimator-actions .btn,.tf-guide-actions .btn,.tf-savings-summary .btn{width:100%}
+ .tf-guide-list li{flex-direction:column;gap:6px}
+}

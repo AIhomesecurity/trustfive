@@ -6,6 +6,7 @@ import {quoteMessagesHref,bookingHistoryHref,bookingScheduleHref} from '../../li
 import {canPrepareProfessionalQuote,professionalQuoteStats} from '../../lib/professional-quote-guard';
 import {createSingleFlightLock,executeBookingAction} from '../../lib/booking-lifecycle';
 import {validateQuoteAvailability} from '../../lib/quote-comparison';
+import {buildPrintableQuoteDocument,buildQuotesAccountingCsv} from '../../lib/tradesman-utilities';
 
 type Lead={job_id:string;title:string;description:string;budget_pence:number|null;trade_name:string;area_name:string;allocation_id:string;created_at:string};
 type Quote={quote_id:string;job_id:string;job_title:string;amount_pence:number;message:string;availability_note?:string|null;status:string;created_at:string};
@@ -238,6 +239,18 @@ export default function Quotes(){
        </form>}
       </div>}
       <div className="professional-section-heading"><h2 id="submitted-quotes-heading">Your submitted quotes</h2><Link href="/bookings">View bookings →</Link></div>
+      {quotes.length>0&&<div className="tf-util-bar">
+       <button type="button" className="btn secondary" onClick={()=>{
+        const csv=buildQuotesAccountingCsv(quotes);
+        const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+        const url=URL.createObjectURL(blob);
+        const link=document.createElement('a');
+        link.href=url;link.download='trustfive-quotes-export.csv';
+        document.body.appendChild(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+        setNotice('Quotes exported to CSV for bookkeeping.');
+       }}>Export quotes CSV (HMRC / bookkeeping)</button>
+      </div>}
       <div className="list">
        {quotes.length===0?<div className="card"><h3>No quotes submitted</h3><p>Once you send a qualifying customer quote, track its status here and message that customer.</p></div>:
        quotes.map(q=><article className="card" key={q.quote_id}>
@@ -246,7 +259,18 @@ export default function Quotes(){
         <p><strong>{money(q.amount_pence)}</strong></p>
         {q.availability_note&&<p className="muted-note" style={{marginTop:4}}><strong>Availability:</strong> {q.availability_note}</p>}
         <p style={{whiteSpace:'pre-wrap',marginTop:6}}>{q.message}</p>
-        <p style={{marginTop:12}}><Link href={quoteMessagesHref(q.quote_id)}>Open exact message thread →</Link></p>
+        <div className="tf-util-bar">
+         <Link href={quoteMessagesHref(q.quote_id)}>Open exact message thread →</Link>
+         <button type="button" className="btn secondary" onClick={()=>{
+          const html=buildPrintableQuoteDocument(q);
+          const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+          const url=URL.createObjectURL(blob);
+          const link=document.createElement('a');
+          link.href=url;link.download=`trustfive-quote-${q.quote_id.slice(0,8)}.html`;
+          document.body.appendChild(link);link.click();link.remove();
+          setTimeout(()=>URL.revokeObjectURL(url),1000);
+         }}>Download printable quote sheet</button>
+        </div>
         {q.status==='pending'&&(
          confirmWithdrawId===q.quote_id?
          <div className="notice" style={{marginTop:10}}>

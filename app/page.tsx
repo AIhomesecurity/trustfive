@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import TradeCostEstimator from '../components/trade-cost-estimator';
+import PlatformComparison from '../components/platform-comparison';
+import VettingCharter from '../components/vetting-charter';
 
 type Service = {label:string;icon:string;slug:string;description:string};
 const services:Service[]=[
@@ -36,7 +39,7 @@ export default function Home(){
     <button type="submit" className="btn">Find a professional</button>
    </form>
    <div className="hero-shortcuts"><span>Popular:</span><Link href="/services?trade=plumbing">Plumbing</Link><Link href="/services?trade=electrical">Electrical</Link><Link href="/services?trade=cleaning">Cleaning</Link><Link href="/services?trade=roofing">Roofing</Link><Link href="/services?trade=cctv-installation">CCTV</Link></div>
-   <div className="hero-actions"><Link className="btn secondary" href="/jobs">Post a job instead</Link><Link className="hero-community-link" href="/community">Explore your local community →</Link></div>
+   <div className="hero-actions"><Link className="btn secondary" href="/jobs">Post a job instead</Link><Link className="hero-community-link" href="/cost-guides">UK cost guides →</Link><Link className="hero-community-link" href="/community">Explore your local community →</Link></div>
    <p className="hero-trust-note">✓ Professional approval is earned, never purchased. Availability depends on your area.</p>
   </div></section>
   <section className="section container" aria-labelledby="services-heading">
@@ -58,6 +61,18 @@ export default function Home(){
     <div className="how-step"><span className="how-number">03</span><h3>Arrange the work</h3><p>Request quotes, message and manage your booking in one place.</p></div>
    </div>
   </div></section>
+  <section className="section container" aria-labelledby="home-estimator-heading">
+   <div className="section-heading-row"><div><div className="eyebrow">Plan your budget</div><h2 id="home-estimator-heading">Check typical UK job costs before requesting quotes</h2><p className="subtle">Estimate common jobs across 20 UK trades, see what tradespeople check on site, and pre-fill your job brief.</p></div><Link className="service-view-all" href="/cost-guides">All 20 UK cost guides →</Link></div>
+   <TradeCostEstimator compact/>
+  </section>
+  <section className="section home-how-it-works" aria-labelledby="home-compare-heading"><div className="container">
+   <div className="section-heading-row"><div><div className="eyebrow">Built to beat lead-fee sites</div><h2 id="home-compare-heading">How TrustFive compares across UK trade platforms</h2><p className="subtle">Capped local standards like an endorsement network, structured quotes like a modern marketplace, and £0 per-lead fees.</p></div><Link className="service-view-all" href="/how-it-works">Full vetting &amp; comparison →</Link></div>
+   <PlatformComparison showSavingsCalculator={false}/>
+  </div></section>
+  <section className="section container" aria-labelledby="home-vetting-heading">
+   <div className="section-heading-row"><div><div className="eyebrow">Independent verification</div><h2 id="home-vetting-heading">Six checks behind every approved local place</h2><p className="subtle">No pay-to-rank tiers, no purchased waiting-list jumps and no unverified reviews.</p></div><Link className="service-view-all" href="/how-it-works">Read our charter →</Link></div>
+   <VettingCharter compact/>
+  </section>
   <section className="section container"><div className="eyebrow">More than a trades directory</div><h2>Your community and your business, connected</h2>
    <div className="home-paths">
     <div className="home-path"><span className="home-path-icon" aria-hidden="true">💬</span><h3>Local community</h3><p>Share recommendations, join groups and find out what is happening nearby.</p><Link href="/community">Explore community →</Link></div>

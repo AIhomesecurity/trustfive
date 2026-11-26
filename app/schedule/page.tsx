@@ -14,6 +14,7 @@ import {
   validateAppointmentProposal,
   type ScheduledAppointment,
 } from '../../lib/appointment-schedule';
+import {buildAppointmentIcs} from '../../lib/tradesman-utilities';
 
 type Booking={id:string;customer_id:string;professional_id:string;status:string};
 
@@ -301,7 +302,19 @@ export default function BookingSchedule(){
             <button type="button" className="btn secondary" ref={keepTimeRef} disabled={busy} onClick={keepAppointment}>Keep time</button>
            </div>
           </div>:
-          <p style={{marginTop:10}}><button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} id={'cancel-appointment-'+b.id} onClick={()=>{cancelTriggerRef.current='cancel-appointment-'+b.id;setCancelError('');setConfirmCancelId(b.id);}}>Cancel appointment time</button></p>
+          <p style={{marginTop:10}}>
+           <button type="button" className="btn secondary" style={{marginRight:8}} onClick={()=>{
+            const ics=buildAppointmentIcs({...a,summary:`TrustFive booking #${b.id.slice(0,8)}`});
+            const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+            const url=URL.createObjectURL(blob);
+            const link=document.createElement('a');
+            link.href=url;link.download=`trustfive-booking-${b.id.slice(0,8)}.ics`;
+            document.body.appendChild(link);link.click();link.remove();
+            setTimeout(()=>URL.revokeObjectURL(url),1000);
+            setNotice(`Calendar file downloaded for booking #${b.id.slice(0,8)}.`);
+           }}>Export calendar (.ics)</button>
+           <button type="button" className="btn secondary" disabled={busy||Boolean(loadError)} id={'cancel-appointment-'+b.id} onClick={()=>{cancelTriggerRef.current='cancel-appointment-'+b.id;setCancelError('');setConfirmCancelId(b.id);}}>Cancel appointment time</button>
+          </p>
          )}
         </>}
        </article>;

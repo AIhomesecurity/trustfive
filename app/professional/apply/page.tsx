@@ -8,6 +8,8 @@ import {
   validateVerificationSubmissionInput,
   type ProfessionalOnboardingItem,
 } from '../../../lib/professional-onboarding';
+import PlatformComparison from '../../../components/platform-comparison';
+import VettingCharter from '../../../components/vetting-charter';
 
 type Trade = {id: string; name: string};
 type Area = {id: string; area_name: string; city: string};
@@ -665,6 +667,23 @@ export default function Apply() {
           </div>
         </>
       )}
+      <section className="section" aria-labelledby="pro-why-trustfive-heading">
+        <div className="eyebrow">Built for independent UK trades</div>
+        <h2 id="pro-why-trustfive-heading">Why tradespeople move away from pay-per-lead credits</h2>
+        <p className="subtle" style={{marginBottom: 18}}>
+          No bidding wars against twenty accounts and no paying for unreturned enquiries. Every trade is capped at up to
+          five independently approved places per local area, and approval is never sold.
+        </p>
+        <PlatformComparison showSavingsCalculator />
+      </section>
+      <section className="section" aria-labelledby="pro-vetting-heading">
+        <div className="eyebrow">What we check</div>
+        <h2 id="pro-vetting-heading">Six-stage independent human verification</h2>
+        <p className="subtle" style={{marginBottom: 18}}>
+          Prepare these details ahead of review. Submitting documents never guarantees approval or skips the waiting list.
+        </p>
+        <VettingCharter compact />
+      </section>
     </main>
   );
 }

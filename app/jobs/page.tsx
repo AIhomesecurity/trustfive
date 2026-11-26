@@ -8,6 +8,8 @@ import {parseJobBudgetPence} from '../../lib/job-budget';
 import {meaningfulJobTextLength} from '../../lib/job-text';
 import {jobPublishBlocker} from '../../lib/job-publish-readiness';
 import TradeQuickPick from '../../components/trade-quick-pick';
+import JobBriefHelper from '../../components/job-brief-helper';
+import {parseJobsPrefillParams} from '../../lib/uk-cost-guides';
 import {acceptedQuoteBookingHref,canConfirmJobQuote,customerJobBookingLinks} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
 import {
@@ -187,11 +189,15 @@ export default function Jobs(){
   if(a.error)throw a.error;
   setTrades(t.data||[]);setAreas(a.data||[]);
   const params=new URLSearchParams(window.location.search);
-  const requestedTrade=params.get('trade')||'';
+  const prefill=parseJobsPrefillParams(window.location.search);
+  const requestedTrade=prefill.trade||params.get('trade')||'';
   const requestedArea=params.get('area')||'';
   const matchedTrade=(t.data||[]).find(item=>item.slug===requestedTrade);
   if(matchedTrade)setTrade(matchedTrade.id);
   if((a.data||[]).some(item=>item.id===requestedArea))setArea(requestedArea);
+  if(prefill.title)setTitle(prev=>prev||prefill.title);
+  if(prefill.brief)setDescription(prev=>prev||prefill.brief);
+  if(prefill.budget)setBudget(prev=>prev||prefill.budget);
   await refresh();
  }catch{setInitialLoadFailed(true);}finally{setInitialLoading(false)}})()},[loadAttempt]);
 
@@ -378,6 +384,13 @@ export default function Jobs(){
       <div className="form">
        <label>Job title<input required minLength={5} maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Fix leaking kitchen tap"/></label>
        <label>What needs doing?<textarea required minLength={15} maxLength={3000} value={description} onChange={e=>setDescription(e.target.value)} placeholder="Describe the work, access and materials. Do not include private contact details."/></label>
+       <JobBriefHelper
+        tradeSlug={trades.find(t=>t.id===trade)?.slug}
+        onApplySnippet={(snippet,suggestedTitle)=>{
+         if(suggestedTitle&&!title.trim())setTitle(suggestedTitle);
+         setDescription(prev=>(prev.trim()?`${prev.trim()}\n${snippet}`:snippet).slice(0,3000));
+        }}
+       />
        <TradeQuickPick trades={trades} value={trade} onChange={setTrade}/>
        <label>Trade<select required value={trade} onChange={e=>setTrade(e.target.value)}><option value="">Choose a service</option>{trades.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}</select></label>
       </div>
