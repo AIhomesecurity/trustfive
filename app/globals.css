@@ -251,6 +251,31 @@
 @media(max-width:900px){.directory-compare-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:550px){.directory-compare{padding:13px}.directory-compare-grid{grid-template-columns:1fr}.directory-compare-heading>.btn{width:100%}}
 
+/* Homepage hierarchy: lead with search, then make the trust rules easy to scan. */
+.home-hero{padding:clamp(58px,7vw,92px) 0 clamp(58px,7vw,88px)}
+.home-hero-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(290px,.75fr);align-items:center;gap:clamp(28px,4.5vw,66px)}
+.home-hero-copy{min-width:0}
+.home-hero-copy>p:not(.hero-trust-note){font-size:19px;max-width:650px}
+.home-hero-proof{position:relative;z-index:1;min-width:0;padding:clamp(22px,3vw,32px);border:1px solid rgba(141,190,157,.72);border-radius:24px;background:rgba(255,255,255,.92);box-shadow:0 22px 52px rgba(18,60,43,.12)}
+.home-hero-proof-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#e7f6ec;color:var(--green);font-size:28px;font-weight:900;line-height:1}
+.home-hero-proof-label{margin:18px 0 7px!important;color:var(--green)!important;font-size:11px!important;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+.home-hero-proof h2{margin:0;font-size:clamp(22px,2.4vw,29px);line-height:1.2;letter-spacing:-.025em}
+.home-hero-principles{display:grid;gap:17px;list-style:none;padding:0;margin:23px 0 18px}
+.home-hero-principles li{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.home-hero-principles li>span:first-child{display:grid;place-items:center;flex:0 0 25px;height:25px;margin-top:1px;border-radius:50%;background:#e7f6ec;color:var(--green);font-size:14px;font-weight:900}
+.home-hero-principles li>span:last-child{display:grid;gap:2px;min-width:0}
+.home-hero-principles strong{font-size:14px;line-height:1.35}
+.home-hero-principles small{color:var(--muted);font-size:12px;line-height:1.45}
+.home-hero-proof-note{margin:0!important;padding-top:14px;border-top:1px solid #e2eee6;color:var(--muted)!important;font-size:12px!important;line-height:1.5}
+.home-hero .hero-five{right:-1%;top:-115px;opacity:.65}
+.service-tile{box-shadow:0 3px 14px rgba(18,60,43,.035)}
+.service-tile:active{transform:translateY(-1px)}
+.home-hero a:focus-visible,.home-hero button:focus-visible{outline:3px solid #218c55;outline-offset:4px}
+@media(max-width:1000px){.home-hero-layout{grid-template-columns:minmax(0,1fr);gap:30px}.home-hero-copy{max-width:760px}.home-hero-proof{width:100%;max-width:760px}.service-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.home-hero{padding:48px 0 54px}.home-hero-layout{gap:25px}.home-hero-copy>p:not(.hero-trust-note){font-size:17px}.home-hero-proof{border-radius:20px}.home-hero .hero-five{right:-28px;top:-15px;font-size:310px}}
+@media(max-width:390px){.home-hero{padding:39px 0 45px}.home-hero-layout{gap:21px}.home-hero-proof{padding:19px}.home-hero-principles{gap:14px}.home-hero-copy .hero-actions{gap:12px}.home-hero-copy .hero-actions .btn{width:100%}.home-hero-copy .hero-actions .hero-community-link{font-size:13px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
 
 /* Booking history stays actionable even if an individual private-location RPC fails. */
 .booking-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 0 26px}

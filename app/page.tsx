@@ -28,19 +28,32 @@ const services:Service[]=[
 ];
 export default function Home(){
  return <main>
-  <section className="hero"><span className="hero-five" aria-hidden="true">5</span><div className="container hero-content">
-   <div className="eyebrow">Trusted local professionals. Stronger communities.</div>
-   <h1>Get the job done with people you can <span style={{color:'#087c46'}}>trust.</span></h1>
-   <p>Find up to five independently approved professionals for each trade in your local area. Compare genuine completed-job reviews, get quotes and stay connected with your neighbourhood.</p>
-   <form className="hero-service-search" action="/services" method="get" role="search">
-    <label className="sr-only" htmlFor="trade-search">What do you need help with?</label>
-    <span aria-hidden="true">⌕</span>
-    <input id="trade-search" type="search" name="q" placeholder="What do you need help with? e.g. plumber" autoComplete="off" required/>
-    <button type="submit" className="btn">Find a professional</button>
-   </form>
-   <div className="hero-shortcuts"><span>Popular:</span><Link href="/services?trade=plumbing">Plumbing</Link><Link href="/services?trade=electrical">Electrical</Link><Link href="/services?trade=cleaning">Cleaning</Link><Link href="/services?trade=roofing">Roofing</Link><Link href="/services?trade=cctv-installation">CCTV</Link></div>
-   <div className="hero-actions"><Link className="btn secondary" href="/jobs">Post a job instead</Link><Link className="hero-community-link" href="/cost-guides">UK cost guides →</Link><Link className="hero-community-link" href="/community">Explore your local community →</Link></div>
-   <p className="hero-trust-note">✓ Professional approval is earned, never purchased. Availability depends on your area.</p>
+  <section className="hero home-hero"><span className="hero-five" aria-hidden="true">5</span><div className="container hero-content home-hero-layout">
+   <div className="home-hero-copy">
+    <div className="eyebrow">Trusted local professionals. Stronger communities.</div>
+    <h1>Get the job done with people you can <span style={{color:'#087c46'}}>trust.</span></h1>
+    <p>Find independently approved professionals in your area. Compare genuine completed-job reviews, get quotes and stay connected with your neighbourhood.</p>
+    <form className="hero-service-search" action="/services" method="get" role="search">
+     <label className="sr-only" htmlFor="trade-search">What do you need help with?</label>
+     <span aria-hidden="true">⌕</span>
+     <input id="trade-search" type="search" name="q" placeholder="What do you need help with? e.g. plumber" autoComplete="off" required/>
+     <button type="submit" className="btn">Find a professional</button>
+    </form>
+    <div className="hero-shortcuts"><span>Popular:</span><Link href="/services?trade=plumbing">Plumbing</Link><Link href="/services?trade=electrical">Electrical</Link><Link href="/services?trade=cleaning">Cleaning</Link><Link href="/services?trade=roofing">Roofing</Link><Link href="/services?trade=cctv-installation">CCTV</Link></div>
+    <div className="hero-actions"><Link className="btn secondary" href="/jobs">Post a job instead</Link><Link className="hero-community-link" href="/cost-guides">UK cost guides →</Link><Link className="hero-community-link" href="/community">Explore your local community →</Link></div>
+    <p className="hero-trust-note">✓ Approval is earned, never purchased. Availability depends on your area.</p>
+   </div>
+   <aside className="home-hero-proof" aria-labelledby="home-proof-heading">
+    <span className="home-hero-proof-mark" aria-hidden="true">5</span>
+    <p className="home-hero-proof-label">The TrustFive standard</p>
+    <h2 id="home-proof-heading">A clear, fair way to find local help.</h2>
+    <ul className="home-hero-principles">
+     <li><span aria-hidden="true">✓</span><span><strong>Independent approval</strong><small>Professionals are checked before they join.</small></span></li>
+     <li><span aria-hidden="true">✓</span><span><strong>Five places at most</strong><small>Each trade and area has a fair, capped shortlist.</small></span></li>
+     <li><span aria-hidden="true">✓</span><span><strong>Reviews tied to real jobs</strong><small>Compare feedback from completed work.</small></span></li>
+    </ul>
+    <p className="home-hero-proof-note">Open places vary by trade and location. Payment never changes approval or position.</p>
+   </aside>
   </div></section>
   <section className="section container" aria-labelledby="services-heading">
    <div className="section-heading-row"><div><div className="eyebrow">Browse by service</div><h2 id="services-heading">What do you need help with?</h2><p className="subtle">Choose a trade to search verified professionals serving your area.</p></div><Link className="service-view-all" href="/services">View full directory →</Link></div>
