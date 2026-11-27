@@ -470,13 +470,6 @@ function SocialHub() {
             Find your neighbourhood, ask for local advice, discover community events, and join local groups safely. Only published, authorised content is shown.
           </p>
         </div>
-        {signedIn && tab === 'neighbourhood' ? (
-          <div className="social-home-head-actions">
-            <button type="button" className="btn" onClick={focusComposer}>
-              Write a post
-            </button>
-          </div>
-        ) : null}
       </div>
 
       <nav aria-label="Social network sections" className="social-hub-tabs">
