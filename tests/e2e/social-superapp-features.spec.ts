@@ -190,6 +190,23 @@ test.describe('TrustFive Social Super-App end-to-end journeys', () => {
         }
         return reply(200, pollVotes);
       }
+      if (url.pathname === '/rest/v1/rpc/social_poll_summary') {
+        return reply(200, polls.map((poll) => {
+          const votes = pollVotes.filter((vote) => vote.poll_id === poll.id);
+          const vote_counts: Record<string, number> = {};
+          for (const vote of votes) {
+            const option = String(vote.option_index);
+            vote_counts[option] = (vote_counts[option] ?? 0) + 1;
+          }
+          const mine = votes.find((vote) => vote.voter_id === user.id);
+          return {
+            poll_id: poll.id,
+            vote_counts,
+            my_option_index: mine ? Number(mine.option_index) : null,
+            total_votes: votes.length,
+          };
+        }));
+      }
       if (url.pathname === '/rest/v1/social_member_profiles') {
         if (request.method === 'POST') {
           const row = await readBody();
