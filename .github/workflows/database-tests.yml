@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - development/foundation
+  workflow_call:
 jobs:
   database:
     runs-on: ubuntu-latest
