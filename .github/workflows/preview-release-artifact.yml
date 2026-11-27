@@ -147,7 +147,8 @@ jobs:
     if: >-
       github.ref == 'refs/heads/feature/verified-marketplace-core' &&
       github.event.repository.full_name == 'AIhomesecurity/trustfive' &&
-      github.actor == 'AIhomesecurity'
+      github.actor == 'AIhomesecurity' &&
+      github.triggering_actor == 'AIhomesecurity'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -203,9 +204,6 @@ jobs:
             throw new Error('Preview and production Supabase projects must differ.');
           }
           NODE
-          test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$CF_ACCESS_CLIENT_ID"
-          test -n "$CF_ACCESS_CLIENT_SECRET"
           mv artifact-download/.cloudflare source/.cloudflare
           npm ci --prefix source --no-audit --no-fund
 
