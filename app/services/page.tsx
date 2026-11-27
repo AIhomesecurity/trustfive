@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {supabaseBrowser} from '../../lib/supabase';
 import AddressSearch,{type SelectedLocation} from '../../components/address-search';
@@ -9,6 +9,8 @@ import DirectoryEmptyState from '../../components/directory-empty-state';
 type Trade={id:string;name:string;slug:string};
 type Area={id:string;area_name:string;city:string;country_code:string};
 type Professional={application_id:string;business_name:string;about:string|null;trade_name:string;area_name:string;city:string;quality_score:number;slot:number;average_stars:number;review_count:number;distance_km?:number|null};
+type SearchRequest={trade:string;area:string;location:SelectedLocation|null;retry:number};
+type SearchResponse={request:SearchRequest;pros:Professional[];error:string};
 type Sort='recommended'|'nearby'|'quality'|'reviews'|'name';
 
 const aliases:Record<string,string>={
@@ -23,13 +25,19 @@ const aliases:Record<string,string>={
  removals:'moving',removal:'moving',movers:'moving',
  locksmith:'home-security',locks:'home-security',
  landscaper:'landscaping',paving:'landscaping',patio:'landscaping',
- cctv:'cctv-installation',camera:'cctv-installation',cameras:'cctv-installation',
+ 'c c t v':'cctv-installation','cctv installers':'cctv-installation',cctv:'cctv-installation',camera:'cctv-installation',cameras:'cctv-installation',
  'security camera':'cctv-installation','security cameras':'cctv-installation',
  'cctv installer':'cctv-installation','cctv installation':'cctv-installation',
  'security camera installation':'cctv-installation','video surveillance':'cctv-installation',
  'home surveillance':'cctv-installation',surveillance:'cctv-installation',
+ 'security camera installer':'cctv-installation','security camera installers':'cctv-installation',
+ 'security camera repair':'cctv-installation','cctv repair':'cctv-installation',
+ 'repair my cctv system':'cctv-installation','fit a security camera system':'cctv-installation',
  'ring doorbell':'cctv-installation','video doorbell':'cctv-installation','doorbell camera':'cctv-installation','ip camera':'cctv-installation','ip cameras':'cctv-installation',
- 'alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
+ 'burglar alarm repair':'home-security','intruder alarm repair':'home-security',
+ 'burglar alarm servicing':'home-security','intruder alarm servicing':'home-security',
+ 'service my burglar alarm system':'home-security',
+ alarm:'home-security','alarm installer':'home-security','alarm installers':'home-security','intruder alarms':'home-security','alarm system':'home-security','alarm installation':'home-security','alarms':'home-security','burglar alarm':'home-security','burglar alarms':'home-security','intruder alarm':'home-security','security alarm':'home-security'
 };
 
 function resolveTrade(input:string,trades:Trade[]):Trade|undefined{
@@ -54,12 +62,12 @@ export default function Services(){
  const [sort,setSort]=useState<Sort>('quality');
  const [location,setLocation]=useState<SelectedLocation|null>(null);
  const [addressVersion,setAddressVersion]=useState(0);
- const [pros,setPros]=useState<Professional[]>([]);
+ const [response,setResponse]=useState<SearchResponse|null>(null);
  const [catalogLoading,setCatalogLoading]=useState(true);
- const [resultsLoading,setResultsLoading]=useState(true);
+ const [catalogRetry,setCatalogRetry]=useState(0);
  const [retryVersion,setRetryVersion]=useState(0);
+ const resultsHeading=useRef<HTMLHeadingElement>(null);
  const [catalogError,setCatalogError]=useState('');
- const [resultsError,setResultsError]=useState('');
  const [searchHint,setSearchHint]=useState('');
  const [shortlistIds,setShortlistIds]=useState<string[]>([]);
  const [shortlistReady,setShortlistReady]=useState(false);
@@ -67,6 +75,7 @@ export default function Services(){
 
  useEffect(()=>{
   let active=true;
+  setCatalogLoading(true);setCatalogError('');
   (async()=>{
    try{
     const s=supabaseBrowser();
@@ -91,11 +100,18 @@ export default function Services(){
    }finally{if(active)setCatalogLoading(false);}
   })();
   return()=>{active=false};
- },[]);
+ },[catalogRetry]);
+
+ const request=useMemo<SearchRequest>(()=>({trade,area,location,retry:retryVersion}),[trade,area,location,retryVersion]);
+ const current=response?.request===request?response:null;
+ const resultsLoading=catalogLoading||(!catalogError&&!current);
+ const resultsError=current?.error??'';
+ const resultsReady=!catalogLoading&&!catalogError&&Boolean(current)&&!resultsError;
 
  useEffect(()=>{
+  if(catalogLoading||catalogError)return;
   let active=true;
-  setResultsLoading(true);setResultsError('');
+  const {trade,area,location}=request;
   (async()=>{
    try{
     const query=location?
@@ -103,13 +119,13 @@ export default function Services(){
      supabaseBrowser().rpc('find_trustfive_professionals_with_reviews',{p_trade:trade||null,p_area:area||null});
     const {data,error}=await query;
     if(error)throw error;
-    if(active)setPros(data||[]);
+    if(active)setResponse({request,pros:data||[],error:''});
    }catch(e){
-    if(active){setPros([]);setResultsError(e instanceof Error?e.message:'Directory search is temporarily unavailable');}
-   }finally{if(active)setResultsLoading(false);}
+    if(active)setResponse({request,pros:[],error:e instanceof Error?e.message:'Directory search is temporarily unavailable'});
+   }
   })();
   return()=>{active=false};
- },[trade,area,location,retryVersion]);
+ },[catalogLoading,catalogError,request]);
 
  useEffect(()=>{
   try{
@@ -124,14 +140,14 @@ export default function Services(){
  },[shortlistIds,shortlistReady]);
 
  const visible=useMemo(()=>{
-  const list=[...pros];
+  const list=resultsReady&&current?[...current.pros]:[];
   if(sort==='recommended'&&location)return list;
   if(sort==='nearby'&&location)list.sort((a,b)=>(a.distance_km??Infinity)-(b.distance_km??Infinity)||b.quality_score-a.quality_score);
   else if(sort==='reviews')list.sort((a,b)=>b.review_count-a.review_count||b.quality_score-a.quality_score);
   else if(sort==='name')list.sort((a,b)=>a.business_name.localeCompare(b.business_name));
   else list.sort((a,b)=>b.quality_score-a.quality_score||b.review_count-a.review_count);
   return list;
- },[pros,sort,location]);
+ },[current,resultsReady,sort,location]);
  const compareVisible=visible.filter(p=>shortlistIds.includes(p.application_id));
  function toggleShortlist(id:string){
   if(shortlistIds.includes(id)){setShortlistIds(current=>current.filter(item=>item!==id));setShortlistNotice('Removed from your comparison.');return;}
@@ -140,10 +156,14 @@ export default function Services(){
  }
  const tradeEntry=trades.find(t=>t.id===trade);
  const areaEntry=areas.find(a=>a.id===area);
- const jobParams=new URLSearchParams();
- if(tradeEntry)jobParams.set('trade',tradeEntry.slug);
- if(areaEntry)jobParams.set('area',areaEntry.id);
- const jobHref='/jobs'+(jobParams.size?'?'+jobParams.toString():'');
+ function postJobHref(resultTradeName?:string){
+  const params=new URLSearchParams();
+  const selectedTrade=tradeEntry??trades.find(entry=>entry.name===resultTradeName);
+  if(selectedTrade)params.set('trade',selectedTrade.slug);
+  if(areaEntry)params.set('area',areaEntry.id);
+  return '/jobs'+(params.size?'?'+params.toString():'');
+ }
+ const jobHref=postJobHref();
  function clearFilters(){setTrade('');setArea('');setLocation(null);setAddressVersion(v=>v+1);setSearchHint('');setSort('quality');window.history.replaceState(null,'','/services');}
  function updateTrade(value:string){setTrade(value);setSearchHint('');const p=new URLSearchParams(window.location.search);p.delete('q');if(value){const slug=trades.find(t=>t.id===value)?.slug;if(slug)p.set('trade',slug);}else p.delete('trade');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
  function updateArea(value:string){setArea(value);const p=new URLSearchParams(window.location.search);if(value)p.set('area',value);else p.delete('area');window.history.replaceState(null,'','/services'+(p.size?'?'+p.toString():''));}
@@ -155,7 +175,7 @@ export default function Services(){
   </div>
   <div className="directory-intro">
    <div><strong>Up to five approved professionals</strong><span> per trade, per defined local area — only when they qualify.</span></div>
-   <Link href="/jobs" className="btn">Describe your job →</Link>
+   <Link href={jobHref} className="btn">Describe your job →</Link>
   </div>
   <FairSelectionNotice />
   <div className="directory-layout">
@@ -171,10 +191,10 @@ export default function Services(){
    </aside>
    <section className="directory-results" aria-label="Approved professional results">
     {catalogLoading&&<p role="status">Loading service categories…</p>}
-    {catalogError&&<p role="alert" className="notice error">Could not load service filters. {catalogError}</p>}
+    {catalogError&&<div role="alert" className="notice error"><p>Could not load service filters. {catalogError}</p><button type="button" className="btn secondary" onClick={()=>{resultsHeading.current?.focus();setCatalogLoading(true);setRetryVersion(v=>v+1);setCatalogRetry(v=>v+1);}}>Retry service filters</button></div>}
     {searchHint&&<p role="status" className="notice">{searchHint}</p>}
     <div className="directory-results-heading">
-     <div><span className="eyebrow">Your local directory</span><h2>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
+     <div><span className="eyebrow">Your local directory</span><h2 ref={resultsHeading} tabIndex={-1}>{tradeEntry?tradeEntry.name:'All approved professionals'}</h2>
       <p className="subtle">{location?'Near '+location.label:areaEntry?areaEntry.area_name+', '+areaEntry.city:'Enter your address to find the nearest verified professionals'}</p></div>
      <label htmlFor="directory-sort">Sort results
       <select id="directory-sort" value={sort} onChange={e=>setSort(e.target.value as Sort)}>
@@ -182,23 +202,23 @@ export default function Services(){
       </select>
      </label>
     </div>
-    {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>setRetryVersion(v=>v+1)}>Try searching again</button></div>}
+    {resultsError&&<div role="alert" className="notice error"><p>Professional search unavailable. {resultsError}</p><button type="button" className="btn secondary" onClick={()=>{resultsHeading.current?.focus();setRetryVersion(v=>v+1);}}>Try searching again</button></div>}
     {resultsLoading?<p role="status" className="directory-loading">Searching approved professionals…</p>:
-     <p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
+     resultsReady&&<p className="directory-count" role="status">{visible.length} approved professional{visible.length===1?'':'s'} matching your filters</p>}
 
     {shortlistNotice&&<p className="muted-note" role="status">{shortlistNotice}</p>}
     {shortlistIds.length>0&&<section className="directory-compare" aria-labelledby="directory-compare-title">
-     <div className="directory-compare-heading"><div><h3 id="directory-compare-title">Compare approved professionals</h3><p className="muted-note">{shortlistIds.length} saved on this browser · Maximum 3 · Only currently eligible matching results are shown</p></div><button type="button" className="btn secondary" onClick={()=>{setShortlistIds([]);setShortlistNotice('Comparison cleared.');}}>Clear comparison</button></div>
-     {compareVisible.length===0?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
+     <div className="directory-compare-heading"><div><h3 id="directory-compare-title">Compare approved professionals</h3><p className="muted-note">{shortlistIds.length} saved on this browser · Maximum 3 · Only currently eligible matching results are shown</p></div><button type="button" className="btn secondary" onClick={()=>{document.getElementById('directory-sort')?.focus();setShortlistIds([]);setShortlistNotice('Comparison cleared.');}}>Clear comparison</button></div>
+     {!resultsReady?<p className="muted-note">{resultsLoading?'Checking which saved professionals match this search…':'Current eligibility could not be checked.'}</p>:compareVisible.length===0?<p className="muted-note">Your saved selections are not in these current verified search results. Change your search to find eligible providers; saved entries are never treated as proof of current approval.</p>:
      <div className="directory-compare-grid">{compareVisible.map(p=><article className="directory-compare-card" key={p.application_id}>
       <h4>{p.business_name}</h4><span className="pill">Currently approved in these results</span>
       <p>{p.trade_name} · {p.area_name}</p>
       <dl><div><dt>Independent quality</dt><dd>{p.quality_score}/100</dd></div><div><dt>Verified booking reviews</dt><dd>{p.review_count>0?Number(p.average_stars).toFixed(1)+'/5 ('+p.review_count+')':'None yet'}</dd></div>{location&&p.distance_km!=null&&<div><dt>Approximate distance</dt><dd>{Number(p.distance_km).toFixed(1)} km</dd></div>}</dl>
       <Link className="btn secondary" href={'/business/'+p.application_id}>View full profile</Link>
-      <button type="button" className="directory-compare-remove" onClick={()=>toggleShortlist(p.application_id)}>Remove from comparison</button>
+      <button type="button" className="directory-compare-remove" onClick={()=>{document.getElementById('compare-result-'+p.application_id)?.focus();toggleShortlist(p.application_id);}}>Remove from comparison</button>
      </article>)}</div>}
     </section>}
-    {!resultsLoading&&!resultsError&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
+    {resultsReady&&visible.length>0&&<div className="directory-result-list">{visible.map(p=>
      <article className="directory-pro" key={p.application_id}>
       <div className="directory-pro-avatar" aria-hidden="true">{p.business_name.trim().charAt(0).toUpperCase()||'T'}</div>
       <div className="directory-pro-body">
@@ -210,11 +230,15 @@ export default function Services(){
         <span><strong>{p.quality_score}/100</strong> independent quality score</span>
         <span>{p.review_count>0?<><strong>★ {Number(p.average_stars).toFixed(1)}/5</strong> · {p.review_count} completed-booking review{p.review_count===1?'':'s'}</>:'No completed-booking reviews yet'}</span>
        </div>
-       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={jobHref}>Post a job →</Link></div>
+       <div className="directory-pro-actions"><Link className="btn secondary" href={'/business/'+p.application_id}>View business profile</Link><button type="button" className="btn secondary" id={'compare-result-'+p.application_id} aria-pressed={shortlistIds.includes(p.application_id)} onClick={()=>toggleShortlist(p.application_id)}>{shortlistIds.includes(p.application_id)?'✓ In comparison':'+ Compare'}</button><Link href={postJobHref(p.trade_name)}>Post a job →</Link></div>
       </div>
      </article>)}</div>}
-    {!resultsLoading&&!resultsError&&visible.length===0&&
-     <DirectoryEmptyState context={{hasLocation:Boolean(location),hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={clearFilters} jobHref={jobHref}/>}
+    {resultsReady&&visible.length===0&&
+     <DirectoryEmptyState context={{locationPrecision:location?.precision??null,hasTrade:Boolean(trade),hasArea:Boolean(area)}} onReset={()=>{resultsHeading.current?.focus();clearFilters();}}
+      onChangeLocation={()=>{
+       const input=document.getElementById('directory-address');
+       if(input instanceof HTMLInputElement){input.focus();input.select();}
+      }} jobHref={jobHref}/>}
 
    </section>
   </div>

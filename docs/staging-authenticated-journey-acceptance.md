@@ -49,3 +49,12 @@ npx playwright test --config=playwright.staging.config.ts
 Use secure local secret injection rather than shell history or plaintext files where available. Do not put credentials, real addresses, user IDs or preview bypass tokens into GitHub issues, logs, screenshots or test recordings. Only deploy and test against explicitly approved staging with provider-authorised access. Tests **skip** when role credentials are missing; a skip is not a pass. The smoke suite proves authenticated account navigation only. It does **not** certify the complete customer→eligible quote→booking→consent→review sequence, which remains blocked pending genuine vetting and verified territory evidence. Never invent these to satisfy a test.
 
 The independently checked SQL journey remains in `tests/db/flows.sql` in ephemeral PostgreSQL CI, with fixture identities and rollback/isolated DB protections. It is not evidence of real participant acceptance.
+
+## Cleanup after a hosted booking rehearsal
+
+The existing read-only smoke creates no booking fixtures. For a separately approved write rehearsal, confirm the preview uses a disposable backend and reserve its test identities before creating anything.
+
+- Keep a private run record of the preview build SHA and identifiers returned for records created in that run. Keep identifiers and fixture contents out of the PR and shared logs.
+- During teardown, reconcile the records against that run record. Use ordinary participant actions where supported, such as revoking address sharing or cancelling an outstanding appointment on a run-owned booking. Cancellation and revocation change state. They do not erase records.
+- If retained records prevent a clean rerun, stop and record cleanup as blocked. Refer the disposable backend reset to its owner for separate approval. Keep shared and live records outside the cleanup scope.
+- Report the outcome as no writes, cleanup verified, or cleanup blocked, with any retained fixture types and the next action. Keep that result separate from the journey's pass or fail status.

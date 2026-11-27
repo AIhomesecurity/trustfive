@@ -37,5 +37,5 @@ test('meaningful character guidance matches validation for whitespace-padded dra
  expect(communityGroupDraftError(' a  b  c ','A sufficiently descriptive group topic')).toMatch(/group name/);
  expect(communityGroupMeaningfulLength(' C C T V ')).toBe(4);
  expect(communityGroupDraftError(' C C T V ','A sufficiently descriptive group topic')).toBeNull();
- expect(communityGroupMeaningfulLength('a\\n\\t b')).toBe(2);
+ expect(communityGroupMeaningfulLength('a\n\t b')).toBe(2);
 });

@@ -3,11 +3,11 @@ import {directoryEmptyCopy} from '../../components/directory-empty-state';
 
 test('Live directory never implies fictional top-five coverage',()=>{
  const cases=[
-  {hasLocation:true,hasTrade:true,hasArea:false},
-  {hasLocation:false,hasTrade:true,hasArea:true},
-  {hasLocation:false,hasTrade:false,hasArea:true},
-  {hasLocation:false,hasTrade:true,hasArea:false},
-  {hasLocation:false,hasTrade:false,hasArea:false}
+  {locationPrecision:'address' as const,hasTrade:true,hasArea:false},
+  {locationPrecision:null,hasTrade:true,hasArea:true},
+  {locationPrecision:null,hasTrade:false,hasArea:true},
+  {locationPrecision:null,hasTrade:true,hasArea:false},
+  {locationPrecision:null,hasTrade:false,hasArea:false}
  ];
  for(const context of cases){
   const copy=directoryEmptyCopy(context);
@@ -16,6 +16,7 @@ test('Live directory never implies fictional top-five coverage',()=>{
   expect(copy.action).toBeTruthy();
   expect(copy.description).not.toMatch(/demo providers|five available|guaranteed five/i);
  }
+ expect(directoryEmptyCopy({...cases[0],locationPrecision:'postcode'}).description).toContain('approximate postcode');
  expect(directoryEmptyCopy(cases[0]).description).toContain('verified service locations');
  expect(directoryEmptyCopy(cases[1]).description).toContain('independently approved');
  expect(directoryEmptyCopy(cases[4]).description).toContain('No demo listings');

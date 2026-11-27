@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import type {Metadata} from 'next';
+import VettingCharter from '../../components/vetting-charter';
+import PlatformComparison from '../../components/platform-comparison';
 
 export const metadata:Metadata={
  title:'How TrustFive works | Find independently approved local professionals',
@@ -25,7 +27,7 @@ export default function HowItWorks(){
   <section className="guide-hero"><div className="container guide-hero-inner">
    <div className="eyebrow">The TrustFive difference</div><h1>Less searching. More confidence.</h1>
    <p>We bring customers and independently approved professionals together through a simpler, more transparent local network.</p>
-   <div className="guide-actions"><Link className="btn" href="/services">Find a professional</Link><Link className="btn secondary" href="/jobs">Post a job</Link></div>
+   <div className="guide-actions"><Link className="btn" href="/services">Find a professional</Link><Link className="btn secondary" href="/jobs">Post a job</Link><Link className="btn secondary" href="/cost-guides">UK cost guides</Link></div>
   </div></section>
   <section className="container section"><div className="eyebrow">From discovery to completed work</div>
    <h2>How it works for customers</h2>
@@ -35,9 +37,21 @@ export default function HowItWorks(){
    <div className="guide-trust-grid"><div><p>Each trade has up to <strong>five independently approved active places in each defined local area</strong>. This limit is enforced in the database, not simply printed on profiles.</p><p>Professionals apply, must meet suitability standards and remain subject to complaints and fair review. Qualified applicants may join a waiting list if all places are occupied.</p></div>
    <div className="guide-principles"><p><strong>✓ Approval is earned, not purchased.</strong></p><p><strong>✓ Genuine completed-job reviews.</strong></p><p><strong>✓ No invented listings or ratings.</strong></p><p><strong>✓ Complaints and appeals are investigated fairly.</strong></p></div></div>
   </div></section>
+  <section className="container section" aria-labelledby="vetting-charter-heading">
+   <div className="eyebrow">Endorsement-grade vetting</div>
+   <h2 id="vetting-charter-heading">Six independent checks &amp; our code of conduct</h2>
+   <p className="subtle" style={{marginBottom:22}}>Every professional place is assessed by humans against documented identity, insurance, qualification and local territory standards.</p>
+   <VettingCharter/>
+  </section>
+  <section className="guide-trust-section" aria-labelledby="how-compare-heading"><div className="container section">
+   <div className="eyebrow">UK platform comparison</div>
+   <h2 id="how-compare-heading">TrustFive vs Checkatrade, MyBuilder, Bark, MyJobQuote &amp; UK directories</h2>
+   <p className="subtle" style={{marginBottom:20}}>Compare pricing models, per-lead fees, local competition caps and ranking fairness across UK home-service platforms.</p>
+   <PlatformComparison showSavingsCalculator/>
+  </div></section>
   <section className="container section"><div className="eyebrow">Questions answered</div><h2>Frequently asked questions</h2>
    <div className="guide-faq">{questions.map(x=><details key={x.q}><summary>{x.q}</summary><p>{x.a}</p></details>)}</div>
-   <div className="guide-bottom"><h2>Ready to get started?</h2><p>Search your local area, or tell us what needs doing.</p><div className="guide-actions"><Link href="/services" className="btn">Browse trusted trades</Link><Link href="/professional/apply" className="btn secondary">Apply as a professional</Link></div></div>
+   <div className="guide-bottom"><h2>Ready to get started?</h2><p>Search your local area, check UK cost guides or tell us what needs doing.</p><div className="guide-actions"><Link href="/services" className="btn">Browse trusted trades</Link><Link href="/cost-guides" className="btn secondary">UK cost guides</Link><Link href="/professional/apply" className="btn secondary">Apply as a professional</Link></div></div>
   </section>
  </main>;
 }

@@ -1,0 +1,28 @@
+{
+  "schema": "trustfive.integration.blockers/v1",
+  "rehearsal": {
+    "branch": "agent/opencode-next-integration-30m",
+    "base_ref": "feature/verified-marketplace-core",
+    "base_sha": "4a4b697",
+    "merge_order": ["43", "58", "59", "60", "62"],
+    "verdict": "rehearsal_green_no_merge",
+    "duplicate_migration_versions": 0
+  },
+  "sources": [
+    {"pr": 43, "head": "cc2619215fc2", "base_sha": "6813699", "status": "success", "vercel": "success", "supabase_preview": "skipped"},
+    {"pr": 58, "head": "b1ae78e8fd12", "base_sha": "71ac1d1", "status": "failure", "build": "success", "database": "success", "vercel": "failure", "supabase_preview": "skipped"},
+    {"pr": 59, "head": "b3d1465a8469", "base": 58, "status": "failure", "build": "success", "database": "success", "vercel": "failure", "supabase_preview": "skipped"},
+    {"pr": 60, "head": "4470c5870f86", "base": 59, "status": "failure", "build": "success", "database": "success", "vercel": "failure", "supabase_preview": "skipped"},
+    {"pr": 62, "head": "9e0604564d4c", "base": 60, "status": "failure", "build": "success", "database": "success", "vercel": "failure", "supabase_preview": "skipped"}
+  ],
+  "blockers": [
+    {"id": "MIGRATION_SEQUENCE", "severity": "blocker", "owner": "repository owner", "resolved_in_rehearsal": true, "detail": "Canonical base had duplicate 0035 versions; renumbered 0035-0040 with byte-identical SQL. Apply before sequential merge."},
+    {"id": "STALE_PR_BASES", "severity": "blocker", "owner": "PR owners", "detail": "PR #43 base 6813699 and PR #58 base 71ac1d1 lag feature tip 4a4b697; rebase or merge via the verified order 43,58,59,60,62."},
+    {"id": "DB_CI_ON_EACH_HEAD", "severity": "blocker", "owner": "repository owner", "detail": "Rerun .github/workflows/database-tests.yml after each sequential merge; 18 contracts must pass on every exact head."},
+    {"id": "AUTHENTICATED_STAGING", "severity": "blocker", "owner": "repository owner", "detail": "4 Playwright staging specs skip without private TRUSTFIVE_STAGING_ACCEPTANCE storage state; skips are not passes."},
+    {"id": "VERCEL_PREVIEW", "severity": "environment", "owner": "Vercel project owner", "detail": "Social PR heads 58/59/60/62 report Vercel failure; retry after rate-limit window and investigate project configuration."},
+    {"id": "SUPABASE_PREVIEW", "severity": "environment", "owner": "Supabase project owner", "detail": "Supabase Preview is completed/skipped on all source PRs; branch previews are not configured."},
+    {"id": "LINT_GATE", "severity": "gap", "owner": "repository owner", "detail": "package.json declares lint but this base has no ESLint dependency/config; PR #35 contains the gate and must be included."},
+    {"id": "NO_PRODUCTION_MERGE", "severity": "policy", "owner": "repository owner", "detail": "Draft rehearsal only. No merge to feature/verified-marketplace-core, main or production; no live SQL, customer data or paid API."}
+  ]
+}

@@ -35,6 +35,21 @@ Never put service-role keys, database passwords, Stripe secrets or OAuth client 
 ## Deployment rollback
 Revert the deployment to the last verified commit. Database changes must be forward-fixed using reviewed additive migrations; never assume a code rollback reverses database schema. Keep tested database backups and a restore drill.
 
+### Private preview rollback rehearsal record
+
+Copy this table into the candidate draft PR and attach links to redacted evidence. Start with every check pending. Use the dedicated Access-protected preview and synthetic accounts.
+
+| Check | Evidence to record | Result |
+| --- | --- | --- |
+| Baseline | Preview hostname, verified Worker version ID, full Git SHA, and matching authenticated health response | Pending |
+| Candidate | Candidate Worker version ID, full Git SHA, and matching authenticated health response | Pending |
+| Database compatibility | Current preview migration set, compatibility evidence for the baseline code against that set, and reviewer decision | Pending |
+| Restored build | Restored Worker version ID, full Git SHA, and matching authenticated health response from the expected baseline | Pending |
+| Access after restore | Anonymous request denied and authorised request successful against the same preview hostname | Pending |
+| Signed-in smoke after restore | Test run link, synthetic customer and professional journeys exercised, result for each | Pending |
+
+Record the rehearsal date, operator, fallback decision and any failed or blocked check. Keep the rollback rehearsal pending until the expected baseline SHA is verified after restoration and the Access and signed-in checks pass. Record database restore drill evidence separately. If schema compatibility cannot be verified, stop before restoring the baseline and document the forward-fix path.
+
 ## Sources
 - https://supabase.com/kb/faqs/database/nextjs-on-vercel
 - https://supabase.com/docs/guides/integrations/vercel-marketplace

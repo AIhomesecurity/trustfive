@@ -11,21 +11,31 @@ jobs:
     permissions:
       contents: read
     env:
-      NEXT_PUBLIC_SUPABASE_URL: https://niyfvoxiagvbonifuctv.supabase.co
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Test official boundary inspection (never auto-approve geography)
         run: node --test tests/geo/inspect-boundary-geojson.test.mjs
+      - name: Test protected preview verification
+        run: node --test tests/release/*.test.mjs
       - name: Check types
         run: npx tsc --noEmit
       - name: Build application
         run: npm run build
+      - name: Compile Cloudflare Worker without publishing
+        env:
+          TRUSTFIVE_BUILD_SHA: ${{ github.sha }}
+        run: npm run build:vinext
+      - name: Smoke test the Cloudflare Worker build locally
+        env:
+          EXPECTED_WORKER_SHA: ${{ github.sha }}
+        run: bash tests/release/cloudflare-worker-smoke.sh
       - name: Smoke test web server and basic HTTP routes
         run: |
           set -euo pipefail
@@ -48,6 +58,7 @@ jobs:
             curl -fsS -o /dev/null "http://127.0.0.1:3007$path"
           done
           curl -fsS http://127.0.0.1:3007/api/health | grep -q '"status":"ok"'
+          node tests/release/signed-in-smoke.mjs
 
       - name: Install Chromium browser runtime
         run: npx playwright install --with-deps chromium
