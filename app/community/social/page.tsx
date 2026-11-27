@@ -126,6 +126,7 @@ function SocialHub() {
   const feedHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const composerAreaRef = useRef<HTMLSelectElement | null>(null);
   const composerBodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerDisclosureRef = useRef<HTMLDetailsElement | null>(null);
 
   // Sync URL query params into state when navigating Back/Forward or switching tabs.
   useEffect(() => {
@@ -340,11 +341,14 @@ function SocialHub() {
   }
 
   function focusComposer() {
-    if (postingAreaId) {
-      composerBodyRef.current?.focus();
-    } else {
-      composerAreaRef.current?.focus();
-    }
+    if (composerDisclosureRef.current) composerDisclosureRef.current.open = true;
+    window.requestAnimationFrame(() => {
+      if (postingAreaId) {
+        composerBodyRef.current?.focus();
+      } else {
+        composerAreaRef.current?.focus();
+      }
+    });
   }
 
   async function publishNeighbourhoodPost(event: FormEvent) {
@@ -573,6 +577,15 @@ function SocialHub() {
                 aria-labelledby="social-share-title"
                 data-testid="social-composer"
               >
+                <details ref={composerDisclosureRef} className="social-composer-details">
+                  <summary className="social-composer-summary">
+                    <span className="social-composer-summary-copy">
+                      <strong>Start a local conversation</strong>
+                      <span>Ask a question, share a tip or post a neighbourhood update</span>
+                    </span>
+                    <span className="social-composer-summary-action">Write a post</span>
+                  </summary>
+                  <div className="social-composer-content">
                 <h2 id="social-share-title" className="social-card-title">
                   Share with your neighbours &amp; local trades
                 </h2>
@@ -720,6 +733,8 @@ function SocialHub() {
                     {postNotice}
                   </p>
                 ) : null}
+                  </div>
+                </details>
               </section>
 
               <div className="social-feed-header">

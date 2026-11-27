@@ -176,6 +176,7 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
     try {
       await signIn(mobilePage, resident);
       await mobilePage.goto(`${app}/community/social`);
+      await mobilePage.getByTestId('social-composer').getByText('Start a local conversation').click();
 
       await mobilePage.getByLabel('Neighbourhood to post in').selectOption(areaA.id);
       const bodyInput = mobilePage.getByLabel('Write your community post');
