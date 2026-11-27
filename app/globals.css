@@ -451,6 +451,13 @@
 .notification-channel-pill.is-active{background:#e4f5eb;border-color:#98cfb0;color:#065d32}
 .notification-channel-pill.is-disabled{background:#f7f9f8;border-color:#dce5e0;color:#4f685b}
 .notification-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.social-poll-card{padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:#fbfefd}
+.social-poll-option{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:10px 14px;border-radius:10px;border:1px solid #cce3d4;background:#fff;color:var(--dark);font-size:14px;font-weight:700;text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.social-poll-option:hover,.social-poll-option:focus-visible{border-color:var(--green);background:#f3faf5}
+.social-poll-option.is-selected{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+.social-poll-bar{position:absolute;inset:0 auto 0 0;background:#dff3e7;transition:width .25s ease;z-index:0}
+.social-poll-option-label,.social-poll-option-pct{position:relative;z-index:1}
+.social-poll-option-pct{font-size:12.5px;color:var(--muted);white-space:nowrap}
 @media(max-width:1120px){
  .social-linkedin-shell{grid-template-columns:236px minmax(0,1fr)}
  .social-rail-right{grid-column:1 / -1;position:static;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
@@ -463,13 +470,12 @@
  .social-rail-right{order:3;grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:560px){
- .social-hub-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ .social-hub-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
  .social-hub-tab{padding:10px 8px;font-size:13.5px}
  .social-starter-grid{grid-template-columns:minmax(0,1fr)}
  .social-home-head-actions,.social-home-head-actions .btn,.social-composer-actions .btn,.social-hub-shortcuts .btn,.social-post-permalink,.social-reminder-row .btn{width:100%}
  .social-post-time{white-space:normal}
 }
-@media(max-width:340px){.social-hub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.social-hub *{animation:none!important;transition:none!important}}
 
 /* My Bookings master-detail workspace — clear next actions, 3-section detail, 360px mobile safe. */
