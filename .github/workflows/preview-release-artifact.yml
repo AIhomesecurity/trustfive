@@ -146,7 +146,8 @@ jobs:
     needs: [database, build]
     if: >-
       github.ref == 'refs/heads/feature/verified-marketplace-core' &&
-      github.event.repository.full_name == 'AIhomesecurity/trustfive'
+      github.event.repository.full_name == 'AIhomesecurity/trustfive' &&
+      github.actor == 'AIhomesecurity'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -155,9 +156,6 @@ jobs:
       PREVIEW_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
       PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL || 'https://lkfkhjthdtcefrcaatsi.supabase.co' }}
       WORKER_RUNTIME_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
       TRUSTFIVE_BUILD_SHA: ${{ github.sha }}
       TRUSTFIVE_BUILD_OUTPUT_ROOT: .
       TRUSTFIVE_PREVIEW_ASSETS_DIR: .cloudflare/output/v1/workers/default/assets
@@ -213,6 +211,12 @@ jobs:
 
       - name: Verify protected baseline and create live evidence
         shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          DATABASE_RESULT: ${{ needs.database.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
         run: |
           set -euo pipefail
           ANON_STATUS="$(curl -sS --max-redirs 0 -D /tmp/tf-anon.headers -o /dev/null -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
@@ -259,25 +263,39 @@ jobs:
           };
           fs.writeFileSync('/tmp/trustfive-protected-preview-evidence.json', JSON.stringify(evidence, null, 2));
           const review = {
-            reviewedBy: 'Project owner authorization recorded in the current work session',
+            reviewedBy: 'Gary Pearce (explicit project-owner preview deployment authorization)',
             commitSha: process.env.TRUSTFIVE_BUILD_SHA,
-            testsPassed: true,
-            databaseReplayPassed: true,
-            ciStatus: 'passed'
+            testsPassed: process.env.BUILD_RESULT === 'success',
+            databaseReplayPassed: process.env.DATABASE_RESULT === 'success',
+            ciStatus: process.env.BUILD_RESULT === 'success' && process.env.DATABASE_RESULT === 'success' ? 'passed' : 'failed'
           };
           fs.writeFileSync('/tmp/trustfive-review-evidence.json', JSON.stringify(review, null, 2));
           NODE
 
       - name: Deploy the exact prebuilt preview artifact
         working-directory: source
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: node scripts/release/deploy-preview-gate.mjs --execute --worker trustfive-preview --hostname https://preview.trustfive.co.uk --source-kind reviewed_commit --commit "$TRUSTFIVE_BUILD_SHA" --build-output-root . --assets .cloudflare/output/v1/workers/default/assets --evidence /tmp/trustfive-review-evidence.json --protected-preview-evidence /tmp/trustfive-protected-preview-evidence.json
 
       - name: Verify deployed preview identity and Access protection
         shell: bash
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           STATUS="$(curl -sS --max-redirs 0 -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" -o /tmp/tf-after.json -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
           test "$STATUS" = "200"
           jq -e --arg sha "$TRUSTFIVE_BUILD_SHA" '.status == "ok" and .commitSha == $sha' /tmp/tf-after.json >/dev/null
           ANON_AFTER="$(curl -sS --max-redirs 0 -o /dev/null -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
-          case "$ANON_AFTER" in 403|3*) ;; *) echo "Anonymous access became available."; exit 1 ;; esac
+          if [[ "$ANON_AFTER" == "403" ]]; then
+            :
+          elif [[ "$ANON_AFTER" == 3* ]]; then
+            LOCATION_AFTER="$(curl -sS --max-redirs 0 -D /tmp/tf-anon-after.headers -o /dev/null -w '%{http_code}' https://preview.trustfive.co.uk/api/health >/dev/null; awk 'tolower($1) == "location:" {sub(/\r$/, "", $2); print $2; exit}' /tmp/tf-anon-after.headers)"
+            [[ "$LOCATION_AFTER" == https://*.cloudflareaccess.com/* ]] || { echo "Post-deploy redirect did not point to Cloudflare Access."; exit 1; }
+          else
+            echo "Anonymous access became available."; exit 1
+          fi
