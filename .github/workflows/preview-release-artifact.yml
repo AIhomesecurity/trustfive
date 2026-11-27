@@ -152,13 +152,13 @@ jobs:
       contents: read
       actions: read
     env:
-      PREVIEW_SUPABASE_URL: \${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
-      PRODUCTION_SUPABASE_URL: \${{ vars.PRODUCTION_SUPABASE_URL || 'https://lkfkhjthdtcefrcaatsi.supabase.co' }}
-      WORKER_RUNTIME_SUPABASE_URL: \${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
-      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CF_ACCESS_CLIENT_ID: \${{ secrets.CF_ACCESS_CLIENT_ID }}
-      CF_ACCESS_CLIENT_SECRET: \${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-      TRUSTFIVE_BUILD_SHA: \${{ github.sha }}
+      PREVIEW_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
+      PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL || 'https://lkfkhjthdtcefrcaatsi.supabase.co' }}
+      WORKER_RUNTIME_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      TRUSTFIVE_BUILD_SHA: ${{ github.sha }}
       TRUSTFIVE_BUILD_OUTPUT_ROOT: .
       TRUSTFIVE_PREVIEW_ASSETS_DIR: .cloudflare/output/v1/workers/default/assets
       TRUSTFIVE_PREVIEW_WORKER: trustfive-preview
@@ -171,14 +171,15 @@ jobs:
       - name: Checkout exact artifact source
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
+          path: source
           persist-credentials: false
 
       - name: Download artifact from this successful workflow run
         uses: actions/download-artifact@v4
         with:
-          name: trustfive-preview-\${{ github.sha }}
-          path: .
+          name: trustfive-preview-${{ github.sha }}
+          path: artifact-download
 
       - name: Verify artifact provenance and preview isolation
         shell: bash
@@ -186,7 +187,7 @@ jobs:
           set -euo pipefail
           node - <<'NODE'
           const fs = require('node:fs');
-          const m = JSON.parse(fs.readFileSync('artifact-manifest.json', 'utf8'));
+          const m = JSON.parse(fs.readFileSync('artifact-download/artifact-manifest.json', 'utf8'));
           const expected = {
             sourceKind: 'reviewed_commit',
             commitSha: process.env.TRUSTFIVE_BUILD_SHA,
@@ -207,14 +208,15 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CF_ACCESS_CLIENT_ID"
           test -n "$CF_ACCESS_CLIENT_SECRET"
-          npm ci --no-audit --no-fund
+          mv artifact-download/.cloudflare source/.cloudflare
+          npm ci --prefix source --no-audit --no-fund
 
       - name: Verify protected baseline and create live evidence
         shell: bash
         run: |
           set -euo pipefail
           ANON_STATUS="$(curl -sS --max-redirs 0 -D /tmp/tf-anon.headers -o /dev/null -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
-          ANON_LOCATION="$(awk 'tolower($1) == "location:" {sub(/\\r$/, "", $2); print $2; exit}' /tmp/tf-anon.headers)"
+          ANON_LOCATION="$(awk 'tolower($1) == "location:" {sub(/\r$/, "", $2); print $2; exit}' /tmp/tf-anon.headers)"
           case "$ANON_STATUS" in
             403) ;;
             3*) [[ "$ANON_LOCATION" == https://*.cloudflareaccess.com/* ]] ;;
@@ -267,6 +269,7 @@ jobs:
           NODE
 
       - name: Deploy the exact prebuilt preview artifact
+        working-directory: source
         run: node scripts/release/deploy-preview-gate.mjs --execute --worker trustfive-preview --hostname https://preview.trustfive.co.uk --source-kind reviewed_commit --commit "$TRUSTFIVE_BUILD_SHA" --build-output-root . --assets .cloudflare/output/v1/workers/default/assets --evidence /tmp/trustfive-review-evidence.json --protected-preview-evidence /tmp/trustfive-protected-preview-evidence.json
 
       - name: Verify deployed preview identity and Access protection
