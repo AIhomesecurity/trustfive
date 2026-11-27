@@ -254,7 +254,7 @@ test('Health endpoint reports configured app without exposing credentials',async
 });
 
 
-test('Mobile TrustFive navigation reveals account and community routes with keyboard access and no sideways scrolling',async({page})=>{
+test('Mobile TrustFive navigation keeps signed-out account and Community links private without sideways scrolling',async({page})=>{
  await page.setViewportSize({width:360,height:844});
  await page.goto('/');
  const menu=page.getByRole('button',{name:'Open navigation menu'});
@@ -270,9 +270,12 @@ test('Mobile TrustFive navigation reveals account and community routes with keyb
  const mobile=page.getByRole('navigation',{name:'Mobile navigation'});
  await expect(mobile).toBeVisible();
  await expect(mobile.getByRole('link',{name:'Find a professional'})).toBeVisible();
- await expect(mobile.getByRole('link',{name:'My dashboard'})).toBeVisible();
+ await expect(mobile.getByRole('link',{name:'Log in'})).toBeVisible();
+ await expect(mobile.getByRole('link',{name:'Sign up as a tradesperson'})).toBeVisible();
+ await expect(mobile.getByRole('link',{name:'My dashboard'})).toHaveCount(0);
+ await expect(mobile.getByRole('link',{name:'Community',exact:true})).toHaveCount(0);
  await expect(mobile.getByRole('link',{name:'Groups'})).toHaveCount(0);
- await expect(mobile.getByRole('link',{name:'Notifications'})).toBeVisible();
+ await expect(mobile.getByRole('link',{name:'Notifications'})).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
  await page.keyboard.press('Tab');
  const find=mobile.getByRole('link',{name:'Find a professional'});
@@ -420,9 +423,9 @@ test('Quick trade chooser uses only genuine taxonomy rows, never Lovable demo pr
  expect(popularTradeChoices(available).every(x=>available.includes(x))).toBe(true);
 });
 
-test('Signed-out community visitors return to the community entry after sign-in',async({page})=>{
+test('Signed-out community visitors finish sign-in at their dashboard',async({page})=>{
  await page.goto('/community');
- await expect(page).toHaveURL(url=>url.pathname==='/account'&&url.searchParams.get('next')==='/community');
+ await expect(page).toHaveURL(url=>url.pathname==='/account'&&url.searchParams.get('next')==='/dashboard');
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
  for(const width of [1440,768,390,360]){
   await page.setViewportSize({width,height:900});

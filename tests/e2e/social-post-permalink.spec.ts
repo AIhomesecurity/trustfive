@@ -17,7 +17,7 @@ test.describe('protected social discussion permalink',()=>{
  test.use({storageState:{cookies:[],origins:[]}});
  test('redirects anonymous visitors without exposing discussion',async({page})=>{
   await page.goto('/community/posts/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee');
-  await expect(page).toHaveURL(/\/account\?next=%2Fcommunity%2Fposts%2F/);
+  await expect(page).toHaveURL(/\/account\?next=%2Fdashboard(?:&|$)/);
   await expect(page.getByRole('heading',{name:'Neighbourhood conversation'})).toHaveCount(0);
  });
 });

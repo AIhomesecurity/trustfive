@@ -28,11 +28,20 @@ const professionalLinks=[
  {icon:'🗓️',name:'Appointments & calendar',description:'Propose times and export .ics reminders',href:'/schedule'},
  {icon:'💬',name:'Messages',description:'Reply to customer quote enquiries',href:'/messages'}
 ];
-const communityLinks=[
- {icon:'🏘️',name:'TrustFive Social',description:'Neighbourhood feed, Q&A and zero-spam local chat',href:'/community/social'},
- {icon:'🛠️',name:'Installer Showcases',description:'Browse completed work from approved local pros',href:'/community/social?tab=showcases'},
- {icon:'👥',name:'Groups',description:'Join interest and community groups',href:'/community/groups'},
- {icon:'📆',name:'Events',description:'Find neighbourhood activities & export reminders',href:'/community/events'}
+const customerCommunityLinks=[
+ {icon:'🏘️',name:'Neighbourhood feed',description:'Ask neighbours, share updates and find local recommendations',href:'/community/social'},
+ {icon:'👥',name:'Groups',description:'Join interest and neighbourhood groups',href:'/community/groups'},
+ {icon:'📆',name:'Events',description:'Find neighbourhood activities and manage RSVPs',href:'/community/events'},
+ {icon:'💡',name:'Advice',description:'Ask local questions about home projects and services',href:'/community/social?tab=advice'},
+ {icon:'🔖',name:'Saved posts',description:'Return to discussions and advice you saved',href:'/community/social?tab=saved'}
+];
+const professionalCommunityLinks=[
+ {icon:'🏘️',name:'Neighbourhood feed',description:'Join local conversations and share practical updates',href:'/community/social'},
+ {icon:'🤝',name:'Trade network',description:'Build professional connections and make safe referrals',href:'/community/social?tab=trade'},
+ {icon:'🛠️',name:'Work showcases',description:'Share completed work after independent approval',href:'/community/social?tab=showcases'},
+ {icon:'👥',name:'Groups',description:'Join local and specialist trade groups',href:'/community/groups'},
+ {icon:'📆',name:'Events',description:'Find and organise local activities',href:'/community/events'},
+ {icon:'🔖',name:'Saved posts',description:'Return to discussions and advice you saved',href:'/community/social?tab=saved'}
 ];
 const safeNotificationPaths=new Set(['/jobs','/bookings','/messages','/professional/apply','/notifications']);
 
@@ -175,8 +184,8 @@ export default function Dashboard(){
      <div className="dashboard-action-grid">{(activeView==='customer'?customerLinks:professionalLinks).map(link=><ActionCard key={link.href} {...link}/>)}</div>
     </section>
     <section aria-labelledby="dashboard-community" className="dashboard-actions-section">
-     <div className="dashboard-section-heading"><h2 id="dashboard-community">Your local community</h2></div>
-     <div className="dashboard-action-grid">{communityLinks.map(link=><ActionCard key={link.href} {...link}/>)}</div>
+     <div className="dashboard-section-heading"><h2 id="dashboard-community">{activeView==='customer'?'Your neighbourhood':'Your community and trade network'}</h2></div>
+     <div className="dashboard-action-grid">{(activeView==='customer'?customerCommunityLinks:professionalCommunityLinks).map(link=><ActionCard key={link.href} {...link}/>)}</div>
     </section>
     <div className="dashboard-bottom-links"><Link href="/profile">⚙️ Profile and settings</Link><Link href="/schedule">🗓️ Appointments</Link><Link href="/support/complaints">🛡️ Trust and support</Link><Link href="/how-it-works">How independent selection works</Link></div>
     <p className="muted-note dashboard-footnote">Status figures are private to your signed-in account and reflect available records. A professional application is not an approval. Never share private customer addresses outside the booking consent flow.</p>
