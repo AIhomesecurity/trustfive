@@ -6,8 +6,14 @@ declare
   v_my_proc oid := 'public.my_waitlist_public_profiles()'::regprocedure;
   v_result text;
 begin
-  if has_table_privilege('anon','public.professional_waitlist_profiles','ALL')
-     or has_table_privilege('authenticated','public.professional_waitlist_profiles','ALL') then
+  if has_table_privilege('anon','public.professional_waitlist_profiles','SELECT')
+     or has_table_privilege('anon','public.professional_waitlist_profiles','INSERT')
+     or has_table_privilege('anon','public.professional_waitlist_profiles','UPDATE')
+     or has_table_privilege('anon','public.professional_waitlist_profiles','DELETE')
+     or has_table_privilege('authenticated','public.professional_waitlist_profiles','SELECT')
+     or has_table_privilege('authenticated','public.professional_waitlist_profiles','INSERT')
+     or has_table_privilege('authenticated','public.professional_waitlist_profiles','UPDATE')
+     or has_table_privilege('authenticated','public.professional_waitlist_profiles','DELETE') then
     raise exception 'Waitlist profile table must not be directly readable or writable';
   end if;
   if not has_function_privilege('anon',v_public_proc,'EXECUTE')
