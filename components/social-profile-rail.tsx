@@ -15,6 +15,8 @@ type ProfileSummary = {
   quoteCount: number;
 };
 
+const POINTS_PER_VERIFIED_COMPLETION = 10;
+
 function initialsFrom(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'TF';
@@ -118,6 +120,7 @@ export default function SocialProfileRail({
           {summary.role === 'customer' ? (
             <>
               <div><dt><Link href="/bookings">Verified jobs completed</Link></dt><dd>{summary.completedJobCount}</dd></div>
+              <div><dt><Link href="/bookings">Trust points</Link></dt><dd>{summary.completedJobCount * POINTS_PER_VERIFIED_COMPLETION}</dd></div>
               <div><dt><Link href="/bookings">Verified reviews given</Link></dt><dd>{summary.bookingReviewCount}</dd></div>
               <div><dt><Link href="/jobs">Jobs posted</Link></dt><dd>{summary.jobCount}</dd></div>
               <div><dt><Link href="/ideabooks">Project Ideabooks</Link></dt><dd>{summary.ideabookCount}</dd></div>
@@ -136,6 +139,11 @@ export default function SocialProfileRail({
             <dd>→</dd>
           </div>
         </dl>
+        {summary.role === 'customer' ? (
+          <p className="muted-note" style={{margin: '8px 18px 12px', fontSize: 12}}>
+            10 points for each verified completed booking. Ratings and review scores never earn points or affect a professional&apos;s selection. Points have no redemption value yet.
+          </p>
+        ) : null}
 
         <nav className="social-rail-links" aria-label={summary.role === 'professional' ? 'Trade workspace shortcuts' : 'Homeowner shortcuts'}>
           {summary.role === 'customer' ? (
