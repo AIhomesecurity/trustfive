@@ -466,9 +466,6 @@ function SocialHub() {
         <div>
           <span className="eyebrow">TrustFive Social · UK neighbourhood network</span>
           <h1>TrustFive Social</h1>
-          <p className="subtle">
-            Find your neighbourhood, ask for local advice, discover community events, and join local groups safely. Only published, authorised content is shown.
-          </p>
         </div>
       </div>
 
