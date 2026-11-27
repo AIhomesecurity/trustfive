@@ -381,9 +381,7 @@
 .social-member-profile-summary:focus-visible{outline:3px solid #21956d;outline-offset:3px;border-radius:10px}
 .social-member-profile-details[open] .social-member-profile-summary{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border)}
 .social-member-profile-content{display:grid;gap:10px}
-.social-home-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 8px}
-.social-home-head h1{margin:0;font-size:clamp(24px,2vw,30px);line-height:1.15;letter-spacing:-.035em}
-.social-home-head .eyebrow,.social-home-head .subtle{display:none}
+.social-home-head{min-height:clamp(28px,2vw,35px);margin:2px 0 8px}
 .social-home-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .social-hub-shortcuts,.social-hub-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .social-hub-tabs{border-bottom:1px solid var(--border);padding-bottom:8px;gap:7px}
