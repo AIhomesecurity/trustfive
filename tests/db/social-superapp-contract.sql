@@ -169,6 +169,6 @@ begin
 
   execute 'reset role';
 end
-$;
+$$;
 
 rollback;
