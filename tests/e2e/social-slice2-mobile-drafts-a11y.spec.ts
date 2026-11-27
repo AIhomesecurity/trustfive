@@ -217,6 +217,7 @@ test.describe('Slice 2 mobile feed, groups, saved posts and Q&A draft recovery &
 
       // 1. Neighbourhood feed draft persists across full page reload and stays isolated per area.
       await page.goto('/community/social');
+      await page.getByTestId('social-composer').getByText('Start a local conversation').click();
       const postArea = page.getByLabel('Neighbourhood to post in');
       const postBody = page.getByLabel('Write your community post');
       await postArea.selectOption(areaA.id);
@@ -224,6 +225,7 @@ test.describe('Slice 2 mobile feed, groups, saved posts and Q&A draft recovery &
       await postBody.fill(feedDraft);
 
       await page.reload();
+      await page.getByTestId('social-composer').getByText('Start a local conversation').click();
       await page.getByLabel('Neighbourhood to post in').selectOption(areaA.id);
       await expect(page.getByLabel('Write your community post')).toHaveValue(feedDraft);
       await expect(page.getByText('Draft recovered for Didsbury.')).toBeVisible();
@@ -299,6 +301,7 @@ test.describe('Slice 2 mobile feed, groups, saved posts and Q&A draft recovery &
       // 5. Account switch wipes previous user's drafts from sessionStorage.
       await signIn(page, user2);
       await page.goto('/community/social');
+      await page.getByTestId('social-composer').getByText('Start a local conversation').click();
       await page.getByLabel('Neighbourhood to post in').selectOption(areaA.id);
       await expect(page.getByLabel('Write your community post')).toHaveValue('');
 
