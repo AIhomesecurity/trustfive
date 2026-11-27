@@ -1,5 +1,5 @@
 -- P0 deep negative-permission contract.
--- Pins the nine intentionally private RLS/no-policy tables and verifies that
+-- Pins the intentionally private RLS/no-policy tables and verifies that
 -- the four anonymously callable SECURITY DEFINER directory helpers expose only
 -- actively approved, independently verified professionals.
 --
@@ -14,7 +14,7 @@ do $private_tables$
 declare
   expected text[] := array[
     'account_write_quotas','booking_address_consent_events','country_release_signoff_events','country_release_signoffs','job_site_locations',
-    'platform_admins','professional_service_locations','stripe_webhook_events',
+    'platform_admins','professional_service_locations','professional_waitlist_profiles','stripe_webhook_events',
     'verified_service_territories'];
   actual text[];
   t text;
@@ -51,7 +51,7 @@ do $anon_table_denial$
 declare
   expected text[] := array[
     'account_write_quotas','booking_address_consent_events','country_release_signoff_events','country_release_signoffs','job_site_locations',
-    'platform_admins','professional_service_locations','stripe_webhook_events',
+    'platform_admins','professional_service_locations','professional_waitlist_profiles','stripe_webhook_events',
     'verified_service_territories'];
   t text;
 begin
@@ -72,7 +72,7 @@ do $auth_table_denial$
 declare
   expected text[] := array[
     'account_write_quotas','booking_address_consent_events','country_release_signoff_events','country_release_signoffs','job_site_locations',
-    'platform_admins','professional_service_locations','stripe_webhook_events',
+    'platform_admins','professional_service_locations','professional_waitlist_profiles','stripe_webhook_events',
     'verified_service_territories'];
   t text;
 begin

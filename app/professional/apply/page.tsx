@@ -10,6 +10,7 @@ import {
 } from '../../../lib/professional-onboarding';
 import PlatformComparison from '../../../components/platform-comparison';
 import VettingCharter from '../../../components/vetting-charter';
+import WaitlistDirectoryEditor, {type WaitlistPublicProfile} from '../../../components/waitlist-directory-editor';
 
 type Trade = {id: string; name: string};
 type Area = {id: string; area_name: string; city: string};
@@ -31,6 +32,7 @@ export default function Apply() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [items, setItems] = useState<ProfessionalOnboardingItem[]>([]);
   const [verifications, setVerifications] = useState<Record<string, VerificationRecord>>({});
+  const [waitlistProfiles, setWaitlistProfiles] = useState<Record<string, WaitlistPublicProfile>>({});
   const [trade, setTrade] = useState('');
   const [area, setArea] = useState('');
   const [business, setBusiness] = useState('');
@@ -60,22 +62,27 @@ export default function Apply() {
 
   async function refresh() {
     const s = supabaseBrowser();
-    const [overview, ver] = await Promise.all([
+    const [overview, ver, publicProfiles] = await Promise.all([
       s.rpc('my_professional_onboarding_status'),
       s
         .from('professional_verification_submissions')
         .select(
           'application_id,insurance_provider,insurance_policy_ref,insurance_expires_on,trade_body,registration_number,qualification_summary,verification_status,reviewer_note,updated_at'
         ),
+      s.rpc('my_waitlist_public_profiles'),
     ]);
     if (overview.error) throw overview.error;
     if (ver.error) throw ver.error;
+    if (publicProfiles.error) throw publicProfiles.error;
     setItems((overview.data || []) as ProfessionalOnboardingItem[]);
     const byApp: Record<string, VerificationRecord> = {};
     for (const row of (ver.data || []) as VerificationRecord[]) {
       byApp[row.application_id] = row;
     }
     setVerifications(byApp);
+    const byApplication: Record<string, WaitlistPublicProfile> = {};
+    for (const row of (publicProfiles.data || []) as WaitlistPublicProfile[]) byApplication[row.application_id] = row;
+    setWaitlistProfiles(byApplication);
   }
 
   useEffect(() => {
@@ -504,6 +511,22 @@ export default function Apply() {
                             </div>
                           )}
                         </div>
+                      )}
+
+                      {(item.application_status === 'pending' || item.application_status === 'under_review' || stage.isWaitingList) && !stage.isActiveSlot && (
+                        <WaitlistDirectoryEditor
+                          key={`${item.application_id}:${waitlistProfiles[item.application_id]?.updated_at || ''}`}
+                          applicationId={item.application_id}
+                          initial={waitlistProfiles[item.application_id]}
+                          defaultName={item.business_name || ''}
+                          defaultSummary={item.about || ''}
+                          onSaved={profile => setWaitlistProfiles(previous => {
+                            const next = {...previous};
+                            if (profile) next[item.application_id] = profile;
+                            else delete next[item.application_id];
+                            return next;
+                          })}
+                        />
                       )}
 
                       <div style={{display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12}}>

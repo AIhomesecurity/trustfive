@@ -12,6 +12,7 @@ const mainLinks=[
 const exploreLinks=[
  {href:'/coverage',label:'UK coverage'},
  {href:'/cost-guides',label:'UK cost guides'},
+ {href:'/waitlist',label:'Applicant directory'},
  {href:'/professional/apply',label:'For professionals'}
 ];
 const accountLinks=[
