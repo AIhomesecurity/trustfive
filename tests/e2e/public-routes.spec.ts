@@ -420,9 +420,9 @@ test('Quick trade chooser uses only genuine taxonomy rows, never Lovable demo pr
  expect(popularTradeChoices(available).every(x=>available.includes(x))).toBe(true);
 });
 
-test('Community root opens the full Social Hub and signed-out access returns to sign in',async({page})=>{
+test('Signed-out community visitors return to the community entry after sign-in',async({page})=>{
  await page.goto('/community');
- await expect(page).toHaveURL(url=>url.pathname==='/account'&&url.searchParams.get('next')==='/community/social');
+ await expect(page).toHaveURL(url=>url.pathname==='/account'&&url.searchParams.get('next')==='/community');
  await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
  for(const width of [1440,768,390,360]){
   await page.setViewportSize({width,height:900});
