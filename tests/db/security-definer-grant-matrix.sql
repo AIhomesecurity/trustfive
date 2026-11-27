@@ -14,6 +14,7 @@ declare
     'find_trustfive_professionals',
     'find_trustfive_professionals_nearby',
     'find_trustfive_professionals_with_reviews',
+    'find_trustfive_waitlist_profiles',
     'is_active_approved_application',
     'public_showcase_business'];
   actual text[];
@@ -106,6 +107,7 @@ begin
     and p.proname in ('find_trustfive_professionals',
                       'find_trustfive_professionals_with_reviews',
                       'find_trustfive_professionals_nearby',
+                      'find_trustfive_waitlist_profiles',
                       'is_active_approved_application', 'public_showcase_business')
     and not has_function_privilege('authenticated',p.oid,'EXECUTE');
   if v_missing>0 then
