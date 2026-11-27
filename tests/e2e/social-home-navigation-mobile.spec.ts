@@ -289,7 +289,10 @@ test.describe('TrustFive Social home, mobile navigation and neighbourhood privac
       const scopeBar = page.getByTestId('social-scope-bar');
       await expect(scopeBar).toContainText('Browsing: All pilot neighbourhoods');
       await expect(scopeBar).toContainText('Posting to: Choose a neighbourhood below');
-      await expect(scopeBar).toContainText('Pilot discovery:');
+      await expect(scopeBar.getByText('How local privacy works')).toBeVisible();
+      await scopeBar.getByText('How local privacy works').click();
+      await expect(scopeBar).toContainText('Pilot discovery lets signed-in members browse listed neighbourhoods');
+      await expect(scopeBar).toContainText('Exact home addresses, customer job details and private quotes never appear in Social.');
 
       // Distinct Question vs Discussion visual cards.
       const questionCard = page.getByTestId(`social-post-card-${postQuestionId}`);

@@ -560,9 +560,12 @@ function SocialHub() {
                       : 'Choose a neighbourhood below'}
                   </span>
                 </div>
-                <p className="muted-note" style={{margin: 0}}>
-                  <strong>Pilot discovery:</strong> signed-in members can browse listed neighbourhoods until verified resident membership launches. Exact home addresses, customer job details and private quotes never appear here.
-                </p>
+                <details className="social-scope-details">
+                  <summary>How local privacy works</summary>
+                  <p className="muted-note" style={{margin: 0}}>
+                    Pilot discovery lets signed-in members browse listed neighbourhoods until verified resident membership launches. Exact home addresses, customer job details and private quotes never appear in Social.
+                  </p>
+                </details>
               </div>
 
               <section
