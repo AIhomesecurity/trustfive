@@ -9,9 +9,9 @@ are disabled or protected. The preview database must contain synthetic data only
 
 ### Repeatable CI artifact build
 
-Do not depend on a developer or chat session having a build environment. Run
-the **TrustFive protected preview artifact** GitHub Actions workflow from
-`feature/verified-marketplace-core`. It runs the reusable database replay and
+Do not depend on a developer or chat session having a build environment. The **TrustFive protected preview artifact** GitHub Actions workflow runs
+on every update to `feature/verified-marketplace-core` (or can be started
+manually from the Actions tab). It runs the reusable database replay and
 security contracts, app/browser checks, builds the Worker against the isolated
 preview Supabase project, checks browser-asset isolation, and stores the exact
 `.cloudflare/output/v1` artifact for 30 days under the full candidate SHA.
