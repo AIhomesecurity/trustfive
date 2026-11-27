@@ -276,6 +276,7 @@ test.describe('TrustFive Social home, mobile navigation and neighbourhood privac
       ]);
 
       await page.goto('/community/social');
+      await page.getByTestId('social-composer').getByText('Start a local conversation').click();
       const tabsNav = page.getByRole('navigation', {name: 'Social network sections'});
       for (const label of ['Feed', 'Groups', 'Events', 'Advice', 'Saved']) {
         const tabLink = tabsNav.getByRole('link', {name: label, exact: true});
