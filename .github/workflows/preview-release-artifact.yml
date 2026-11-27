@@ -28,6 +28,7 @@ jobs:
       PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL || 'https://lkfkhjthdtcefrcaatsi.supabase.co' }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PREVIEW_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_N3rsoRi9ic8CEjROxXDGDw_mik6I1GM' }}
+      PREVIEW_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PREVIEW_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_N3rsoRi9ic8CEjROxXDGDw_mik6I1GM' }}
       WORKER_RUNTIME_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
       TRUSTFIVE_BUILD_SHA: ${{ github.sha }}
     steps:
