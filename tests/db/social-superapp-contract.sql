@@ -14,6 +14,8 @@ declare
   v_list_id uuid;
   v_blocked boolean;
   v_count   integer;
+  v_votes   bigint;
+  v_my_vote integer;
 begin
   insert into auth.users (id) values (v_user_a), (v_user_b) on conflict (id) do nothing;
   select id into v_area_id from public.service_areas limit 1;
@@ -116,8 +118,57 @@ begin
   get diagnostics v_count = row_count;
   if v_count <> 1 then raise exception 'User A should be able to accept connection request'; end if;
 
+  -- 7. A member can see their own raw vote; aggregate results expose no other voter identity or choice.
+  select count(*) into v_count
+  from public.social_poll_votes
+  where poll_id = v_poll_id;
+  if v_count <> 1 then raise exception 'Raw vote reads must expose only the caller own vote'; end if;
+
+  select total_votes, my_option_index into v_votes, v_my_vote
+  from public.social_poll_summary(array[v_poll_id])
+  where poll_id = v_poll_id;
+  if v_votes <> 2 or v_my_vote <> 2 then
+    raise exception 'Poll summary should expose two aggregate votes and only the caller own selection';
+  end if;
+
+  -- 8. Contact details in an option or profile skill are rejected by database triggers.
+  v_blocked := false;
+  begin
+    insert into public.social_polls (author_id, area_id, question, options)
+    values (v_user_a, v_area_id, 'Which local service do you recommend?', '["CCTV","Call 07700 900123"]'::jsonb);
+  exception when check_violation then v_blocked := true;
+  end;
+  if not v_blocked then raise exception 'Expected poll option contact details to be blocked'; end if;
+
+  v_blocked := false;
+  begin
+    update public.social_member_profiles
+    set skills = array['Call 07700 900123']
+    where user_id = v_user_a;
+  exception when check_violation then v_blocked := true;
+  end;
+  if not v_blocked then raise exception 'Expected contact details in profile skills to be blocked'; end if;
+
+  -- 9. Poll content cannot be rewritten through the close-only update permission.
+  v_blocked := false;
+  begin
+    update public.social_polls
+    set options = '["Changed","Options"]'::jsonb
+    where id = v_poll_id;
+  exception when insufficient_privilege then v_blocked := true;
+  end;
+  if not v_blocked then raise exception 'Poll authors must not update poll options'; end if;
+
+  update public.social_polls set status = 'closed' where id = v_poll_id;
+  get diagnostics v_count = row_count;
+  if v_count <> 1 then raise exception 'Poll author should be able to close their open poll'; end if;
+
+  update public.social_polls set status = 'open' where id = v_poll_id;
+  get diagnostics v_count = row_count;
+  if v_count <> 0 then raise exception 'Closed polls must not be reopened through the client'; end if;
+
   execute 'reset role';
 end
-$$;
+$;
 
 rollback;
