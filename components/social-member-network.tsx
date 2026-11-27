@@ -291,7 +291,7 @@ export default function SocialMemberNetwork({
 
       <div className="card">
         <span className="eyebrow">People &amp; Local Trades Network</span>
-        <h3 style={{marginTop: 4}}>Connect &amp; endorse skills ({otherMembers.length})</h3>
+        <h3 id="member-network-heading" style={{marginTop: 4}}>Connect &amp; endorse skills ({otherMembers.length})</h3>
         <p className="muted-note" style={{marginTop: 0}}>
           Peer skill endorsements reflect neighbour and trade feedback — they never grant an approved five-slot
           marketplace badge or affect ranking.
@@ -301,7 +301,7 @@ export default function SocialMemberNetwork({
           <p className="muted-note">Loading local member profiles…</p>
         ) : otherMembers.length === 0 ? (
           <p className="muted-note" style={{marginBottom: 0}}>
-            No other member profiles published yet. Save your profile above so neighbours and local trades can connect
+            No other member profiles published yet. Complete your profile below so neighbours and local trades can connect
             with you as members join!
           </p>
         ) : (
@@ -402,7 +402,7 @@ export default function SocialMemberNetwork({
           </summary>
           <div className="social-member-profile-content">
         <span className="eyebrow">LinkedIn × Xing Dual-Mode Profile</span>
-        <h2 id="member-network-heading" className="social-card-title">
+        <h2 id="social-member-profile-heading" className="social-card-title">
           Your TrustFive Profile, Skills &amp; Haves / Wants
         </h2>
         <p className="subtle" style={{marginTop: 0}}>
