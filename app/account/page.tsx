@@ -22,6 +22,9 @@ export default function Account(){
  const [providers,setProviders]=useState<OAuthProviderAvailability>({google:false,apple:false,checked:false});
 
  useEffect(()=>{
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('mode')==='signin')setMode('signin');
+  if(params.get('role')==='professional')setRole('professional');
   const cbErr=safeAuthCallbackError(window.location.search);
   if(cbErr)setMessage(cbErr);
   let active=true;

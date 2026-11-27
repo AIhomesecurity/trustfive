@@ -6,15 +6,17 @@ import {usePathname} from 'next/navigation';
 
 const mainLinks=[
  {href:'/services',label:'Find a professional'},
+ {href:'/post-job',label:'Post a job'},
+ {href:'/community',label:'Community'}
+];
+const exploreLinks=[
  {href:'/coverage',label:'UK coverage'},
- {href:'/jobs',label:'Post a job'},
- {href:'/community',label:'Community'},
+ {href:'/cost-guides',label:'UK cost guides'},
  {href:'/professional/apply',label:'For professionals'}
 ];
 const accountLinks=[
  {href:'/dashboard',label:'My dashboard'},
  {href:'/ideabooks',label:'Project Ideabooks'},
- {href:'/cost-guides',label:'UK cost guides'},
  {href:'/messages',label:'Messages'},
  {href:'/notifications',label:'Notifications'},
  {href:'/bookings',label:'Bookings'},
@@ -33,12 +35,16 @@ export default function SiteHeader(){
    <nav className="nav primary-nav" aria-label="Main navigation">
     {mainLinks.map(link=><Link key={link.href} href={link.href} {...linkProps(link.href)}>{link.label}</Link>)}
     <details className="nav-more">
-     <summary>My TrustFive</summary>
+     <summary>Explore</summary>
      <div className="nav-menu">
+      <span className="nav-menu-label">More from TrustFive</span>
+      {exploreLinks.map(link=><Link href={link.href} key={link.href} {...linkProps(link.href)}>{link.label}</Link>)}
+      <span className="nav-menu-label">Your TrustFive</span>
       {accountLinks.map(link=><Link href={link.href} key={link.href} {...linkProps(link.href)}>{link.label}</Link>)}
      </div>
     </details>
-    <Link className="btn nav-account" href="/account" {...linkProps('/account')}>Sign in / Join</Link>
+    <Link className="nav-login" href="/account?mode=signin" {...linkProps('/account')}>Log in</Link>
+    <Link className="btn nav-account" href="/account?role=professional&next=%2Fprofessional%2Fapply">Sign up as a tradesperson</Link>
    </nav>
    <button type="button" className="mobile-menu-toggle" aria-expanded={mobileOpen} aria-controls="trustfive-mobile-navigation" aria-label={mobileOpen?'Close navigation menu':'Open navigation menu'} onClick={()=>setMobileOpen(value=>!value)}>
     <span aria-hidden="true">{mobileOpen?'✕':'☰'}</span><span>{mobileOpen?'Close':'Menu'}</span>
@@ -46,11 +52,14 @@ export default function SiteHeader(){
   </div>
   <nav id="trustfive-mobile-navigation" className="mobile-navigation" hidden={!mobileOpen} aria-label="Mobile navigation">
    <div className="container mobile-navigation-inner">
-    <p className="mobile-navigation-label">Explore TrustFive</p>
+    <p className="mobile-navigation-label">Start here</p>
     {mainLinks.map(link=><Link href={link.href} key={link.href} onClick={()=>setMobileOpen(false)} {...linkProps(link.href)}>{link.label}<span aria-hidden="true">→</span></Link>)}
-    <p className="mobile-navigation-label">Your account</p>
+    <p className="mobile-navigation-label">More from TrustFive</p>
+    {exploreLinks.map(link=><Link href={link.href} key={link.href} onClick={()=>setMobileOpen(false)} {...linkProps(link.href)}>{link.label}<span aria-hidden="true">→</span></Link>)}
+    <p className="mobile-navigation-label">Your TrustFive</p>
     {accountLinks.map(link=><Link href={link.href} key={link.href} onClick={()=>setMobileOpen(false)} {...linkProps(link.href)}>{link.label}<span aria-hidden="true">→</span></Link>)}
-    <Link className="btn" href="/account" onClick={()=>setMobileOpen(false)}>Sign in / Join</Link>
+    <Link className="btn secondary" href="/account?mode=signin" onClick={()=>setMobileOpen(false)}>Log in</Link>
+    <Link className="btn" href="/account?role=professional&next=%2Fprofessional%2Fapply" onClick={()=>setMobileOpen(false)}>Sign up as a tradesperson</Link>
    </div>
   </nav>
  </header>;

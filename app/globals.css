@@ -52,7 +52,10 @@
 .nav-menu{position:absolute;right:0;top:calc(100% + 14px);min-width:210px;z-index:30;display:grid;gap:0;padding:8px;background:white;border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 30px rgba(18,60,43,.12)}
 .nav-menu a{padding:11px 14px;border-radius:9px;white-space:nowrap}
 .nav-menu a:hover,.nav-menu a:focus-visible{background:#edf8f1}
-.nav-account{white-space:nowrap}
+.nav-menu-label{padding:9px 12px 4px;color:var(--muted);font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+.nav-menu-label:not(:first-child){border-top:1px solid #e7f0ea;margin-top:5px;padding-top:12px}
+.nav-login{white-space:nowrap;font-weight:750}
+.nav-account{white-space:nowrap;padding:10px 15px;min-height:42px;font-size:13px}
 @media(max-width:1100px){.topbar-inner{flex-wrap:wrap;padding:13px 0}.primary-nav{gap:13px;flex:1;justify-content:flex-end}.logo{width:175px}}
 @media(max-width:760px){.topbar-inner{align-items:flex-start}.primary-nav{width:100%;justify-content:flex-start;font-size:13px;gap:12px}.primary-nav .nav-account{padding:8px 12px;min-height:37px}.nav-menu{left:0;right:auto;top:calc(100% + 7px)}}
 
@@ -712,6 +715,32 @@
 .directory-pro-actions>a:not(.btn){text-underline-offset:3px}
 .directory-pro-actions>a:not(.btn):hover{text-decoration:underline}
 @media(prefers-reduced-motion:reduce){.directory-pro{transition:none}.directory-pro:hover{transform:none}}
+
+/* Customer job entry starts the request before account creation, without collecting a street address. */
+.preauth-job-page{max-width:880px;padding-bottom:38px}
+.preauth-job-heading{margin:34px 0 22px;max-width:720px}
+.preauth-job-heading .eyebrow{margin-bottom:8px}
+.preauth-job-heading h1{font-size:clamp(32px,4.5vw,48px);line-height:1.1;letter-spacing:-.035em;margin:0}
+.preauth-job-heading .subtle{font-size:17px;max-width:650px;margin:12px 0 0}
+.preauth-job-steps{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px;padding:0}
+.preauth-job-steps li{display:flex;align-items:center;gap:9px;min-height:45px;padding:9px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--muted);font-size:13px;font-weight:750}
+.preauth-job-steps li.is-current{background:#eaf8f0;border-color:#a8d5b8;color:var(--dark)}
+.preauth-job-steps li span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#edf3ef;font-size:12px}
+.preauth-job-steps li.is-current span{background:var(--green);color:#fff}
+.preauth-job-card{padding:clamp(20px,4vw,32px)}
+.preauth-job-card h2{font-size:clamp(22px,3vw,28px);line-height:1.2;margin:0 0 8px}
+.preauth-job-card>.subtle{margin:0 0 22px}
+.preauth-job-card textarea{min-height:150px}
+.preauth-job-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:22px}
+.preauth-job-review{display:grid;gap:0;margin:18px 0;border:1px solid var(--border);border-radius:13px;overflow:hidden;background:#fff}
+.preauth-job-review>div{display:grid;grid-template-columns:125px minmax(0,1fr);gap:14px;padding:12px 15px;border-bottom:1px solid #e7f0ea}
+.preauth-job-review>div:last-child{border-bottom:0}
+.preauth-job-review dt{font-size:13px;font-weight:800;color:var(--muted)}
+.preauth-job-review dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.preauth-job-login{text-align:right;color:var(--muted);font-size:14px}
+.preauth-job-login button{border:0;background:none;color:var(--green);font-weight:800;text-decoration:underline;text-underline-offset:3px;padding:4px}
+.preauth-job-footnote{font-size:13px;color:var(--muted);margin:16px 0 0}
+@media(max-width:560px){.preauth-job-heading{margin-top:24px}.preauth-job-steps{grid-template-columns:1fr;gap:7px}.preauth-job-steps li{min-height:42px}.preauth-job-actions{display:grid;grid-template-columns:1fr}.preauth-job-actions .btn{width:100%}.preauth-job-review>div{grid-template-columns:1fr;gap:3px}.preauth-job-login{text-align:left}}
 
 /* Community landing: give participation a clear path and make the feed calmer to read. */
 .community-home{padding-bottom:36px}
