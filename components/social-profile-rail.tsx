@@ -9,6 +9,7 @@ type ProfileSummary = {
   role: 'professional' | 'customer';
   ideabookCount: number;
   jobCount: number;
+  completedJobCount: number;
   bookingReviewCount: number;
   applicationCount: number;
   quoteCount: number;
@@ -33,6 +34,7 @@ export default function SocialProfileRail({
     role: 'customer',
     ideabookCount: 0,
     jobCount: 0,
+    completedJobCount: 0,
     bookingReviewCount: 0,
     applicationCount: 0,
     quoteCount: 0,
@@ -57,13 +59,16 @@ export default function SocialProfileRail({
             return 0;
           }
         };
-        const [books, primaryCount, quotes, reviewCount] = await Promise.all([
+        const [books, primaryCount, completedJobs, quotes, reviewCount] = await Promise.all([
           role === 'customer'
             ? safeCount(s.from('homeowner_ideabooks').select('id', {count: 'exact', head: true}).eq('owner_id', userId))
             : Promise.resolve(0),
           role === 'customer'
             ? safeCount(s.from('jobs').select('id', {count: 'exact', head: true}).eq('customer_id', userId))
             : safeCount(s.from('professional_applications').select('id', {count: 'exact', head: true}).eq('user_id', userId)),
+          role === 'customer'
+            ? safeCount(s.from('job_bookings').select('id', {count: 'exact', head: true}).eq('customer_id', userId).eq('status', 'completed'))
+            : Promise.resolve(0),
           role === 'professional'
             ? safeCount(s.from('job_quotes').select('id', {count: 'exact', head: true}).eq('professional_id', userId))
             : Promise.resolve(0),
@@ -75,6 +80,7 @@ export default function SocialProfileRail({
           role,
           ideabookCount: role === 'customer' ? books : 0,
           jobCount: role === 'customer' ? primaryCount : 0,
+          completedJobCount: role === 'customer' ? completedJobs : 0,
           bookingReviewCount: reviewCount,
           applicationCount: role === 'professional' ? primaryCount : 0,
           quoteCount: role === 'professional' ? quotes : 0,
@@ -111,8 +117,9 @@ export default function SocialProfileRail({
         <dl className="social-profile-stats">
           {summary.role === 'customer' ? (
             <>
-              <div><dt><Link href="/jobs">Jobs posted</Link></dt><dd>{summary.jobCount}</dd></div>
+              <div><dt><Link href="/bookings">Verified jobs completed</Link></dt><dd>{summary.completedJobCount}</dd></div>
               <div><dt><Link href="/bookings">Verified reviews given</Link></dt><dd>{summary.bookingReviewCount}</dd></div>
+              <div><dt><Link href="/jobs">Jobs posted</Link></dt><dd>{summary.jobCount}</dd></div>
               <div><dt><Link href="/ideabooks">Project Ideabooks</Link></dt><dd>{summary.ideabookCount}</dd></div>
             </>
           ) : (
