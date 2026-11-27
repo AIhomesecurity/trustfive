@@ -499,7 +499,7 @@
 }
 @media(max-width:560px){
  .social-hub-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:0 0 8px}
- .social-hub-tab{min-width:0;min-height:42px;padding:7px 5px;font-size:12px;line-height:1.15;overflow-wrap:anywhere}
+ .social-hub-tab{min-width:0;min-height:44px;padding:7px 5px;font-size:12px;line-height:1.15;overflow-wrap:anywhere}
  .social-starter-grid{grid-template-columns:minmax(0,1fr)}
  .social-home-head-actions,.social-home-head-actions .btn,.social-composer-actions .btn,.social-hub-shortcuts .btn,.social-post-permalink,.social-reminder-row .btn{width:100%}
  .social-composer-summary{gap:8px}
