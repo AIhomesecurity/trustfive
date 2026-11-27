@@ -13,6 +13,7 @@ import {parseJobsPrefillParams} from '../../lib/uk-cost-guides';
 import {parseReferralCodeParam} from '../../lib/trade-referrals';
 import {acceptedQuoteBookingHref,canConfirmJobQuote,customerJobBookingLinks} from '../../lib/quote-confirmation';
 import {quoteMessagesHref} from '../../lib/workflow-links';
+import {parsePreAuthJobDraft,PREAUTH_JOB_DRAFT_KEY} from '../../lib/preauth-job-draft';
 import {
   CONTACT_PREFERENCE_OPTIONS,
   readableContactPreference,
@@ -194,13 +195,22 @@ export default function Jobs(){
   setTrades(t.data||[]);setAreas(a.data||[]);
   const params=new URLSearchParams(window.location.search);
   const prefill=parseJobsPrefillParams(window.location.search);
-  const requestedTrade=prefill.trade||params.get('trade')||'';
+  const pendingDraft=(()=>{try{return parsePreAuthJobDraft(localStorage.getItem(PREAUTH_JOB_DRAFT_KEY));}catch{return null;}})();
+  if(!pendingDraft){try{localStorage.removeItem(PREAUTH_JOB_DRAFT_KEY);}catch{}}
+  const requestedTrade=pendingDraft?.tradeSlug||prefill.trade||params.get('trade')||'';
   const requestedArea=params.get('area')||'';
   const matchedTrade=(t.data||[]).find(item=>item.slug===requestedTrade);
   if(matchedTrade)setTrade(matchedTrade.id);
   if((a.data||[]).some(item=>item.id===requestedArea))setArea(requestedArea);
-  if(prefill.title)setTitle(prev=>prev||prefill.title);
-  if(prefill.brief)setDescription(prev=>prev||prefill.brief);
+  if(pendingDraft&&matchedTrade){
+   setTitle(prev=>prev||pendingDraft.title);
+   setDescription(prev=>prev||pendingDraft.description);
+   setMessage(`Your customer job draft is ready. We remembered ${pendingDraft.areaLabel} as a rough area; now select your exact address privately to verify coverage.`);
+   try{localStorage.removeItem(PREAUTH_JOB_DRAFT_KEY);}catch{}
+  }else{
+   if(prefill.title)setTitle(prev=>prev||prefill.title);
+   if(prefill.brief)setDescription(prev=>prev||prefill.brief);
+  }
   if(prefill.budget)setBudget(prev=>prev||prefill.budget);
   await refresh();
  }catch{setInitialLoadFailed(true);}finally{setInitialLoading(false)}})()},[loadAttempt]);
