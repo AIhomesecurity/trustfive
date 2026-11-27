@@ -113,6 +113,12 @@ export default function SocialProfileRail({
         </dl>
 
         <nav className="social-rail-links" aria-label="Workspace shortcuts">
+          <Link href="/community/social?tab=network">
+            <span aria-hidden="true">👤</span> People, Profile &amp; Skills
+          </Link>
+          <Link href="/community/social?tab=exchange">
+            <span aria-hidden="true">🧰</span> Local For Sale &amp; Free
+          </Link>
           <Link href="/community/social?tab=showcases">
             <span aria-hidden="true">🛠️</span> Installer Showcases
           </Link>

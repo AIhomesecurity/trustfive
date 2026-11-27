@@ -1,6 +1,8 @@
 export const SOCIAL_SECTIONS = [
-  {id: 'neighbourhood', label: 'Feed', description: 'Neighbourhood feed'},
+  {id: 'neighbourhood', label: 'Feed', description: 'Neighbourhood feed, polls & UK briefings'},
+  {id: 'network', label: 'People', description: 'Member profiles, connections & skill endorsements'},
   {id: 'showcases', label: 'Showcases', description: 'Completed installer work showcases'},
+  {id: 'exchange', label: 'For Sale & Free', description: 'Local tools, surplus materials & free giveaways'},
   {id: 'trade', label: 'Groups', description: 'Local groups & Trade Network'},
   {id: 'events', label: 'Events', description: 'Local community events'},
   {id: 'advice', label: 'Advice', description: 'Questions & local advice'},

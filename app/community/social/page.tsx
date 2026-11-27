@@ -32,6 +32,10 @@ import SocialProfileRail from '../../../components/social-profile-rail';
 import SocialPulseRail from '../../../components/social-pulse-rail';
 import SocialSavedPosts from '../../../components/social-saved-posts';
 import SocialEventsDiscovery from '../../../components/social-events-discovery';
+import SocialPollsPanel from '../../../components/social-polls-panel';
+import SocialMemberNetwork from '../../../components/social-member-network';
+import SocialLocalExchange from '../../../components/social-local-exchange';
+import SocialCuratedGuides from '../../../components/social-curated-guides';
 import {socialNeedsAuthRecheck} from '../../../lib/social-auth-identity';
 import {SOCIAL_SECTIONS,socialSectionFromQuery,socialSectionHref} from '../../../lib/social-sections';
 
@@ -888,11 +892,21 @@ function SocialHub() {
                   </nav>
                 </>
               )}
+              <SocialPollsPanel key={'polls-' + userId} userId={userId} areas={areas} />
+              <SocialCuratedGuides onDiscussPrompt={applyStarterPrompt} />
             </section>
+          ) : null}
+
+          {tab === 'network' ? (
+            <SocialMemberNetwork key={'network-' + userId} userId={userId} areas={areas} />
           ) : null}
 
           {tab === 'showcases' ? (
             <SocialShowcasesFeed key={'showcases-' + userId} userId={userId} />
+          ) : null}
+
+          {tab === 'exchange' ? (
+            <SocialLocalExchange key={'exchange-' + userId} userId={userId} areas={areas} />
           ) : null}
 
           {tab === 'trade' ? (

@@ -4,7 +4,9 @@ with required_tables(name) as (
     ('job_bookings'), ('booking_reviews'), ('booking_appointments'), ('community_reports'),
     ('professional_verification_submissions'), ('social_trade_requests'), ('social_trade_interests'),
     ('social_saved_posts'), ('community_group_post_reports'), ('community_post_media'),
-    ('social_trade_referrals'), ('homeowner_ideabooks'), ('homeowner_ideabook_items')
+    ('social_trade_referrals'), ('homeowner_ideabooks'), ('homeowner_ideabook_items'),
+    ('social_member_profiles'), ('social_connections'), ('social_skill_endorsements'),
+    ('social_polls'), ('social_poll_votes'), ('social_local_listings')
 ), catalogue as (
   select t.name, c.oid, c.relrowsecurity
   from required_tables t

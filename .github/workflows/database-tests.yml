@@ -138,3 +138,6 @@ jobs:
 
       - name: Verify Homeowner Project Ideabooks strict owner-only RLS
         run: psql -v ON_ERROR_STOP=1 -f tests/db/ideabooks-rls-contract.sql
+
+      - name: Verify Social LinkedIn/Nextdoor super-app RLS, anti-bypass & polls contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-superapp-contract.sql
