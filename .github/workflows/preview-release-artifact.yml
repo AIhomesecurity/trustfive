@@ -71,13 +71,40 @@ jobs:
           node --test tests/release/*.test.mjs
           npx tsc --noEmit
 
-      - name: Build application
+      - name: Build application for local synthetic-auth tests
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture
         run: npm run build
+
+      - name: Smoke test web server and basic HTTP routes
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture
+        run: |
+          set -euo pipefail
+          npm run start -- --port 3007 > /tmp/trustfive-server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=false
+          for n in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3007/ 2>/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then cat /tmp/trustfive-server.log; exit 1; fi
+          for path in / /account /services /billing /schedule /business/example /api/health; do
+            curl -fsS -o /dev/null "http://127.0.0.1:3007$path"
+          done
+          curl -fsS http://127.0.0.1:3007/api/health | grep -q '"status":"ok"'
+          node tests/release/signed-in-smoke.mjs
 
       - name: Install Chromium browser runtime
         run: npx playwright install --with-deps chromium
 
       - name: Run browser-level route and authentication tests
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture
         run: npm run test:e2e
 
       - name: Build isolated Cloudflare Worker artifact
@@ -86,6 +113,7 @@ jobs:
       - name: Smoke test Cloudflare Worker artifact
         env:
           EXPECTED_WORKER_SHA: ${{ github.sha }}
+          TRUSTFIVE_SKIP_SIGNED_IN_SMOKE: '1'
         run: bash tests/release/cloudflare-worker-smoke.sh
 
       - name: Verify preview database isolation in built assets
