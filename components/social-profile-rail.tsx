@@ -9,7 +9,13 @@ type ProfileSummary = {
   role: 'professional' | 'customer';
   ideabookCount: number;
   jobCount: number;
+  completedJobCount: number;
+  bookingReviewCount: number;
+  applicationCount: number;
+  quoteCount: number;
 };
+
+const POINTS_PER_VERIFIED_COMPLETION = 10;
 
 function initialsFrom(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -30,6 +36,10 @@ export default function SocialProfileRail({
     role: 'customer',
     ideabookCount: 0,
     jobCount: 0,
+    completedJobCount: 0,
+    bookingReviewCount: 0,
+    applicationCount: 0,
+    quoteCount: 0,
   });
 
   useEffect(() => {
@@ -38,30 +48,44 @@ export default function SocialProfileRail({
     (async () => {
       try {
         const s = supabaseBrowser();
-        const settled = await Promise.allSettled([
-          s.from('profiles').select('full_name,requested_role').eq('id', userId).maybeSingle(),
-          s.from('homeowner_ideabooks').select('id').eq('owner_id', userId).limit(50),
-          s.from('jobs').select('id').eq('customer_id', userId).limit(50),
+        const profileResult = await s.from('profiles').select('full_name,requested_role').eq('id', userId).maybeSingle();
+        const prof = !profileResult.error
+          ? (profileResult.data as {full_name?: string | null; requested_role?: string} | null)
+          : null;
+        const role = prof?.requested_role === 'professional' ? 'professional' : 'customer';
+        const safeCount = async (query: PromiseLike<{count: number | null; error: unknown}>) => {
+          try {
+            const result = await query;
+            return result.error ? 0 : result.count ?? 0;
+          } catch {
+            return 0;
+          }
+        };
+        const [books, primaryCount, completedJobs, quotes, reviewCount] = await Promise.all([
+          role === 'customer'
+            ? safeCount(s.from('homeowner_ideabooks').select('id', {count: 'exact', head: true}).eq('owner_id', userId))
+            : Promise.resolve(0),
+          role === 'customer'
+            ? safeCount(s.from('jobs').select('id', {count: 'exact', head: true}).eq('customer_id', userId))
+            : safeCount(s.from('professional_applications').select('id', {count: 'exact', head: true}).eq('user_id', userId)),
+          role === 'customer'
+            ? safeCount(s.from('job_bookings').select('id', {count: 'exact', head: true}).eq('customer_id', userId).eq('status', 'completed'))
+            : Promise.resolve(0),
+          role === 'professional'
+            ? safeCount(s.from('job_quotes').select('id', {count: 'exact', head: true}).eq('professional_id', userId))
+            : Promise.resolve(0),
+          safeCount(s.from('booking_reviews').select('id', {count: 'exact', head: true}).eq(role === 'professional' ? 'professional_id' : 'author_id', userId)),
         ]);
         if (!active) return;
-        const prof =
-          settled[0].status === 'fulfilled' && !settled[0].value.error
-            ? (settled[0].value.data as {full_name?: string | null; requested_role?: string} | null)
-            : null;
-        const books =
-          settled[1].status === 'fulfilled' && !settled[1].value.error && Array.isArray(settled[1].value.data)
-            ? settled[1].value.data.length
-            : 0;
-        const jobs =
-          settled[2].status === 'fulfilled' && !settled[2].value.error && Array.isArray(settled[2].value.data)
-            ? settled[2].value.data.length
-            : 0;
-
         setSummary({
           fullName: prof?.full_name?.trim() || 'TrustFive Member',
-          role: prof?.requested_role === 'professional' ? 'professional' : 'customer',
-          ideabookCount: books,
-          jobCount: jobs,
+          role,
+          ideabookCount: role === 'customer' ? books : 0,
+          jobCount: role === 'customer' ? primaryCount : 0,
+          completedJobCount: role === 'customer' ? completedJobs : 0,
+          bookingReviewCount: reviewCount,
+          applicationCount: role === 'professional' ? primaryCount : 0,
+          quoteCount: role === 'professional' ? quotes : 0,
         });
       } catch {
         // Keep clean default member profile if optional counts fail.
@@ -83,6 +107,7 @@ export default function SocialProfileRail({
             {initials}
           </div>
           <h2 className="social-profile-name">{summary.fullName}</h2>
+          <span className="social-profile-mode">{summary.role === 'professional' ? 'Your trade workspace' : 'Your homeowner profile'}</span>
           <span className="pill">
             {summary.role === 'professional' ? 'Trade Professional' : 'Homeowner & Neighbour'}
           </span>
@@ -92,18 +117,21 @@ export default function SocialProfileRail({
         </div>
 
         <dl className="social-profile-stats">
-          <div>
-            <dt>
-              <Link href="/ideabooks">Project Ideabooks</Link>
-            </dt>
-            <dd>{summary.ideabookCount}</dd>
-          </div>
-          <div>
-            <dt>
-              <Link href="/jobs">My jobs</Link>
-            </dt>
-            <dd>{summary.jobCount}</dd>
-          </div>
+          {summary.role === 'customer' ? (
+            <>
+              <div><dt><Link href="/bookings">Verified jobs completed</Link></dt><dd>{summary.completedJobCount}</dd></div>
+              <div><dt><Link href="/bookings">Trust points</Link></dt><dd>{summary.completedJobCount * POINTS_PER_VERIFIED_COMPLETION}</dd></div>
+              <div><dt><Link href="/bookings">Verified reviews given</Link></dt><dd>{summary.bookingReviewCount}</dd></div>
+              <div><dt><Link href="/jobs">Jobs posted</Link></dt><dd>{summary.jobCount}</dd></div>
+              <div><dt><Link href="/ideabooks">Project Ideabooks</Link></dt><dd>{summary.ideabookCount}</dd></div>
+            </>
+          ) : (
+            <>
+              <div><dt><Link href="/professional/business">Applications</Link></dt><dd>{summary.applicationCount}</dd></div>
+              <div><dt><Link href="/quotes">Quotes sent</Link></dt><dd>{summary.quoteCount}</dd></div>
+              <div><dt><Link href="/professional/business">Verified reviews received</Link></dt><dd>{summary.bookingReviewCount}</dd></div>
+            </>
+          )}
           <div>
             <dt>
               <Link href="/community/social?tab=saved">Saved discussions</Link>
@@ -111,29 +139,34 @@ export default function SocialProfileRail({
             <dd>→</dd>
           </div>
         </dl>
+        {summary.role === 'customer' ? (
+          <p className="muted-note" style={{margin: '8px 18px 12px', fontSize: 12}}>
+            10 points for each verified completed booking. Ratings and review scores never earn points or affect a professional&apos;s selection. Points have no redemption value yet.
+          </p>
+        ) : null}
 
-        <nav className="social-rail-links" aria-label="Workspace shortcuts">
-          <Link href="/community/social?tab=network">
-            <span aria-hidden="true">👤</span> People, Profile &amp; Skills
-          </Link>
-          <Link href="/community/social?tab=exchange">
-            <span aria-hidden="true">🧰</span> Local For Sale &amp; Free
-          </Link>
-          <Link href="/community/social?tab=showcases">
-            <span aria-hidden="true">🛠️</span> Installer Showcases
-          </Link>
-          <Link href="/community/social?tab=trade">
-            <span aria-hidden="true">🤝</span> Trade Network &amp; Referrals
-          </Link>
-          <Link href="/ideabooks">
-            <span aria-hidden="true">📌</span> Project Ideabooks
-          </Link>
-          <Link href="/cost-guides">
-            <span aria-hidden="true">💷</span> UK Cost Guides
-          </Link>
-          <Link href="/services">
-            <span aria-hidden="true">🔎</span> Find Approved Pros
-          </Link>
+        <nav className="social-rail-links" aria-label={summary.role === 'professional' ? 'Trade workspace shortcuts' : 'Homeowner shortcuts'}>
+          {summary.role === 'customer' ? (
+            <>
+              <Link href="/services"><span aria-hidden="true">🔎</span> Find approved professionals</Link>
+              <Link href="/jobs"><span aria-hidden="true">📝</span> Post or manage a job</Link>
+              <Link href="/bookings"><span aria-hidden="true">⭐</span> Bookings &amp; reviews</Link>
+              <Link href="/ideabooks"><span aria-hidden="true">📌</span> Project Ideabooks</Link>
+              <Link href="/community/social?tab=exchange"><span aria-hidden="true">🧰</span> Local For Sale &amp; Free</Link>
+              <Link href="/community/events"><span aria-hidden="true">📅</span> Local events</Link>
+            </>
+          ) : (
+            <>
+              <Link href="/professional/business"><span aria-hidden="true">🏢</span> Business profile &amp; status</Link>
+              <Link href="/quotes"><span aria-hidden="true">💬</span> Quote requests</Link>
+              <Link href="/bookings"><span aria-hidden="true">📅</span> Bookings &amp; availability</Link>
+              <Link href="/community/social?tab=showcases"><span aria-hidden="true">🛠️</span> Work showcases</Link>
+              <Link href="/community/social?tab=trade"><span aria-hidden="true">🤝</span> Trade Network &amp; Referrals</Link>
+              <Link href="/community/social?tab=network"><span aria-hidden="true">👤</span> People &amp; Skills</Link>
+              <Link href="/cost-guides"><span aria-hidden="true">💷</span> UK Cost Guides</Link>
+            </>
+          )}
+          <Link href="/community/social?tab=saved"><span aria-hidden="true">🔖</span> Saved discussions</Link>
         </nav>
       </div>
     </aside>

@@ -276,6 +276,11 @@ test.describe('TrustFive Social home, mobile navigation and neighbourhood privac
       ]);
 
       await page.goto('/community/social');
+      const profileRail = page.getByTestId('social-profile-rail');
+      await expect(profileRail).toBeVisible();
+      await expect(profileRail.getByText('Your homeowner profile')).toBeVisible();
+      await expect(profileRail.getByText('Trust points')).toBeVisible();
+      await expect(profileRail).toContainText('10 points for each verified completed booking');
       await page.getByTestId('social-composer').getByText('Start a local conversation').click();
       const tabsNav = page.getByRole('navigation', {name: 'Social network sections'});
       for (const label of ['Feed', 'Groups', 'Events', 'Advice', 'Saved']) {
@@ -289,7 +294,10 @@ test.describe('TrustFive Social home, mobile navigation and neighbourhood privac
       const scopeBar = page.getByTestId('social-scope-bar');
       await expect(scopeBar).toContainText('Browsing: All pilot neighbourhoods');
       await expect(scopeBar).toContainText('Posting to: Choose a neighbourhood below');
-      await expect(scopeBar).toContainText('Pilot discovery:');
+      await expect(scopeBar.getByText('How local privacy works')).toBeVisible();
+      await scopeBar.getByText('How local privacy works').click();
+      await expect(scopeBar).toContainText('Pilot discovery lets signed-in members browse listed neighbourhoods');
+      await expect(scopeBar).toContainText('Exact home addresses, customer job details and private quotes never appear in Social.');
 
       // Distinct Question vs Discussion visual cards.
       const questionCard = page.getByTestId(`social-post-card-${postQuestionId}`);
