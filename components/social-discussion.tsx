@@ -19,6 +19,7 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  const [reaction,setReaction]=useState<SocialReactionSummary|null>(null);
  const [saved,setSaved]=useState(false);
  const [reply,setReply]=useState('');
+ const replySafety=assessSocialPostSafety(reply);
  const [busy,setBusy]=useState(false);
  const [reporting,setReporting]=useState(false);
  const [reportOpen,setReportOpen]=useState(false);
@@ -61,10 +62,9 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
  }
  async function submitReply(event:FormEvent){
   event.preventDefault();
+  if(replySafety.blockingError){setNoticeIsError(true);setNotice(replySafety.blockingError);return;}
   const validation=socialReplyError(reply);
   if(validation){setNoticeIsError(true);setNotice(validation);return;}
-  const safety=assessSocialPostSafety(reply);
-  if(safety.blockingError){setNoticeIsError(true);setNotice(safety.blockingError);return;}
   if(!userId||inFlight.current)return;
   inFlight.current=true;setBusy(true);setNotice('');setNoticeIsError(false);
   try{
@@ -208,7 +208,8 @@ export default function SocialDiscussion({postId,userId}:{postId:string;userId:s
       <textarea minLength={2} maxLength={1500} required value={reply} disabled={busy}
        onChange={event=>setReply(event.target.value)} placeholder="Share useful, respectful advice…"/>
      </label>
-     <button type="submit" className="btn" disabled={busy||reporting||Boolean(socialReplyError(reply))}>
+     {replySafety.blockingError&&<p role="alert" className="notice error" data-testid="social-contact-block">{replySafety.blockingError}</p>}
+     <button type="submit" className="btn" disabled={busy||reporting||Boolean(replySafety.blockingError)||Boolean(socialReplyError(reply))}>
       {busy?'Saving…':'Publish reply'}
      </button>
     </form>

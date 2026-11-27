@@ -180,23 +180,41 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
       await mobilePage.getByLabel('Neighbourhood to post in').selectOption(areaA.id);
       const bodyInput = mobilePage.getByLabel('Write your community post');
 
-      // 1. Live anti-bypass notice & hard block for UK postcode & telephone number.
+      // 1. Live anti-bypass notice & hard block for UK postcode, numeric and spelled-out phones.
       await bodyInput.fill('Pop over to M20 2WS or call 07700 900123 for spare tiles.');
       const privacyWarn = mobilePage.getByTestId('social-privacy-warning');
       await expect(privacyWarn).toContainText('Full UK postcodes');
       await expect(privacyWarn).toContainText('Telephone numbers');
-      await mobilePage.getByRole('button', {name: 'Publish neighbourhood post'}).click();
-      await expect(mobilePage.getByTestId('social-composer').getByRole('alert')).toContainText(
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText(
         'cannot be posted in TrustFive Social'
       );
+      await expect(
+        mobilePage.getByRole('button', {name: 'Publish neighbourhood post'})
+      ).toBeDisabled();
+      await bodyInput.fill('Call zero seven one two three four five six seven eight nine');
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText(
+        'including numbers written as words'
+      );
+      await expect(
+        mobilePage.getByRole('button', {name: 'Publish neighbourhood post'})
+      ).toBeDisabled();
       expect(insertAttempts).toBe(0);
 
-      // 2. Client-side anti-bypass guard blocks external websites/domains without hitting database.
+      // 2. Client-side anti-bypass guard blocks external websites/domains & repeated-char spam locally.
       await bodyInput.fill('Look at https://one.example or mybuilder.co.uk right now');
-      await mobilePage.getByRole('button', {name: 'Publish neighbourhood post'}).click();
-      await expect(mobilePage.getByTestId('social-composer').getByRole('alert')).toContainText(
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText(
         'cannot be posted in TrustFive Social'
       );
+      await expect(
+        mobilePage.getByRole('button', {name: 'Publish neighbourhood post'})
+      ).toBeDisabled();
+      await bodyInput.fill(`Repeated ${'x'.repeat(12)} sequence should be removed`);
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText(
+        'repeated characters'
+      );
+      await expect(
+        mobilePage.getByRole('button', {name: 'Publish neighbourhood post'})
+      ).toBeDisabled();
       expect(insertAttempts).toBe(0);
 
       // 3. Valid post hitting DB 0011_account_write_quotas.sql (P0001) shows honest hourly limit & preserves draft.
@@ -234,6 +252,26 @@ test.describe('Slice 4 media upload privacy, spam controls and usable moderation
         () => document.documentElement.scrollWidth - window.innerWidth
       );
       expect(mobileOverflow).toBeLessThanOrEqual(0);
+
+      // 4b. Dedicated /community/events and /community/groups pages enforce live contact-sharing blocks too.
+      await mobilePage.goto(`${app}/community/events`);
+      await mobilePage.getByLabel('Event title').fill('Local garden meetup');
+      await mobilePage.getByLabel('About the event').fill('Bring tools and meet neighbours.');
+      await mobilePage.getByLabel('Public meeting place').fill('Email events@example.test');
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText(
+        'cannot be posted in TrustFive Social'
+      );
+      await expect(mobilePage.getByRole('button', {name: 'Publish event'})).toBeDisabled();
+
+      await mobilePage.goto(`${app}/community/groups`);
+      await mobilePage.getByLabel('Group name').fill('Call me 07700 900123');
+      await mobilePage
+        .getByLabel('What is this group about?')
+        .fill('Local neighbours discussing garden projects.');
+      await expect(mobilePage.getByTestId('social-contact-block')).toContainText(
+        'cannot be posted in TrustFive Social'
+      );
+      await expect(mobilePage.getByRole('button', {name: 'Create community group'})).toBeDisabled();
 
       // 5. Usable admin Community reports queue: category filter, Escape cancel, confirmed hide and dismiss.
       await signIn(adminPage, moderator);

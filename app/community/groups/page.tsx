@@ -8,6 +8,7 @@ import {restoreGroupListFocus} from '../../../lib/community-group-focus';
 import {communityGroupActionLabel,communityGroupActionDisabled} from '../../../lib/community-group-actions';
 import {communityGroupLocationLabel} from '../../../lib/community-group-location';
 import {communityGroupDraftError,communityGroupMeaningfulLength} from '../../../lib/community-group-draft';
+import {assessSocialPostSafety,classifySocialWriteError,publicSocialContactError} from '../../../lib/social-safety';
 type Area={id:string;area_name:string;city:string};
 type Group={id:string;area_id:string;name:string;description:string;created_at:string};
 type Membership={group_id:string;role:string};
@@ -22,6 +23,8 @@ export default function CommunityGroups(){
  const [area,setArea]=useState(''),[name,setName]=useState(''),[description,setDescription]=useState('');
  const [selected,setSelected]=useState(''),[postBody,setPostBody]=useState('');
  const [notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+ const groupContactError=publicSocialContactError(name,description);
+ const groupPostSafety=assessSocialPostSafety(postBody);
  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(false);
  const [postsLoading,setPostsLoading]=useState(false),[postsError,setPostsError]=useState(false);
  const selectedRequest=useRef(0);
@@ -57,6 +60,7 @@ export default function CommunityGroups(){
  async function create(e:FormEvent){e.preventDefault();if(busy||!userId)return;
   const draftError=communityGroupDraftError(name,description);
   if(draftError){setNotice(draftError);return;}
+  if(groupContactError){setNotice(groupContactError);return;}
   setBusy(true);setNotice('');
   try{
    const {error}=await supabaseBrowser().from('community_groups')
@@ -65,7 +69,7 @@ export default function CommunityGroups(){
    // Creation succeeded: a listing refresh failure must not invite a duplicate group.
    try{await load();setNotice('Group created. You are the founding member.');}
    catch{setNotice('Group created, but the group list could not be refreshed. Reload the page to see it.');}
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to create group');}
+  }catch(e){setNotice(classifySocialWriteError(e,e instanceof Error?e.message:'Unable to create group'));}
   finally{setBusy(false);}
  }
  async function join(groupId:string){if(busy)return;setBusy(true);
@@ -92,7 +96,7 @@ export default function CommunityGroups(){
   catch{if(request===selectedRequest.current){setPostsError(true);setNotice('Unable to load group posts. Please retry.');}}
   finally{if(request===selectedRequest.current)setPostsLoading(false);}
  }
- async function publish(e:FormEvent){e.preventDefault();if(!canPublishCommunityGroupPost({signedIn:Boolean(userId),selectedGroupId:selected,memberGroupIds:memberships.map(m=>m.group_id),body:postBody,busy,postsLoading,postsError}))return;setBusy(true);
+ async function publish(e:FormEvent){e.preventDefault();if(groupPostSafety.blockingError){setNotice(groupPostSafety.blockingError);return;}if(!canPublishCommunityGroupPost({signedIn:Boolean(userId),selectedGroupId:selected,memberGroupIds:memberships.map(m=>m.group_id),body:postBody,busy,postsLoading,postsError}))return;setBusy(true);
   try{
    const {error}=await supabaseBrowser().from('community_group_posts')
     .insert({group_id:selected,author_id:userId,body:postBody.trim()});
@@ -100,7 +104,7 @@ export default function CommunityGroups(){
    // The insert succeeded even if reading the updated post list fails.
    try{await loadPosts(selected);setNotice('Post published to your group.');}
    catch{setPostsError(true);setPosts([]);setNotice('Post published, but group posts could not be refreshed. Retry loading posts to see it.');}
-  }catch(e){setNotice(e instanceof Error?e.message:'Unable to publish group post');}
+  }catch(e){setNotice(classifySocialWriteError(e,e instanceof Error?e.message:'Unable to publish group post'));}
   finally{setBusy(false);}
  }
  const filteredGroups=filterLoadedCommunityGroups(groups,areas,groupSearch);
@@ -120,7 +124,8 @@ export default function CommunityGroups(){
      <p id="group-name-guidance" className="muted-note">{communityGroupMeaningfulLength(name)} of at least 4 non-whitespace characters for the group name.</p>
      <label>What is this group about?<textarea required minLength={15} maxLength={1200} value={description} onChange={e=>setDescription(e.target.value)} aria-describedby="group-description-guidance"/></label>
      <p id="group-description-guidance" className="muted-note">{communityGroupMeaningfulLength(description)} of at least 15 non-whitespace characters for the description.</p>
-     <button className="btn" disabled={busy||areas.length===0} type="submit">Create community group</button>
+     {groupContactError&&<p role="alert" className="notice error" data-testid="social-contact-block">{groupContactError}</p>}
+     <button className="btn" disabled={busy||Boolean(groupContactError)||areas.length===0} type="submit">Create community group</button>
     </form><p className="muted-note">Groups are publicly discoverable to signed-in members in this pilot. Address verification and private groups are not yet supported.</p>
    </div></section>
    <section><h2>Explore groups</h2>
@@ -151,7 +156,8 @@ export default function CommunityGroups(){
     <div className="card"><form className="form" onSubmit={publish}>
      <label>Share an update<textarea required minLength={8} maxLength={3000} value={postBody} onChange={e=>setPostBody(e.target.value)} aria-describedby="group-post-guidance"/></label>
      <p id="group-post-guidance" className="muted-note">Posts are visible to group members. Avoid sharing private addresses or customer information. {postBody.trim().length} of at least 8 characters (maximum 3,000), excluding spaces at the start and end.</p>
-     <button type="submit" disabled={!canPublishCommunityGroupPost({signedIn:Boolean(userId),selectedGroupId:selected,memberGroupIds:memberships.map(m=>m.group_id),body:postBody,busy,postsLoading,postsError})} className="btn">Publish to group</button>
+     {groupPostSafety.blockingError&&<p role="alert" className="notice error" data-testid="social-contact-block">{groupPostSafety.blockingError}</p>}
+     <button type="submit" disabled={Boolean(groupPostSafety.blockingError)||!canPublishCommunityGroupPost({signedIn:Boolean(userId),selectedGroupId:selected,memberGroupIds:memberships.map(m=>m.group_id),body:postBody,busy,postsLoading,postsError})} className="btn">Publish to group</button>
     </form></div>
     <div className="list" aria-busy={postsLoading}>{postsLoading?<div className="card" role="status">Loading group posts…</div>:postsError?<div className="card" role="alert"><p>Group posts could not be loaded. We cannot confirm whether this group has any posts.</p><button type="button" className="btn secondary" disabled={busy} onClick={()=>void retryPosts()}>Retry loading group posts</button></div>:posts.length===0?<div className="card">No group posts yet.</div>:null}
      {!postsLoading&&!postsError&&posts.map(p=><article className="card" key={p.id}><p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{p.body}</p>
