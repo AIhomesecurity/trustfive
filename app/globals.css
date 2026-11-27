@@ -54,6 +54,21 @@
 .nav-menu a:hover,.nav-menu a:focus-visible{background:#edf8f1}
 .nav-menu-label{padding:9px 12px 4px;color:var(--muted);font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
 .nav-menu-label:not(:first-child){border-top:1px solid #e7f0ea;margin-top:5px;padding-top:12px}
+.account-menu>summary{display:flex;align-items:center;gap:9px;max-width:235px;padding:3px 8px 3px 4px;border-radius:12px}
+.account-menu>summary:after{flex:none}
+.account-summary-copy{display:grid;max-width:165px;line-height:1.2}
+.account-summary-copy strong,.account-summary-copy small,.account-dropdown-identity strong,.account-dropdown-identity small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-summary-copy small,.account-dropdown-identity small{color:var(--muted);font-size:11px;font-weight:500;margin-top:3px}
+.account-avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:50%;background:#dff2e6;color:#08683e;font-size:12px;font-weight:900;letter-spacing:.02em}
+.account-dropdown{width:min(330px,calc(100vw - 28px));max-height:min(72vh,620px);overflow:auto}
+.account-dropdown-identity{display:flex;align-items:center;gap:11px;padding:10px 12px 14px;border-bottom:1px solid #e7f0ea}
+.account-dropdown-identity>span:last-child{display:grid;min-width:0}
+.account-menu-dashboard{display:flex;align-items:center;justify-content:space-between;margin:8px 0;padding:12px 13px!important;background:#edf8f1;border-radius:10px!important;font-weight:850}
+.account-menu-dashboard span{color:var(--green)}
+.account-dropdown .account-signout{width:100%;padding:11px 14px;text-align:left;color:#743333;background:white;border:0;border-top:1px solid #e7f0ea;border-radius:0 0 9px 9px;font-weight:750}
+.account-dropdown .account-signout:hover,.account-dropdown .account-signout:focus-visible{background:#fff4f2}
+.nav-account-loading{width:118px;height:40px;border-radius:12px;background:linear-gradient(90deg,#f0f5f1 25%,#e5eee8 50%,#f0f5f1 75%);background-size:200% 100%;animation:account-loading 1.3s infinite}
+@keyframes account-loading{to{background-position:-200% 0}}
 .nav-login{white-space:nowrap;font-weight:750}
 .nav-account{white-space:nowrap;padding:10px 15px;min-height:42px;font-size:13px}
 @media(max-width:1100px){.topbar-inner{flex-wrap:wrap;padding:13px 0}.primary-nav{gap:13px;flex:1;justify-content:flex-end}.logo{width:175px}}
@@ -227,6 +242,15 @@
  .mobile-navigation-inner>a:focus-visible{outline:3px solid #289963;outline-offset:-2px}
  .mobile-navigation-inner>a:not(.btn) span{color:var(--green)}
  .mobile-navigation-inner .btn{grid-column:1/-1;margin-top:18px}
+ .mobile-account-menu{grid-column:1/-1;margin-top:8px;border:1px solid var(--border);border-radius:14px;background:#fff;overflow:hidden}
+ .mobile-account-menu>summary{display:flex;align-items:center;gap:11px;list-style:none;padding:12px 14px;font-weight:850;cursor:pointer}
+ .mobile-account-menu>summary::-webkit-details-marker{display:none}
+ .mobile-account-menu>summary:after{content:'⌄';margin-left:auto;color:var(--green);font-size:18px}
+ .mobile-account-menu>summary small{display:block;color:var(--muted);font-size:12px;font-weight:500}
+ .mobile-account-links{display:grid;padding:4px 12px 12px;border-top:1px solid #e7f0ea}
+ .mobile-account-links>a,.mobile-account-links>button{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border:0;border-bottom:1px solid #e7f0ea;background:#fff;text-align:left;font-weight:700}
+ .mobile-account-links>button{color:#743333}
+ .mobile-account-links .mobile-navigation-label{margin-top:12px}
 }
 @media(max-width:440px){
  .logo{width:156px}

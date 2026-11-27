@@ -246,12 +246,12 @@ test.describe('TrustFive Social home, mobile navigation and neighbourhood privac
     }
 
     try {
-      // 1. Anonymous visitor on a filtered Social URL is redirected to /account preserving exact filters, with 0px overflow.
+      // 1. A signed-out visitor is sent to the dashboard after sign-in, with 0px overflow.
       await page.goto(`/community/social?area=${areaA.id}&q=roofing`);
       await expect(page).toHaveURL(
         url =>
           url.pathname === '/account' &&
-          url.searchParams.get('next') === `/community/social?area=${areaA.id}&q=roofing`
+          url.searchParams.get('next') === '/dashboard'
       );
       const signedOutOverflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth

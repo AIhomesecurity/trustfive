@@ -64,13 +64,13 @@ test.describe('real group discussions anonymous security boundary',()=>{
  test.use({storageState:{cookies:[],origins:[]}});
  test('signed-out users cannot reach member group content',async({page})=>{
   await page.goto('/community/groups/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee');
-  await expect(page).toHaveURL(/\/account\?next=%2Fcommunity%2Fgroups%2F/);
+  await expect(page).toHaveURL(/\/account\?next=%2Fdashboard(?:&|$)/);
   await expect(page.getByRole('heading',{name:'Member discussions'})).toHaveCount(0);
  });
  test('mobile deep links cannot expose private discussion content',async({page})=>{
   await page.setViewportSize({width:360,height:740});
   await page.goto('/community/groups/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee');
-  await expect(page).toHaveURL(/\/account\?next=%2Fcommunity%2Fgroups%2F/);
+  await expect(page).toHaveURL(/\/account\?next=%2Fdashboard(?:&|$)/);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1)).toBe(false);
  });
 });

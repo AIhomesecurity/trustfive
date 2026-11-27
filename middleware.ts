@@ -18,7 +18,11 @@ export async function middleware(request:NextRequest){
   return redirect;
  }
  if(!user&&/^\/(profile|jobs|professional|community|admin|support|dashboard|quotes|bookings|messages|notifications|billing|schedule)(\/|$)/.test(request.nextUrl.pathname)){
-  const next=request.nextUrl.clone();next.pathname='/account';next.search='';next.searchParams.set('next',request.nextUrl.pathname+request.nextUrl.search);return NextResponse.redirect(next);
+  const next=request.nextUrl.clone();next.pathname='/account';next.search='';
+  // Community entry always completes at the signed-in dashboard. Members can
+  // open the exact community area from their account menu once signed in.
+  next.searchParams.set('next',request.nextUrl.pathname.startsWith('/community')?'/dashboard':request.nextUrl.pathname+request.nextUrl.search);
+  return NextResponse.redirect(next);
  }
  return response;
 }
