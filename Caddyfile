@@ -1,0 +1,23 @@
+:81 {
+\t@transform_port_query {
+\t\tquery XTransformPort=*
+\t}
+
+\thandle @transform_port_query {
+\t\treverse_proxy localhost:{query.XTransformPort} {
+\t\t\theader_up Host {host}
+\t\t\theader_up X-Forwarded-For {remote_host}
+\t\t\theader_up X-Forwarded-Proto {scheme}
+\t\t\theader_up X-Real-IP {remote_host}
+\t\t}
+\t}
+
+\thandle {
+\t\treverse_proxy localhost:3000 {
+\t\t\theader_up Host {host}
+\t\t\theader_up X-Forwarded-For {remote_host}
+\t\t\theader_up X-Forwarded-Proto {scheme}
+\t\t\theader_up X-Real-IP {remote_host}
+\t\t}
+\t}
+}
