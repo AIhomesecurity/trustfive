@@ -131,11 +131,12 @@ test('signed-in mobile saved discussions recover a load and local events recover
   ]}));
   failFeed=true;
   await page.goto('/community');
-  const retryFeed=page.getByRole('button',{name:'Try loading posts again'});
+  await expect(page).toHaveURL(/\\/community\\/social$/);
+  const retryFeed=page.getByRole('button',{name:'Retry loading posts'});
   await expect(retryFeed).toBeVisible();
   failFeed=false;
   await retryFeed.press('Enter');
-  await expect(page.getByRole('heading',{name:'Neighbourhood feed'})).toBeFocused();
+  await expect(page.getByRole('heading',{name:'Neighbourhood conversations'})).toBeFocused();
   await expect(page.getByText('Synthetic published saved post',{exact:true})).toBeVisible();
   let releaseOlder=()=>{};
   const olderHeld=new Promise<void>(resolve=>{releaseOlder=resolve;});
@@ -145,19 +146,23 @@ test('signed-in mobile saved discussions recover a load and local events recover
    await route.fulfill({json:[{id:published,area_id:area?.slice(3),body:area==='eq.older-area'?'Late older feed':'Current neighbourhood feed',visibility:'published',created_at:created}]});
   });
   try{
-   const filter=page.getByLabel('Show posts from');
-   await page.getByText('Synthetic published saved post',{exact:true}).locator('..')
-    .getByRole('button',{name:/Reply to post/}).press('Enter');
-   await page.getByLabel('Write a reply').fill('Synthetic draft for the original post');
-   const draft=page.getByLabel('Your post',{exact:true});
+   const filter=page.getByLabel('Neighbourhood',{exact:true});
+   const postArea=page.getByLabel('Neighbourhood to post in');
+   const draft=page.getByLabel('Write your community post');
    await expect(draft).toBeDisabled();
+   await postArea.selectOption('latest-area');
+   await draft.fill('Synthetic draft only for the latest area');
    const olderStarted=page.waitForRequest(r=>r.url().includes('area_id=eq.older-area'));
    await filter.selectOption('older-area');
    await olderStarted;
+   await expect(draft).toHaveValue('Synthetic draft only for the latest area');
+   await postArea.selectOption('older-area');
    await expect(draft).toHaveValue('');
    await draft.fill('Synthetic draft only for the older area');
+   const latestStarted=page.waitForRequest(r=>r.url().includes('area_id=eq.latest-area'));
    await filter.selectOption('latest-area');
-   await expect(draft).toHaveValue('');
+   await latestStarted;
+   await expect(draft).toHaveValue('Synthetic draft only for the latest area');
    await expect(page.getByText('Current neighbourhood feed',{exact:true})).toBeVisible();
    const olderResponse=page.waitForResponse(r=>r.url().includes('area_id=eq.older-area'));
    releaseOlder();
