@@ -75,7 +75,7 @@ export default function TrustFiveSocial() {
     <Suspense
       fallback={
         <main className="container social-hub">
-          <h1>TrustFive Social</h1>
+          <div className="social-home-head" aria-hidden="true" />
           <p role="status">Loading Social…</p>
         </main>
       }
@@ -462,12 +462,7 @@ function SocialHub() {
 
   return (
     <main className="container social-hub">
-      <div className="page-heading social-home-head">
-        <div>
-          <span className="eyebrow">TrustFive Social · UK neighbourhood network</span>
-          <h1>TrustFive Social</h1>
-        </div>
-      </div>
+      <div className="social-home-head" aria-hidden="true" />
 
       <nav aria-label="Social network sections" className="social-hub-tabs">
         {SOCIAL_SECTIONS.map(item => (
