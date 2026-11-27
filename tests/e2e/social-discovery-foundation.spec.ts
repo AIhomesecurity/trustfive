@@ -28,6 +28,7 @@ test.describe('TrustFive Social anonymous route boundary',()=>{
   await page.goto('/');
   const desktop=page.getByRole('navigation',{name:'Main navigation'});
   await expect(desktop.getByRole('link',{name:'Community',exact:true})).toHaveCount(0);
+  await page.setViewportSize({width:360,height:740});
   await page.getByRole('button',{name:'Open navigation menu'}).click();
   const mobile=page.getByRole('navigation',{name:'Mobile navigation'});
   await expect(mobile.getByRole('link',{name:'Community',exact:true})).toHaveCount(0);
