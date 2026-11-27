@@ -66,4 +66,21 @@ select 'constraint:community_posts_contact_free',
       and conname = 'community_posts_contact_free'
       and contype = 'c'
   )
+union all
+select 'constraints:social_public_contact_guard',
+  (
+    select count(*) = 5
+    from pg_constraint k
+    join pg_class c on c.oid = k.conrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and k.contype = 'c'
+      and (c.relname, k.conname) in (
+        ('community_posts', 'community_posts_contact_free'),
+        ('community_comments', 'community_comments_contact_free'),
+        ('community_group_posts', 'community_group_posts_contact_free'),
+        ('community_groups', 'community_groups_contact_free'),
+        ('community_events', 'community_events_contact_free')
+      )
+  )
 order by check_name;

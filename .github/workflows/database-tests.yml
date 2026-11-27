@@ -137,6 +137,9 @@ jobs:
       - name: Verify Social anti-bypass contact/link constraints and zero-PII trade referrals RLS
         run: psql -v ON_ERROR_STOP=1 -f tests/db/social-anti-bypass-referrals-contract.sql
 
+      - name: Verify public Social contact-sharing guard across posts, replies, groups and events
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-public-contact-guard-contract.sql
+
       - name: Verify Homeowner Project Ideabooks strict owner-only RLS
         run: psql -v ON_ERROR_STOP=1 -f tests/db/ideabooks-rls-contract.sql
 
