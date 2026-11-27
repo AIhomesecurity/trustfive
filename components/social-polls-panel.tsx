@@ -4,12 +4,13 @@ import {FormEvent, useEffect, useRef, useState} from 'react';
 import {supabaseBrowser} from '../lib/supabase';
 import {findSocialArea, type SocialArea} from '../lib/social-discovery';
 import {classifySocialWriteError} from '../lib/social-safety';
-import {
-  tallyPollVotes,
-  validatePollDraft,
-  type SocialPoll,
-  type SocialPollVote,
-} from '../lib/social-superapp';
+import {validatePollDraft, type SocialPoll} from '../lib/social-superapp';
+
+type SocialPollSummary = {
+  vote_counts: Record<string, number>;
+  my_option_index: number | null;
+  total_votes: number;
+};
 
 export default function SocialPollsPanel({
   userId,
@@ -19,7 +20,7 @@ export default function SocialPollsPanel({
   areas: SocialArea[];
 }) {
   const [polls, setPolls] = useState<SocialPoll[]>([]);
-  const [votesByPoll, setVotesByPoll] = useState<Record<string, SocialPollVote[]>>({});
+  const [votesByPoll, setVotesByPoll] = useState<Record<string, SocialPollSummary>>({});
   const [openComposer, setOpenComposer] = useState(false);
   const [areaId, setAreaId] = useState('');
   const [question, setQuestion] = useState('');
@@ -56,19 +57,14 @@ export default function SocialPollsPanel({
         if (!active) return;
         setPolls(rows);
         if (rows.length > 0) {
-          const vRes = await s
-            .from('social_poll_votes')
-            .select('poll_id,voter_id,option_index')
-            .in(
-              'poll_id',
-              rows.map((r) => r.id)
-            )
-            .limit(500);
-          if (!vRes.error && active) {
-            const grouped: Record<string, SocialPollVote[]> = {};
-            for (const v of (vRes.data || []) as SocialPollVote[]) {
-              if (!grouped[v.poll_id]) grouped[v.poll_id] = [];
-              grouped[v.poll_id].push(v);
+          const summaryRes = await s.rpc('social_poll_summary', {
+            p_poll_ids: rows.map((r) => r.id),
+          });
+          if (summaryRes.error) throw summaryRes.error;
+          if (active) {
+            const grouped: Record<string, SocialPollSummary> = {};
+            for (const summary of (summaryRes.data || []) as Array<SocialPollSummary & {poll_id: string}>) {
+              grouped[summary.poll_id] = summary;
             }
             setVotesByPoll(grouped);
           }
@@ -229,19 +225,28 @@ export default function SocialPollsPanel({
         <div className="list" style={{gap: 12}}>
           {polls.map((poll) => {
             const area = findSocialArea(areas, poll.area_id);
-            const tally = tallyPollVotes(poll.options, votesByPoll[poll.id] ?? [], userId);
+            const summary = votesByPoll[poll.id];
+            const totalVotes = Number(summary?.total_votes ?? 0);
+            const breakdown = poll.options.map((label, index) => {
+              const votes = Number(summary?.vote_counts?.[String(index)] ?? 0);
+              return {
+                index,
+                label,
+                percent: totalVotes ? Math.round((votes / totalVotes) * 100) : 0,
+              };
+            });
             return (
               <article key={poll.id} className="social-poll-card">
                 <div style={{display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap'}}>
                   <span className="pill">{area ? `${area.area_name}, ${area.city}` : 'Local area'}</span>
                   <span className="muted-note" style={{fontSize: 12.5}}>
-                    {tally.totalVotes} {tally.totalVotes === 1 ? 'vote' : 'votes'} · {poll.status}
+                    {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'} · {poll.status}
                   </span>
                 </div>
                 <h3 style={{margin: '8px 0 10px', fontSize: 16}}>{poll.question}</h3>
                 <div className="list" style={{gap: 8}}>
-                  {tally.breakdown.map((opt) => {
-                    const selected = tally.userVoteIndex === opt.index;
+                  {breakdown.map((opt) => {
+                    const selected = summary?.my_option_index === opt.index;
                     return (
                       <button
                         key={opt.index}
