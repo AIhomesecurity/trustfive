@@ -498,7 +498,7 @@
  .social-starter-grid{grid-template-columns:minmax(0,1fr)}
  .social-home-head-actions,.social-home-head-actions .btn,.social-composer-actions .btn,.social-hub-shortcuts .btn,.social-post-permalink,.social-reminder-row .btn{width:100%}
  .social-composer-summary{gap:8px}
- .social-composer-summary-copy span{display:none}
+ .social-composer-summary-copy span,.social-member-profile-summary-copy span{display:none}
  .social-composer-summary-action{min-height:38px;padding:7px 11px}
  .social-post-time{white-space:normal}
 }
