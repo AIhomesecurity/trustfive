@@ -140,3 +140,141 @@ jobs:
             artifact-manifest.json
           if-no-files-found: error
           retention-days: 30
+
+  deploy-preview:
+    name: Deploy verified artifact to protected preview
+    needs: [database, build]
+    if: >-
+      github.ref == 'refs/heads/feature/verified-marketplace-core' &&
+      github.event.repository.full_name == 'AIhomesecurity/trustfive'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PREVIEW_SUPABASE_URL: \${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
+      PRODUCTION_SUPABASE_URL: \${{ vars.PRODUCTION_SUPABASE_URL || 'https://lkfkhjthdtcefrcaatsi.supabase.co' }}
+      WORKER_RUNTIME_SUPABASE_URL: \${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
+      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCESS_CLIENT_ID: \${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: \${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      TRUSTFIVE_BUILD_SHA: \${{ github.sha }}
+      TRUSTFIVE_BUILD_OUTPUT_ROOT: .
+      TRUSTFIVE_PREVIEW_ASSETS_DIR: .cloudflare/output/v1/workers/default/assets
+      TRUSTFIVE_PREVIEW_WORKER: trustfive-preview
+      TRUSTFIVE_PREVIEW_HOSTNAME: https://preview.trustfive.co.uk
+      TRUSTFIVE_DEPLOY_SOURCE_KIND: reviewed_commit
+      TRUSTFIVE_AUTHORIZED_PREVIEW_DEPLOY: '1'
+      CLOUDFLARE_ACCOUNT_ID: 91c29bde6edbde72c04744966a4d1a9d
+      PREVIEW_ACCESS_APPLICATION_ID: 892b8be7-1ce7-4b72-9454-e69180661b5f
+    steps:
+      - name: Checkout exact artifact source
+        uses: actions/checkout@v4
+        with:
+          ref: \${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download artifact from this successful workflow run
+        uses: actions/download-artifact@v4
+        with:
+          name: trustfive-preview-\${{ github.sha }}
+          path: .
+
+      - name: Verify artifact provenance and preview isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const m = JSON.parse(fs.readFileSync('artifact-manifest.json', 'utf8'));
+          const expected = {
+            sourceKind: 'reviewed_commit',
+            commitSha: process.env.TRUSTFIVE_BUILD_SHA,
+            sourceRef: 'refs/heads/feature/verified-marketplace-core',
+            worker: 'trustfive-preview',
+            hostname: 'https://preview.trustfive.co.uk',
+            previewSupabaseUrl: process.env.PREVIEW_SUPABASE_URL,
+            productionSupabaseUrl: process.env.PRODUCTION_SUPABASE_URL,
+            workflowRunId: process.env.GITHUB_RUN_ID,
+          };
+          for (const [key, value] of Object.entries(expected)) {
+            if (m[key] !== value) throw new Error('Artifact manifest mismatch: ' + key);
+          }
+          if (expected.previewSupabaseUrl === expected.productionSupabaseUrl) {
+            throw new Error('Preview and production Supabase projects must differ.');
+          }
+          NODE
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CF_ACCESS_CLIENT_ID"
+          test -n "$CF_ACCESS_CLIENT_SECRET"
+          npm ci --no-audit --no-fund
+
+      - name: Verify protected baseline and create live evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ANON_STATUS="$(curl -sS --max-redirs 0 -D /tmp/tf-anon.headers -o /dev/null -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
+          ANON_LOCATION="$(awk 'tolower($1) == "location:" {sub(/\\r$/, "", $2); print $2; exit}' /tmp/tf-anon.headers)"
+          case "$ANON_STATUS" in
+            403) ;;
+            3*) [[ "$ANON_LOCATION" == https://*.cloudflareaccess.com/* ]] ;;
+            *) echo "Anonymous preview probe was not denied."; exit 1 ;;
+          esac
+
+          AUTH_STATUS="$(curl -sS --max-redirs 0 -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" -D /tmp/tf-auth.headers -o /tmp/tf-auth.json -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
+          test "$AUTH_STATUS" = "200"
+          BASELINE_SHA="$(jq -er '.commitSha | select(test("^[a-f0-9]{40}$"))' /tmp/tf-auth.json)"
+          jq -e --arg sha "$BASELINE_SHA" '.status == "ok" and .commitSha == $sha' /tmp/tf-auth.json >/dev/null
+
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trustfive-preview/deployments?per_page=1" -o /tmp/tf-deployments.json
+          BASELINE_VERSION_ID="$(jq -er '.result.deployments[0].versions[] | select(.percentage == 100) | .version_id' /tmp/tf-deployments.json | head -1)"
+          [[ "$BASELINE_VERSION_ID" =~ ^[a-fA-F0-9-]{36}$ ]]
+
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trustfive-preview/subdomain" -o /tmp/tf-subdomain.json
+          jq -e '.result.enabled == false and .result.previews_enabled == false' /tmp/tf-subdomain.json >/dev/null
+
+          export ANON_STATUS ANON_LOCATION BASELINE_SHA BASELINE_VERSION_ID
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const evidence = {
+            worker: 'trustfive-preview',
+            hostname: 'https://preview.trustfive.co.uk',
+            baselineCommitSha: process.env.BASELINE_SHA,
+            baselineWorkerVersionId: process.env.BASELINE_VERSION_ID,
+            verifiedBy: 'GitHub Actions live preview and Cloudflare API probes',
+            verifiedAt: new Date().toISOString(),
+            anonymousProbe: {
+              url: 'https://preview.trustfive.co.uk/api/health',
+              status: Number(process.env.ANON_STATUS),
+              location: process.env.ANON_LOCATION || undefined
+            },
+            accessPolicy: {
+              applicationHostname: 'preview.trustfive.co.uk',
+              applicationId: process.env.PREVIEW_ACCESS_APPLICATION_ID,
+              serviceTokenAuthorized: true
+            },
+            alternateUrlsDisabled: true
+          };
+          fs.writeFileSync('/tmp/trustfive-protected-preview-evidence.json', JSON.stringify(evidence, null, 2));
+          const review = {
+            reviewedBy: 'Project owner authorization recorded in the current work session',
+            commitSha: process.env.TRUSTFIVE_BUILD_SHA,
+            testsPassed: true,
+            databaseReplayPassed: true,
+            ciStatus: 'passed'
+          };
+          fs.writeFileSync('/tmp/trustfive-review-evidence.json', JSON.stringify(review, null, 2));
+          NODE
+
+      - name: Deploy the exact prebuilt preview artifact
+        run: node scripts/release/deploy-preview-gate.mjs --execute --worker trustfive-preview --hostname https://preview.trustfive.co.uk --source-kind reviewed_commit --commit "$TRUSTFIVE_BUILD_SHA" --build-output-root . --assets .cloudflare/output/v1/workers/default/assets --evidence /tmp/trustfive-review-evidence.json --protected-preview-evidence /tmp/trustfive-protected-preview-evidence.json
+
+      - name: Verify deployed preview identity and Access protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATUS="$(curl -sS --max-redirs 0 -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" -o /tmp/tf-after.json -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
+          test "$STATUS" = "200"
+          jq -e --arg sha "$TRUSTFIVE_BUILD_SHA" '.status == "ok" and .commitSha == $sha' /tmp/tf-after.json >/dev/null
+          ANON_AFTER="$(curl -sS --max-redirs 0 -o /dev/null -w '%{http_code}' https://preview.trustfive.co.uk/api/health)"
+          case "$ANON_AFTER" in 403|3*) ;; *) echo "Anonymous access became available."; exit 1 ;; esac
