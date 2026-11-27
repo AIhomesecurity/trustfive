@@ -96,7 +96,7 @@ returns table (
 language sql
 stable
 security definer
-set search_path = pg_catalog, public
+set search_path = ''
 as $$
   select
     p.id,
