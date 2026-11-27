@@ -78,4 +78,8 @@ assert.match(await reset.text(), /Reset your password/);
 console.log('Local Worker health, job return, auth callback and recovery entry checks passed');
 JS
 
-node tests/release/signed-in-smoke.mjs 3008
+if [[ "${TRUSTFIVE_SKIP_SIGNED_IN_SMOKE:-0}" != "1" ]]; then
+  node tests/release/signed-in-smoke.mjs 3008
+else
+  echo "Synthetic sign-in is covered by the local-fixture app smoke; preview Worker build remains bound to the isolated preview backend."
+fi
