@@ -320,6 +320,7 @@ test.describe('TrustFive Social Super-App end-to-end journeys', () => {
       // 2. People tab: LinkedIn × Xing Profile + Skill Endorsements + Peer Connection
       await page.goto('/community/social?tab=network');
       await expect(page.getByTestId('social-member-network')).toBeVisible();
+      await page.getByTestId('social-member-network').getByText('Your TrustFive profile').click();
       await page.locator('#sp-display-name').fill('Gary Pearce · ADI Communications');
       await page.locator('#sp-area').selectOption(areaA.id);
       await page.locator('#sp-headline').fill('Lead CCTV, Starlink & Network Installer · 25+ Years UK Experience');
