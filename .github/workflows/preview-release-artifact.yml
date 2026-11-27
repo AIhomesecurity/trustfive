@@ -119,7 +119,7 @@ jobs:
       - name: Verify preview database isolation in built assets
         env:
           PREVIEW_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
-          PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL }}
+          PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL || 'https://lkfkhjthdtcefrcaatsi.supabase.co' }}
           WORKER_RUNTIME_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL || 'https://niyfvoxiagvbonifuctv.supabase.co' }}
         run: node scripts/release/check-preview-isolation.mjs .cloudflare/output/v1/workers/default/assets
 
