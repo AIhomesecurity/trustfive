@@ -759,3 +759,33 @@
 .community-home-comment{border:1px solid #e2eee6}
 @media(max-width:900px){.community-home-layout{grid-template-columns:1fr}.community-home-feed>label{max-width:none}}
 @media(max-width:560px){.community-home-heading{padding:20px;border-radius:18px;margin-top:16px}.community-home-actions{display:grid;grid-template-columns:1fr}.community-home-actions .btn{width:100%}.community-home-post{padding:15px}.community-home-post .btn{min-height:42px;padding:9px 12px}}
+/* Opt-in applicant directory: visibly distinct from approved listings and easy to read on mobile. */
+.waitlist-directory-page{max-width:1120px;padding-bottom:42px}
+.waitlist-directory-hero{padding:clamp(22px,4vw,40px);margin:24px 0 18px;border:1px solid #cce4d4;border-radius:22px;background:linear-gradient(120deg,#eaf7ef,#fbfdfb 70%);}
+.waitlist-directory-hero .eyebrow{display:block;margin-bottom:8px}
+.waitlist-directory-hero h1{margin:0;font-size:clamp(30px,4vw,44px);line-height:1.12;letter-spacing:-.035em}
+.waitlist-directory-hero>p{max-width:760px;color:var(--muted);font-size:17px;line-height:1.6}
+.waitlist-directory-trust-note{max-width:800px;margin:18px 0;padding:14px 16px;border:1px solid #e7d7a7;border-radius:12px;background:#fffaf0;color:#5e4a1a;line-height:1.55}
+.waitlist-directory-panel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding:18px;border:1px solid var(--border);border-radius:16px;background:#fff;box-shadow:0 6px 20px rgba(18,60,43,.04)}
+.waitlist-directory-panel label{display:grid;gap:6px;font-size:14px;font-weight:750}
+.waitlist-directory-count{color:var(--muted);font-size:14px;margin:16px 0 10px}
+.waitlist-directory-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:12px 0}
+.waitlist-applicant-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:20px;box-shadow:0 5px 18px rgba(18,60,43,.035)}
+.waitlist-applicant-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%;flex-wrap:wrap}
+.waitlist-stage{font-size:12px;color:var(--muted);text-align:right}
+.waitlist-applicant-card h2{margin:4px 0 0;font-size:22px;line-height:1.2;overflow-wrap:anywhere}
+.waitlist-applicant-trade{margin:0;color:var(--dark);font-weight:700}
+.waitlist-applicant-summary{margin:0;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.waitlist-applicant-reviews{display:grid;gap:3px;width:100%;padding:12px 0;border-top:1px solid #e7f0ea;border-bottom:1px solid #e7f0ea;font-size:14px}
+.waitlist-applicant-reviews span{color:var(--muted)}
+.waitlist-applicant-card>.btn{margin-top:auto}
+.waitlist-directory-empty{padding:22px}
+.waitlist-directory-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted)}
+.waitlist-directory-footer p{margin:0}
+.waitlist-profile-editor{margin:16px 0 4px;padding:14px;border:1px solid #cce4d4;border-radius:13px;background:#f8fcf9}
+.waitlist-profile-editor>summary{cursor:pointer;font-weight:800;color:var(--green)}
+.waitlist-profile-editor .form{margin-top:12px}
+.waitlist-profile-editor textarea{min-height:110px}
+.waitlist-profile-consent{display:flex!important;grid-template-columns:auto 1fr;align-items:start;gap:9px!important;font-weight:600!important;line-height:1.5}
+.waitlist-profile-consent input{width:18px;height:18px;margin:2px 0 0}
+@media(max-width:760px){.waitlist-directory-panel{grid-template-columns:1fr}.waitlist-directory-grid{grid-template-columns:1fr}.waitlist-directory-page{padding-bottom:28px}.waitlist-directory-hero{margin-top:16px;border-radius:17px}.waitlist-applicant-card{padding:16px}.waitlist-applicant-card>.btn{width:100%}.waitlist-directory-footer{align-items:flex-start;flex-direction:column}}
