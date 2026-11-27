@@ -1,0 +1,110 @@
+name: TrustFive protected preview artifact
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trustfive-preview-artifact-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  database:
+    uses: ./.github/workflows/database-tests.yml
+
+  build:
+    needs: database
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PREVIEW_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL }}
+      PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PREVIEW_SUPABASE_PUBLISHABLE_KEY }}
+      WORKER_RUNTIME_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL }}
+      TRUSTFIVE_BUILD_SHA: ${{ github.sha }}
+    steps:
+      - name: Require isolated preview build settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/feature/verified-marketplace-core" || {
+            echo "Dispatch this workflow from feature/verified-marketplace-core." >&2
+            exit 1
+          }
+          test -n "$PREVIEW_SUPABASE_URL" || { echo "Set repository variable PREVIEW_SUPABASE_URL." >&2; exit 1; }
+          test -n "$PREVIEW_SUPABASE_PUBLISHABLE_KEY" || { echo "Set repository variable PREVIEW_SUPABASE_PUBLISHABLE_KEY." >&2; exit 1; }
+          test -n "$PRODUCTION_SUPABASE_URL" || { echo "Set repository variable PRODUCTION_SUPABASE_URL." >&2; exit 1; }
+          test "$PREVIEW_SUPABASE_URL" = "https://niyfvoxiagvbonifuctv.supabase.co" || {
+            echo "Preview build must use the isolated TrustFive preview Supabase project." >&2
+            exit 1
+          }
+          test "$PRODUCTION_SUPABASE_URL" != "$PREVIEW_SUPABASE_URL" || {
+            echo "Preview and production Supabase URLs must be different." >&2
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run release-gate and type checks
+        run: |
+          node --test tests/geo/inspect-boundary-geojson.test.mjs
+          node --test tests/release/*.test.mjs
+          npx tsc --noEmit
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install Chromium browser runtime
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser-level route and authentication tests
+        run: npm run test:e2e
+
+      - name: Build isolated Cloudflare Worker artifact
+        run: npm run build:vinext
+
+      - name: Smoke test Cloudflare Worker artifact
+        env:
+          EXPECTED_WORKER_SHA: ${{ github.sha }}
+        run: bash tests/release/cloudflare-worker-smoke.sh
+
+      - name: Verify preview database isolation in built assets
+        env:
+          PREVIEW_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL }}
+          PRODUCTION_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL }}
+          WORKER_RUNTIME_SUPABASE_URL: ${{ vars.PREVIEW_SUPABASE_URL }}
+        run: node scripts/release/check-preview-isolation.mjs .cloudflare/output/v1/workers/default/assets
+
+      - name: Record artifact provenance
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          node -e 'const fs=require("node:fs"); fs.writeFileSync("artifact-manifest.json", JSON.stringify({sourceKind:"reviewed_commit", commitSha:process.env.SOURCE_SHA, sourceRef:process.env.SOURCE_REF, worker:"trustfive-preview", hostname:"https://preview.trustfive.co.uk", previewSupabaseUrl:process.env.PREVIEW_SUPABASE_URL, productionSupabaseUrl:process.env.PRODUCTION_SUPABASE_URL, workflowRunId:process.env.RUN_ID}, null, 2)+"\n")'
+
+      - name: Store exact prebuilt artifact for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: trustfive-preview-${{ github.sha }}
+          path: |
+            .cloudflare/output/v1
+            artifact-manifest.json
+          if-no-files-found: error
+          retention-days: 30
