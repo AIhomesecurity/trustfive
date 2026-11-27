@@ -1,0 +1,931 @@
+// TrustFive — unified trades marketplace with B2B platform, five-slot network & community social
+// SQLite-compatible: no native arrays, JSON strings used for collections
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// IDENTITY & PROFILES
+// ============================================================
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  passwordHash     String?
+  avatarUrl        String?
+  coverUrl         String?
+  bio              String?
+  location         String?
+  lat              Float?
+  lng              Float?
+  neighbourhoodId  String?
+  accountType      String   @default("PERSONAL") // PERSONAL | PRO | BUSINESS
+  verificationTier String   @default("NONE")     // NONE | EMAIL | ADDRESS | ID | VERIFIED
+  openToWork       Boolean  @default(false)
+  hiring           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  neighbourhood    Neighbourhood? @relation(fields: [neighbourhoodId], references: [id])
+
+  profile             Profile?
+  experiences         Experience[]
+  educations          Education[]
+  skills              Skill[]
+  certifications      Certification[]
+  projects            Project[]
+  languages           Language[]
+  volunteerings       Volunteering[]
+  verificationDocs    VerificationDocument[]
+  badges              Badge[]
+  trustScore          TrustScore?
+
+  postsAuthored       Post[]
+  reactions           Reaction[]
+  comments            Comment[]
+  stories             Story[]
+  albums              Album[]
+
+  connectionsFrom     Connection[] @relation("ConnectionFrom")
+  connectionsTo       Connection[] @relation("ConnectionTo")
+
+  groupMemberships    GroupMember[]
+  groupsOwned         Group[]
+  eventsOrganised     Event[]
+  eventRsvps          EventRSVP[]
+  pagesOwned          Page[]
+  pageFollows         PageFollower[]
+
+  conversations       ConversationMember[]
+  messagesSent        Message[]
+
+  listings            Listing[]
+  savedItems          SavedItem[]
+
+  jobsPosted          Job[]
+  jobApplications     JobApplication[]
+  jobAlerts           JobAlert[]
+
+  serviceJobsAsCust   ServiceJob[]   @relation("ServiceJobCustomer")
+  quotesGiven         Quote[]
+  bookingsAsTasker    Booking[]      @relation("BookingTasker")
+  bookingsAsCustomer  Booking[]      @relation("BookingCustomer")
+  leads               Lead[]
+  creditWallet        CreditWallet?
+
+  reviewsGiven        Review[]       @relation("ReviewReviewer")
+  reviewsReceived     Review[]       @relation("ReviewReviewee")
+
+  notifications       Notification[]
+  reportsMade         Report[]       @relation("ReportReporter")
+  savedSearches       SavedSearch[]
+  helpRequests        HelpRequest[]
+
+  courseEnrollments   Enrollment[]
+  coursesAuthored     Course[]
+  fundraisersCreated  Fundraiser[]
+  donationsMade       Donation[]
+  mentorProfile       Mentor?
+  mentorSessionsGiven MentorSession[] @relation("MentorSessionMentor")
+  mentorSessionsTaken MentorSession[] @relation("MentorSessionLearner")
+  referralsGiven      JobReferral[]   @relation("ReferralReferrer")
+  assessmentsTaken    SkillAssessment[]
+  // TrustFive marketplace (separate from social verification)
+  tradeApprovals      TradeApproval[]
+  collabRequestsAuthored CollabRequest[]
+  collabInterests     CollabInterest[]
+  supportCasesAsCustomer SupportCase[] @relation("SupportCaseCustomer")
+  supportCasesAsTrade SupportCase[]    @relation("SupportCaseTrade")
+}
+
+model Profile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  headline         String?
+  about            String?
+  customUrl        String?
+  lifeEvents       String   @default("[]") // JSON
+  haves            String   @default("[]") // JSON — Xing style offers
+  wants            String   @default("[]") // JSON — Xing style searches
+  featured         String   @default("[]") // JSON media refs
+  tradeCategory    String?
+  areaCoveredKm    Int?
+  galleryBeforeAfter String @default("[]") // JSON
+  profileViews     Int      @default(0)
+  completenessScore Int     @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Experience {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  company   String
+  startMon  String
+  endMon    String?
+  current   Boolean  @default(false)
+  summary   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Education {
+  id        String   @id @default(cuid())
+  userId    String
+  school    String
+  degree    String?
+  field     String?
+  startYear String?
+  endYear   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Skill {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  endorsements Int      @default(0)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Certification {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  issuer    String?
+  issuedAt  String?
+  expiresAt String?
+  licenseNo String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  description String?
+  link      String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Language {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  level     String   @default("Conversational")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Volunteering {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String
+  org       String
+  description String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationDocument {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String   // ID | INSURANCE | QUALIFICATION | UTILITY_BILL
+  fileUrl    String
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewerNote String?
+  reviewedAt DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   // GAS_SAFE | NICEIC | ELITE | VERIFIED | TOP_PRO
+  issuedAt  DateTime @default(now())
+  expiresAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// SOCIAL GRAPH
+// ============================================================
+
+model Connection {
+  id           String   @id @default(cuid())
+  fromUserId   String
+  toUserId     String
+  status       String   @default("PENDING") // PENDING | ACCEPTED | BLOCKED
+  type         String   @default("FRIEND") // FRIEND | FOLLOW | CONNECTION
+  note         String?
+  createdAt    DateTime @default(now())
+  fromUser     User     @relation("ConnectionFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser       User     @relation("ConnectionTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  @@unique([fromUserId, toUserId, type])
+}
+
+// ============================================================
+// FEED
+// ============================================================
+
+model Post {
+  id          String   @id @default(cuid())
+  authorId    String
+  postType    String   @default("TEXT") // TEXT|PHOTO|VIDEO|LINK|POLL|CHECK_IN|RECOMMENDATION|SAFETY|LOST_FOUND|EVENT|URGENT
+  content     String
+  mediaUrls   String   @default("[]") // JSON
+  linkPreview String?  // JSON
+  pollOptions String   @default("[]") // JSON [{label,votes}]
+  geotag      String?  // JSON
+  audience    String   @default("PUBLIC") // PUBLIC|FRIENDS|NEIGHBOURHOOD|GROUP|CUSTOM
+  groupId     String?
+  pageId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions   Reaction[]
+  comments    Comment[]
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  type      String   // LIKE | LOVE | HAHA | WOW | SAD | ANGRY
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  content   String
+  parentId  String?
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Story {
+  id        String   @id @default(cuid())
+  userId    String
+  mediaUrl  String
+  type      String   @default("IMAGE") // IMAGE | VIDEO
+  caption   String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Album {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos    Photo[]
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  albumId   String
+  url       String
+  tags      String   @default("[]") // JSON
+  createdAt DateTime @default(now())
+  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// GROUPS, EVENTS, PAGES
+// ============================================================
+
+model Group {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  description    String?
+  coverUrl       String?
+  privacy        String   @default("PUBLIC") // PUBLIC | PRIVATE | HIDDEN
+  rules          String   @default("[]") // JSON
+  category       String?
+  neighbourhoodId String?
+  ownerId        String
+  createdAt      DateTime @default(now())
+  owner          User     @relation(fields: [ownerId], references: [id])
+  members        GroupMember[]
+  neighbourhood  Neighbourhood? @relation(fields: [neighbourhoodId], references: [id])
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  role      String   @default("MEMBER") // ADMIN | MODERATOR | MEMBER
+  joinedAt  DateTime @default(now())
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([groupId, userId])
+}
+
+model Event {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  startAt       DateTime
+  endAt         DateTime?
+  location      String?
+  lat           Float?
+  lng           Float?
+  organiserId   String
+  groupId       String?
+  capacity      Int?
+  ticketPrice   Float?
+  isRecurring   String?  // JSON RRULE-style
+  coverUrl      String?
+  createdAt     DateTime @default(now())
+  organiser     User     @relation(fields: [organiserId], references: [id])
+  rsvps         EventRSVP[]
+}
+
+model EventRSVP {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   // GOING | MAYBE | NOT_GOING
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([eventId, userId])
+}
+
+model Page {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  type        String   @default("BUSINESS") // BUSINESS | ORGANISATION | PUBLIC_FIGURE | TRADESPERSON
+  description String?
+  coverUrl    String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  owner       User     @relation(fields: [ownerId], references: [id])
+  followers   PageFollower[]
+}
+
+model PageFollower {
+  id        String   @id @default(cuid())
+  pageId    String
+  userId    String
+  createdAt DateTime @default(now())
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([pageId, userId])
+}
+
+// ============================================================
+// CHAT
+// ============================================================
+
+model Conversation {
+  id        String   @id @default(cuid())
+  type      String   @default("DIRECT") // DIRECT | GROUP | JOB_LINKED
+  jobId     String?
+  name      String?
+  createdAt DateTime @default(now())
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+model ConversationMember {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  attachments    String       @default("[]") // JSON
+  type           String       @default("TEXT") // TEXT | IMAGE | QUOTE | SYSTEM
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id])
+}
+
+// ============================================================
+// MARKETPLACE
+// ============================================================
+
+model Listing {
+  id             String   @id @default(cuid())
+  sellerId       String
+  title          String
+  description    String?
+  price          Float    @default(0)
+  category       String?
+  condition      String   @default("USED") // NEW | USED | REFURBISHED
+  photos         String   @default("[]") // JSON
+  location       String?
+  lat            Float?
+  lng            Float?
+  radiusKm       Int      @default(5)
+  status         String   @default("ACTIVE") // ACTIVE | SOLD | EXPIRED
+  neighbourhoodId String?
+  isFree         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  seller         User     @relation(fields: [sellerId], references: [id])
+  savedBy        SavedItem[]
+  neighbourhood  Neighbourhood? @relation(fields: [neighbourhoodId], references: [id])
+}
+
+model SavedItem {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, listingId])
+}
+
+// ============================================================
+// JOBS BOARD
+// ============================================================
+
+model Job {
+  id             String   @id @default(cuid())
+  postedById     String
+  pageId         String?
+  title          String
+  description    String?
+  type           String   @default("FULL_TIME") // FULL_TIME | PART_TIME | CONTRACT | FREELANCE | GIG
+  location       String?
+  salaryMin      Float?
+  salaryMax      Float?
+  currency       String   @default("GBP")
+  skillsRequired String   @default("[]") // JSON
+  employmentType String?
+  applyUrl       String?
+  isEasyApply    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  postedBy       User     @relation(fields: [postedById], references: [id])
+  applications   JobApplication[]
+}
+
+model JobApplication {
+  id          String   @id @default(cuid())
+  jobId       String
+  userId      String
+  status      String   @default("SUBMITTED") // SUBMITTED | REVIEWED | INTERVIEW | OFFER | REJECTED
+  coverLetter String?
+  appliedAt   DateTime @default(now())
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+  @@unique([jobId, userId])
+}
+
+model JobAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String   @default("{}") // JSON
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// SERVICE MARKETPLACE (tradesperson booking)
+// ============================================================
+
+model ServiceCategory {
+  id            String   @id @default(cuid())
+  name          String
+  parentId      String?
+  icon          String?
+  questionSchema String  @default("[]") // JSON Bark-style dynamic form
+  createdAt     DateTime @default(now())
+}
+
+model ServiceJob {
+  id          String   @id @default(cuid())
+  customerId  String
+  categoryId  String
+  title       String
+  description String?
+  budgetMin   Float?
+  budgetMax   Float?
+  timing      String?
+  photos      String   @default("[]") // JSON
+  location    String?
+  lat         Float?
+  lng         Float?
+  status      String   @default("OPEN") // OPEN | QUOTED | HIRED | COMPLETED | CANCELLED
+  answers     String   @default("{}") // JSON Bark-style answers
+  createdAt   DateTime @default(now())
+  customer    User     @relation("ServiceJobCustomer", fields: [customerId], references: [id])
+  quotes      Quote[]
+  leads       Lead[]
+}
+
+model Quote {
+  id             String   @id @default(cuid())
+  jobId          String
+  tradespersonId String
+  price          Float
+  scope          String?
+  timeline       String?
+  status         String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  createdAt      DateTime @default(now())
+  serviceJob     ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  tradesperson   User     @relation(fields: [tradespersonId], references: [id])
+}
+
+model Booking {
+  id             String   @id @default(cuid())
+  taskerId       String
+  customerId     String
+  category       String
+  scheduledAt    DateTime
+  durationHours  Float    @default(2)
+  hourlyRate     Float    @default(35)
+  status         String   @default("REQUESTED") // REQUESTED | ACCEPTED | IN_PROGRESS | COMPLETED | CANCELLED
+  recurrenceRule String?  // JSON iCal-style
+  paymentStatus  String   @default("PENDING") // PENDING | ESCROW | RELEASED | REFUNDED
+  createdAt      DateTime @default(now())
+  tasker         User     @relation("BookingTasker", fields: [taskerId], references: [id])
+  customer       User     @relation("BookingCustomer", fields: [customerId], references: [id])
+}
+
+model CreditWallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(10)
+  currency  String   @default("GBP")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id             String   @id @default(cuid())
+  jobId          String
+  tradespersonId String
+  price          Int      @default(1) // credits
+  status         String   @default("NEW") // NEW | CONTACTED | WON | LOST | REFUNDED
+  createdAt      DateTime @default(now())
+  serviceJob     ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  tradesperson   User     @relation(fields: [tradespersonId], references: [id])
+}
+
+// ============================================================
+// REVIEWS & TRUST
+// ============================================================
+
+model Review {
+  id           String   @id @default(cuid())
+  reviewerId   String
+  revieweeId   String
+  revieweeType String   @default("USER") // USER | PAGE | TRADESPERSON
+  jobId        String?
+  bookingId    String?
+  rating       Int      @default(5)
+  criteria     String   @default("{}") // JSON {reliability,tidiness,workmanship,communication,value}
+  comment      String?
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  reviewer     User     @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+  reviewee     User     @relation("ReviewReviewee", fields: [revieweeId], references: [id])
+}
+
+model TrustScore {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  overallScore    Float    @default(50)
+  reviewCount     Int      @default(0)
+  completionRate  Float    @default(1)
+  responseTimeMins Int     @default(60)
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// NEIGHBOURHOOD / GEO
+// ============================================================
+
+model Neighbourhood {
+  id            String   @id @default(cuid())
+  name          String
+  city          String?
+  country       String?
+  boundaryGeojson String @default("{}") // JSON polygon
+  centroidLat   Float?
+  centroidLng   Float?
+  createdAt     DateTime @default(now())
+  users         User[]
+  groups        Group[]
+  listings      Listing[]
+}
+
+model Alert {
+  id           String   @id @default(cuid())
+  type         String   // WEATHER | CRIME | SAFETY | AGENCY
+  title        String
+  content      String?
+  areaGeojson  String   @default("{}") // JSON
+  severity     String   @default("INFO") // INFO | MINOR | MODERATE | SEVERE
+  issuedBy     String?
+  createdAt    DateTime @default(now())
+}
+
+model HelpRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  lat         Float?
+  lng         Float?
+  status      String   @default("OPEN") // OPEN | HELPED | CLOSED
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// ============================================================
+// NOTIFICATIONS, SEARCH, MODERATION
+// ============================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // MENTION | REACTION | CONNECTION_REQUEST | JOB_ALERT | QUOTE_RECEIVED | BOOKING_UPDATE | MESSAGE | REVIEW | SYSTEM
+  title     String
+  body      String?
+  data      String   @default("{}") // JSON
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id           String   @id @default(cuid())
+  reporterId   String
+  entityType   String   // POST | USER | LISTING | JOB | SERVICE_JOB | REVIEW
+  entityId     String
+  reason       String
+  status       String   @default("OPEN") // OPEN | REVIEWING | RESOLVED
+  createdAt    DateTime @default(now())
+  reporter     User     @relation("ReportReporter", fields: [reporterId], references: [id])
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String
+  filters   String   @default("{}") // JSON
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// LEARNING (LinkedIn Learning — courses + certificates)
+// ============================================================
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String?
+  instructorId String?
+  thumbnailUrl String?
+  durationMins Int     @default(60)
+  lessons     String   @default("[]") // JSON [{title,videoUrl,durationMins}]
+  skillTag    String?
+  level       String   @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
+  createdAt   DateTime @default(now())
+  instructor  User?    @relation(fields: [instructorId], references: [id])
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id           String   @id @default(cuid())
+  userId       String
+  courseId     String
+  progressPct  Int      @default(0)
+  completedAt  DateTime?
+  certificateUrl String?
+  enrolledAt   DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  @@unique([userId, courseId])
+}
+
+model SkillAssessment {
+  id         String   @id @default(cuid())
+  userId     String
+  skillName  String
+  score      Int      @default(0)
+  passed     Boolean  @default(false)
+  badgeAwarded Boolean @default(false)
+  takenAt    DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// FUNDRAISERS (Facebook — donations + campaigns)
+// ============================================================
+
+model Fundraiser {
+  id          String   @id @default(cuid())
+  creatorId   String
+  title       String
+  description String?
+  coverUrl    String?
+  goalAmount  Float
+  raisedAmount Float   @default(0)
+  currency    String   @default("GBP")
+  category    String   @default("CHARITY") // CHARITY | MEDICAL | COMMUNITY | EMERGENCY | EDUCATION
+  deadline    DateTime?
+  createdAt   DateTime @default(now())
+  creator     User     @relation(fields: [creatorId], references: [id])
+  donations   Donation[]
+}
+
+model Donation {
+  id           String   @id @default(cuid())
+  fundraiserId String
+  donorId      String
+  amount       Float
+  currency     String   @default("GBP")
+  message      String?
+  anonymous    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  fundraiser   Fundraiser @relation(fields: [fundraiserId], references: [id], onDelete: Cascade)
+  donor        User     @relation(fields: [donorId], references: [id])
+}
+
+// ============================================================
+// COACHING & MENTORING (Xing — mentor booking)
+// ============================================================
+
+model Mentor {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  expertise    String   // e.g. "Career transitions"
+  bio          String?
+  hourlyRate   Float    @default(75)
+  currency     String   @default("GBP")
+  rating       Float    @default(5)
+  sessionCount Int      @default(0)
+  available    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MentorSession {
+  id          String   @id @default(cuid())
+  mentorId    String
+  learnerId   String
+  topic       String
+  scheduledAt DateTime
+  durationMins Int     @default(60)
+  status      String   @default("REQUESTED") // REQUESTED | CONFIRMED | COMPLETED | CANCELLED
+  price       Float    @default(75)
+  notes       String?
+  createdAt   DateTime @default(now())
+  mentor      User     @relation("MentorSessionMentor", fields: [mentorId], references: [id])
+  learner     User     @relation("MentorSessionLearner", fields: [learnerId], references: [id])
+}
+
+// ============================================================
+// JOB REFERRALS (LinkedIn — referral links + bonus tracking)
+// ============================================================
+
+model JobReferral {
+  id          String   @id @default(cuid())
+  jobId       String
+  referrerId  String
+  candidateId String?
+  status      String   @default("PENDING") // PENDING | HIRED | REJECTED
+  bonusAmount Float?
+  bonusPaidAt DateTime?
+  createdAt   DateTime @default(now())
+  referrer    User     @relation("ReferralReferrer", fields: [referrerId], references: [id])
+}
+
+// ============================================================
+// TRUSTFIVE CORE — FIVE-SLOT NETWORK & B2B PLATFORM
+// The five-slot rule: only 5 approved providers per trade per
+// district. Approval is a marketplace concept, separate from
+// social verification — social actions never create or revoke
+// marketplace approval (per the TrustFive security boundaries).
+// ============================================================
+
+model District {
+  id        String   @id @default(cuid())
+  name      String   @unique // town or outward postcode district, e.g. "Manchester" or "M14"
+  region    String?  // e.g. "Greater Manchester"
+  country   String   @default("UK")
+  centroidLat Float?
+  centroidLng Float?
+  createdAt DateTime @default(now())
+  tradeSlots TradeSlot[]
+  collabRequests CollabRequest[]
+}
+
+model TradeSlot {
+  id           String   @id @default(cuid())
+  tradeName    String   // e.g. "Plumbing", "Electrical", "Gas Safe"
+  districtId   String
+  maxSlots     Int      @default(5) // THE FIVE-SLOT RULE
+  filledSlots  Int      @default(0)
+  createdAt    DateTime @default(now())
+  district     District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  approvals    TradeApproval[]
+  @@unique([tradeName, districtId])
+}
+
+model TradeApproval {
+  id           String   @id @default(cuid())
+  userId       String
+  tradeName    String
+  districtId   String
+  tradeSlotId  String
+  status       String   @default("PENDING") // PENDING | APPROVED | WAITLISTED | REVOKED
+  rank         Int      @default(0) // 1-5 for approved, 6+ for waitlisted
+  appliedAt    DateTime @default(now())
+  approvedAt   DateTime?
+  revokedAt    DateTime?
+  reviewNote   String?
+  documents    String   @default("[]") // JSON [{type, url, status}]
+  tradeSlot    TradeSlot @relation(fields: [tradeSlotId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, tradeName, districtId])
+}
+
+// ============================================================
+// B2B COLLABORATION REQUESTS
+// Tradespeople posting for subcontractors / collaborators.
+// NO customer columns — this is B2B only.
+// Status transitions are server-side only.
+// ============================================================
+
+model CollabRequest {
+  id          String   @id @default(cuid())
+  authorId    String   // the tradesperson seeking help
+  tradeNeeded String   // e.g. "Plumber needed for 3 days"
+  districtId  String?
+  districtName String? // denormalised for display
+  startDate   DateTime?
+  endDate     DateTime?
+  scope       String?
+  status      String   @default("OPEN") // OPEN | INTERESTED | CLOSED
+  budgetMin   Float?
+  budgetMax   Float?
+  createdAt   DateTime @default(now())
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  district    District? @relation(fields: [districtId], references: [id])
+  interests   CollabInterest[]
+}
+
+model CollabInterest {
+  id              String   @id @default(cuid())
+  collabRequestId String
+  tradeUserId     String
+  note            String?
+  status          String   @default("EXPRESSED") // EXPRESSED | ACCEPTED | DECLINED
+  createdAt       DateTime @default(now())
+  collabRequest   CollabRequest @relation(fields: [collabRequestId], references: [id], onDelete: Cascade)
+  tradeUser       User     @relation(fields: [tradeUserId], references: [id], onDelete: Cascade)
+  @@unique([collabRequestId, tradeUserId])
+}
+
+// ============================================================
+// BOOKING SUPPORT / DISPUTE RESOLUTION
+// ============================================================
+
+model SupportCase {
+  id          String   @id @default(cuid())
+  bookingId   String?
+  customerId  String
+  tradespersonId String?
+  subject     String
+  description String
+  status      String   @default("OPEN") // OPEN | IN_REVIEW | RESOLVED | ESCALATED
+  priority    String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  resolution  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  customer    User     @relation("SupportCaseCustomer", fields: [customerId], references: [id])
+  tradesperson User?   @relation("SupportCaseTrade", fields: [tradespersonId], references: [id])
+}
