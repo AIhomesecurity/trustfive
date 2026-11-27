@@ -131,7 +131,7 @@ test('signed-in mobile saved discussions recover a load and local events recover
   ]}));
   failFeed=true;
   await page.goto('/community');
-  await expect(page).toHaveURL(/\\/community\\/social$/);
+  await expect(page).toHaveURL(url=>url.pathname==='/community/social');
   const retryFeed=page.getByRole('button',{name:'Retry loading posts'});
   await expect(retryFeed).toBeVisible();
   failFeed=false;
