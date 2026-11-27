@@ -368,6 +368,16 @@
 
 /* TrustFive Social home, navigation, scope bar and post cards — UK-first green & white. */
 .social-hub{padding-bottom:48px}
+.social-member-profile-details{border:0}
+.social-member-profile-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;cursor:pointer;list-style:none}
+.social-member-profile-summary::-webkit-details-marker{display:none}
+.social-member-profile-summary-copy{display:grid;gap:3px;min-width:0}
+.social-member-profile-summary-copy strong{font-size:15px;color:var(--dark)}
+.social-member-profile-summary-copy span{font-size:13px;line-height:1.35;color:var(--muted)}
+.social-member-profile-action{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;border-radius:999px;background:#edf8f1;color:var(--green);font-size:13px;font-weight:800;white-space:nowrap}
+.social-member-profile-summary:focus-visible{outline:3px solid #21956d;outline-offset:3px;border-radius:10px}
+.social-member-profile-details[open] .social-member-profile-summary{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+.social-member-profile-content{display:grid;gap:10px}
 .social-home-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 8px}
 .social-home-head h1{margin:0;font-size:clamp(24px,2vw,30px);line-height:1.15;letter-spacing:-.035em}
 .social-home-head .eyebrow,.social-home-head .subtle{display:none}
