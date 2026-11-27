@@ -257,7 +257,150 @@ export default function SocialMemberNetwork({
 
   return (
     <section className="list" aria-labelledby="member-network-heading" data-testid="social-member-network">
+      {notice && (
+        <p className={noticeIsError ? 'notice error' : 'notice'} role={noticeIsError ? 'alert' : 'status'}>
+          {notice}
+        </p>
+      )}
+      {incomingPending.length > 0 && (
+        <div className="card">
+          <h3 style={{marginTop: 0}}>Incoming connection requests ({incomingPending.length})</h3>
+          <div className="list">
+            {incomingPending.map((req) => {
+              const requester = profiles.find((p) => p.user_id === req.requester_id);
+              return (
+                <div key={req.id} className="social-reminder-row">
+                  <div>
+                    <strong>{requester?.display_name ?? 'TrustFive member'}</strong>
+                    {req.intro_note && <p className="muted-note" style={{margin: '4px 0 0'}}>{req.intro_note}</p>}
+                  </div>
+                  <div style={{display: 'flex', gap: 8}}>
+                    <button type="button" className="btn" disabled={busy} onClick={() => void respondConnection(req.id, 'accepted')}>
+                      Accept
+                    </button>
+                    <button type="button" className="btn secondary" disabled={busy} onClick={() => void respondConnection(req.id, 'declined')}>
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="card">
+        <span className="eyebrow">People &amp; Local Trades Network</span>
+        <h3 style={{marginTop: 4}}>Connect &amp; endorse skills ({otherMembers.length})</h3>
+        <p className="muted-note" style={{marginTop: 0}}>
+          Peer skill endorsements reflect neighbour and trade feedback — they never grant an approved five-slot
+          marketplace badge or affect ranking.
+        </p>
+
+        {loading ? (
+          <p className="muted-note">Loading local member profiles…</p>
+        ) : otherMembers.length === 0 ? (
+          <p className="muted-note" style={{marginBottom: 0}}>
+            No other member profiles published yet. Save your profile above so neighbours and local trades can connect
+            with you as members join!
+          </p>
+        ) : (
+          <div className="list">
+            {otherMembers.map((member) => {
+              const area = member.area_id ? findSocialArea(areas, member.area_id) : null;
+              const existingConn = connections.find(
+                (c) =>
+                  (c.requester_id === userId && c.addressee_id === member.user_id) ||
+                  (c.addressee_id === userId && c.requester_id === member.user_id)
+              );
+              return (
+                <article key={member.user_id} className="card">
+                  <div style={{display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap'}}>
+                    <strong>{member.display_name}</strong>
+                    <div style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
+                      {member.open_to_work && <span className="pill">Open to work</span>}
+                      {member.open_to_referrals && <span className="pill">Open to referrals</span>}
+                      {area && <span className="pill">{area.area_name}</span>}
+                    </div>
+                  </div>
+                  {member.headline && <p style={{margin: '6px 0', fontWeight: 600}}>{member.headline}</p>}
+                  {member.offers_summary && (
+                    <p className="muted-note" style={{margin: '4px 0'}}>
+                      <strong>Offers:</strong> {member.offers_summary}
+                    </p>
+                  )}
+                  {member.looking_for_summary && (
+                    <p className="muted-note" style={{margin: '4px 0'}}>
+                      <strong>Looking for:</strong> {member.looking_for_summary}
+                    </p>
+                  )}
+                  {member.skills.length > 0 && (
+                    <div className="social-topic-pills" style={{marginTop: 10}}>
+                      {member.skills.map((sk) => {
+                        const count = endorsements.filter(
+                          (e) => e.member_id === member.user_id && e.skill === sk
+                        ).length;
+                        const endorsedByMe = endorsements.some(
+                          (e) => e.member_id === member.user_id && e.skill === sk && e.endorser_id === userId
+                        );
+                        return (
+                          <button
+                            key={sk}
+                            type="button"
+                            className="tf-chip-btn"
+                            disabled={busy || endorsedByMe}
+                            onClick={() => void endorseSkill(member.user_id, sk)}
+                          >
+                            {endorsedByMe ? '✓ ' : '+ '}
+                            {sk} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{marginTop: 12}}>
+                    {existingConn ? (
+                      <span className="pill">Connection: {existingConn.status}</span>
+                    ) : (
+                      <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                        <input
+                          type="text"
+                          maxLength={200}
+                          value={connectNoteByUser[member.user_id] ?? ''}
+                          onChange={(e) =>
+                            setConnectNoteByUser((prev) => ({...prev, [member.user_id]: e.target.value}))
+                          }
+                          placeholder="Add a personal intro note (optional, no phones/links)"
+                          style={{flex: '1 1 220px'}}
+                        />
+                        <button
+                          type="button"
+                          className="btn secondary"
+                          disabled={busy}
+                          onClick={() => void sendConnection(member.user_id)}
+                        >
+                          Connect
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="card social-member-profile-card">
+        <details className="social-member-profile-details">
+          <summary className="social-member-profile-summary">
+            <span className="social-member-profile-summary-copy">
+              <strong>Your TrustFive profile</strong>
+              <span>{completeness.percent}% complete · Edit your headline, skills and what you offer</span>
+            </span>
+            <span className="social-member-profile-action">Edit profile</span>
+          </summary>
+          <div className="social-member-profile-content">
         <span className="eyebrow">LinkedIn × Xing Dual-Mode Profile</span>
         <h2 id="member-network-heading" className="social-card-title">
           Your TrustFive Profile, Skills &amp; Haves / Wants
@@ -403,142 +546,10 @@ export default function SocialMemberNetwork({
           </button>
         </form>
 
-        {notice && (
-          <p className={noticeIsError ? 'notice error' : 'notice'} role={noticeIsError ? 'alert' : 'status'}>
-            {notice}
-          </p>
-        )}
+          </div>
+        </details>
       </div>
 
-      {incomingPending.length > 0 && (
-        <div className="card">
-          <h3 style={{marginTop: 0}}>Incoming connection requests ({incomingPending.length})</h3>
-          <div className="list">
-            {incomingPending.map((req) => {
-              const requester = profiles.find((p) => p.user_id === req.requester_id);
-              return (
-                <div key={req.id} className="social-reminder-row">
-                  <div>
-                    <strong>{requester?.display_name ?? 'TrustFive member'}</strong>
-                    {req.intro_note && <p className="muted-note" style={{margin: '4px 0 0'}}>{req.intro_note}</p>}
-                  </div>
-                  <div style={{display: 'flex', gap: 8}}>
-                    <button type="button" className="btn" disabled={busy} onClick={() => void respondConnection(req.id, 'accepted')}>
-                      Accept
-                    </button>
-                    <button type="button" className="btn secondary" disabled={busy} onClick={() => void respondConnection(req.id, 'declined')}>
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="card">
-        <span className="eyebrow">People &amp; Local Trades Network</span>
-        <h3 style={{marginTop: 4}}>Connect &amp; endorse skills ({otherMembers.length})</h3>
-        <p className="muted-note" style={{marginTop: 0}}>
-          Peer skill endorsements reflect neighbour and trade feedback — they never grant an approved five-slot
-          marketplace badge or affect ranking.
-        </p>
-
-        {loading ? (
-          <p className="muted-note">Loading local member profiles…</p>
-        ) : otherMembers.length === 0 ? (
-          <p className="muted-note" style={{marginBottom: 0}}>
-            No other member profiles published yet. Save your profile above so neighbours and local trades can connect
-            with you as members join!
-          </p>
-        ) : (
-          <div className="list">
-            {otherMembers.map((member) => {
-              const area = member.area_id ? findSocialArea(areas, member.area_id) : null;
-              const existingConn = connections.find(
-                (c) =>
-                  (c.requester_id === userId && c.addressee_id === member.user_id) ||
-                  (c.addressee_id === userId && c.requester_id === member.user_id)
-              );
-              return (
-                <article key={member.user_id} className="card">
-                  <div style={{display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap'}}>
-                    <strong>{member.display_name}</strong>
-                    <div style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
-                      {member.open_to_work && <span className="pill">Open to work</span>}
-                      {member.open_to_referrals && <span className="pill">Open to referrals</span>}
-                      {area && <span className="pill">{area.area_name}</span>}
-                    </div>
-                  </div>
-                  {member.headline && <p style={{margin: '6px 0', fontWeight: 600}}>{member.headline}</p>}
-                  {member.offers_summary && (
-                    <p className="muted-note" style={{margin: '4px 0'}}>
-                      <strong>Offers:</strong> {member.offers_summary}
-                    </p>
-                  )}
-                  {member.looking_for_summary && (
-                    <p className="muted-note" style={{margin: '4px 0'}}>
-                      <strong>Looking for:</strong> {member.looking_for_summary}
-                    </p>
-                  )}
-                  {member.skills.length > 0 && (
-                    <div className="social-topic-pills" style={{marginTop: 10}}>
-                      {member.skills.map((sk) => {
-                        const count = endorsements.filter(
-                          (e) => e.member_id === member.user_id && e.skill === sk
-                        ).length;
-                        const endorsedByMe = endorsements.some(
-                          (e) => e.member_id === member.user_id && e.skill === sk && e.endorser_id === userId
-                        );
-                        return (
-                          <button
-                            key={sk}
-                            type="button"
-                            className="tf-chip-btn"
-                            disabled={busy || endorsedByMe}
-                            onClick={() => void endorseSkill(member.user_id, sk)}
-                          >
-                            {endorsedByMe ? '✓ ' : '+ '}
-                            {sk} ({count})
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div style={{marginTop: 12}}>
-                    {existingConn ? (
-                      <span className="pill">Connection: {existingConn.status}</span>
-                    ) : (
-                      <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
-                        <input
-                          type="text"
-                          maxLength={200}
-                          value={connectNoteByUser[member.user_id] ?? ''}
-                          onChange={(e) =>
-                            setConnectNoteByUser((prev) => ({...prev, [member.user_id]: e.target.value}))
-                          }
-                          placeholder="Add a personal intro note (optional, no phones/links)"
-                          style={{flex: '1 1 220px'}}
-                        />
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          disabled={busy}
-                          onClick={() => void sendConnection(member.user_id)}
-                        >
-                          Connect
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </section>
   );
 }
