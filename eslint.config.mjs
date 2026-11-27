@@ -1,1 +1,2 @@
-// ESLint disabled — no config needed (eslint.ignoreDuringBuilds: true in next.config.ts)
+const config = [];
+export default config;
