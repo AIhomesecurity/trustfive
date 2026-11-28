@@ -20,6 +20,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: Test appointment calendar view logic
+        run: node --test tests/unit/appointment-calendar-view.test.mjs
       - name: Test official boundary inspection (never auto-approve geography)
         run: node --test tests/geo/inspect-boundary-geojson.test.mjs
       - name: Test protected preview verification
