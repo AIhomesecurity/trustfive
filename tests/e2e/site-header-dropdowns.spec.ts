@@ -20,6 +20,6 @@ test('Desktop Explore menu stays open across its pointer bridge and closes on po
  await coverage.focus();
  await expect(coverage).toBeFocused();
  await expect(explore).toHaveAttribute('open','');
- await page.getByRole('link',{name:'Post a job'}).focus();
+ await page.getByRole('link',{name:'Post a job',exact:true}).focus();
  await expect(explore).not.toHaveAttribute('open','');
 });
