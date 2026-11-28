@@ -1,7 +1,8 @@
 'use client'
+import type { ComponentType } from 'react'
 import { Award, Home, Users, Calendar, ShoppingBag, FileText, Briefcase, Wrench, GraduationCap, LifeBuoy, User, Bell, Settings } from 'lucide-react'
 
-type Icon = React.ComponentType<{ className?: string }>
+type Icon = ComponentType<{ className?: string }>
 type NavItem = { key: string; label: string; icon: Icon }
 type Group = { title: string; items: NavItem[] }
 
