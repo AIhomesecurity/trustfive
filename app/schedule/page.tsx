@@ -15,6 +15,7 @@ import {
   type ScheduledAppointment,
 } from '../../lib/appointment-schedule';
 import {buildAppointmentIcs} from '../../lib/tradesman-utilities';
+import AppointmentAgenda from '../../components/appointment-agenda';
 
 type Booking={id:string;customer_id:string;professional_id:string;status:string};
 
@@ -243,6 +244,7 @@ export default function BookingSchedule(){
     <div className="card"><h3>{summary.awaitingYourConfirmation}</h3><p>Awaiting your confirmation</p></div>
     <div className="card"><h3>{summary.awaitingOtherParty}</h3><p>Awaiting other participant</p></div>
    </div>
+   <AppointmentAgenda bookings={bookings} appointments={appointments} timezone={zone} />
    {busyWindows.length>0&&<section className="card" style={{marginBottom:22}} aria-label="Confirmed busy windows">
     <h2 style={{marginTop:0}}>Your confirmed busy windows</h2>
     <p className="muted-note">Confirmed slots below block overlapping proposals on other bookings until cancelled or completed.</p>
