@@ -104,14 +104,14 @@ export default function SiteHeader(){
    <Link href="/" aria-label="TrustFive home" onClick={()=>setMobileOpen(false)}><img className="logo" src="/trustfive-logo.svg" alt="TrustFive"/></Link>
    <nav className="nav primary-nav" aria-label="Main navigation">
     {publicLinks.map(link=><Link key={link.href} href={link.href} {...linkProps(link.href)}>{link.label}</Link>)}
-    <details className="nav-more">
+    <details className="nav-more" onToggle={(event)=>{const menu=event.currentTarget;if(menu.open){menu.parentElement?.querySelectorAll<HTMLDetailsElement>('details.nav-more[open]').forEach((sibling)=>{if(sibling!==menu)sibling.open=false;});}}} onMouseLeave={(event)=>{event.currentTarget.open=false;}} onBlur={(event)=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))event.currentTarget.open=false;}}>
      <summary>Explore</summary>
      <div className="nav-menu">
       <span className="nav-menu-label">More from TrustFive</span>
       {exploreLinks.map(link=><Link href={link.href} key={link.href} {...linkProps(link.href)}>{link.label}</Link>)}
      </div>
     </details>
-    {account.status==='checking'?<span className="nav-account-loading" aria-label="Checking account"/>:account.status==='signed-in'?<details className="nav-more account-menu">
+    {account.status==='checking'?<span className="nav-account-loading" aria-label="Checking account"/>:account.status==='signed-in'?<details className="nav-more account-menu" onToggle={(event)=>{const menu=event.currentTarget;if(menu.open){menu.parentElement?.querySelectorAll<HTMLDetailsElement>('details.nav-more[open]').forEach((sibling)=>{if(sibling!==menu)sibling.open=false;});}}} onMouseLeave={(event)=>{event.currentTarget.open=false;}} onBlur={(event)=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))event.currentTarget.open=false;}}>
      <summary aria-label="Open account menu">
       <span className="account-avatar" aria-hidden="true">{initials(account.name)}</span>
       <span className="account-summary-copy"><strong>{account.name}</strong><small>{account.role==='professional'?'Business account':'Customer account'}</small></span>

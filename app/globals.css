@@ -45,6 +45,8 @@
 .primary-nav{gap:19px}
 .primary-nav>a:not(.btn){white-space:nowrap}
 .nav-more{position:relative}
+.nav-more::after{content:'';position:absolute;left:0;right:0;top:100%;height:14px}
+.nav-more summary:focus-visible{outline:3px solid #08683e;outline-offset:4px;border-radius:8px}
 .nav-more summary{list-style:none;cursor:pointer;white-space:nowrap}
 .nav-more summary::-webkit-details-marker{display:none}
 .nav-more summary:after{content:'⌄';display:inline-block;margin-left:5px;font-weight:800}
