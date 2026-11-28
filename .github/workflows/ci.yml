@@ -1,0 +1,68 @@
+name: TrustFive checks
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - development/foundation
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test appointment calendar view logic
+        run: node --test tests/unit/appointment-calendar-view.test.mjs
+      - name: Test official boundary inspection (never auto-approve geography)
+        run: node --test tests/geo/inspect-boundary-geojson.test.mjs
+      - name: Test protected preview verification
+        run: node --test tests/release/*.test.mjs
+      - name: Check types
+        run: npx tsc --noEmit
+      - name: Build application
+        run: npm run build
+      - name: Compile Cloudflare Worker without publishing
+        env:
+          TRUSTFIVE_BUILD_SHA: ${{ github.sha }}
+        run: npm run build:vinext
+      - name: Smoke test the Cloudflare Worker build locally
+        env:
+          EXPECTED_WORKER_SHA: ${{ github.sha }}
+        run: bash tests/release/cloudflare-worker-smoke.sh
+      - name: Smoke test web server and basic HTTP routes
+        run: |
+          set -euo pipefail
+          npm run start -- --port 3007 > /tmp/trustfive-server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=false
+          for n in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3007/ 2>/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            cat /tmp/trustfive-server.log
+            exit 1
+          fi
+          for path in / /account /services /billing /schedule /business/example /api/health; do
+            curl -fsS -o /dev/null "http://127.0.0.1:3007$path"
+          done
+          curl -fsS http://127.0.0.1:3007/api/health | grep -q '"status":"ok"'
+          node tests/release/signed-in-smoke.mjs
+
+      - name: Install Chromium browser runtime
+        run: npx playwright install --with-deps chromium
+      - name: Run browser-level route and authentication tests
+        run: npm run test:e2e

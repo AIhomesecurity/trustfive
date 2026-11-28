@@ -1,0 +1,150 @@
+name: TrustFive database integration
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - development/foundation
+  workflow_call:
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trustfive_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: trustfive_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if needed
+        run: |
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Test and run migration preflight
+        run: |
+          bash tests/db/check-migration-versions.sh
+          bash scripts/db/check-migration-versions.sh
+      - name: Bootstrap Supabase auth compatibility
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/bootstrap.sql
+      - name: Apply TrustFive migrations
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying $migration"
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Verify preview schema readiness after migration replay
+        run: |
+          checks=$(psql -XAt -v ON_ERROR_STOP=1 -f scripts/release/preview-schema-readiness.sql)
+          printf '%s\n' "$checks"
+          test -n "$checks"
+          if grep -qvE '^.+[|]t$' <<< "$checks"; then
+            echo "Preview schema readiness check failed" >&2
+            exit 1
+          fi
+
+      - name: Test RLS, five-slot constraint and quote completion
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/flows.sql
+
+      - name: Test private nearby matching and human-verification controls
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/proximity.sql
+
+      - name: Check trigger function execution permissions
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/security-definer-trigger-acl.sql
+
+
+      - name: Audit public directory SECURITY DEFINER and output allowlist
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/public-directory-security-contract.sql
+
+      - name: Assert complete SECURITY DEFINER role grant matrix
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/security-definer-grant-matrix.sql
+
+      - name: Verify geographic territory enforcement contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/verified_territory_contract.sql
+
+      - name: Assert private booking consent audit and verified-radius lead contracts
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/private-booking-contract.sql
+
+      - name: Verify private table and public directory negative RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/private-table-directory-negative-contract.sql
+
+      - name: Verify complaint and appeal participant authorization
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/complaint-appeal-rls-contract.sql
+
+      - name: Verify community moderation and notifications isolation
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/community-moderation-rls-contract.sql
+
+      - name: Verify launch readiness administrator authorization
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/launch-readiness-contract.sql
+
+      - name: Exercise independently reviewed territory RPC with rollback-only fixtures
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/human-territory-review-contract.sql
+
+      - name: Verify country release evidence, role isolation and payment revocation gate
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/country-release-signoff-contract.sql
+
+      - name: Enforce nationwide pending-area interest privacy and no self-approval
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/uk-area-interest-contract.sql
+
+      - name: Verify job contact preferences, quote availability, withdrawal and privacy contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/job-quote-booking-workflow-contract.sql
+
+      - name: Verify marketplace job lifecycle, security and abuse-prevention contract (Phase 7)
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/marketplace-security-abuse-contract.sql
+
+      - name: Verify professional onboarding, verification RLS, suspension and five-slot waiting list
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/professional-onboarding-five-slot-contract.sql
+
+      - name: Verify opt-in public applicant directory privacy and access contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/public-waitlist-directory-contract.sql
+
+      - name: Verify message participant entitlements with exact read counts
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/message-participant-entitlement-contract.sql
+
+      - name: Verify targeted marketplace FK indexes and EXPLAIN plans (Issue #13)
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/query-plan-indexes-contract.sql
+
+      - name: Verify professional collaboration registration, private interests and closed-request RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-trade-collaboration-contract.sql
+
+      - name: Verify private saved-post RLS, anonymous denial and hidden-post privacy
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-saved-posts-rls-contract.sql
+
+      - name: Verify showcase privacy, moderation and author permissions
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/completed-work-showcase-contract.sql
+
+      - name: Verify Social group membership, protected discussions and founder leave rules
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-group-conversations-rls-contract.sql
+
+      - name: Verify Social report resolution RPC, EXIF-stripped media RLS and Social notification paths
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-moderation-media-rls-contract.sql
+
+      - name: Verify Social anti-bypass contact/link constraints and zero-PII trade referrals RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-anti-bypass-referrals-contract.sql
+
+      - name: Verify public Social contact-sharing guard across posts, replies, groups and events
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-public-contact-guard-contract.sql
+
+      - name: Verify Homeowner Project Ideabooks strict owner-only RLS
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/ideabooks-rls-contract.sql
+
+      - name: Verify Social LinkedIn/Nextdoor super-app RLS, anti-bypass & polls contract
+        run: psql -v ON_ERROR_STOP=1 -f tests/db/social-superapp-contract.sql

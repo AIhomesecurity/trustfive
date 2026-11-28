@@ -1,0 +1,65 @@
+name: Gemini key connectivity (no generation)
+
+on:
+  push:
+    branches:
+      - feature/verified-marketplace-core
+    paths:
+      - .github/workflows/gemini-key-connectivity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-gemini-keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check Gemini key 1 using read-only model listing
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os, urllib.request, urllib.error
+          key = os.environ.get("GEMINI_KEY", "")
+          if not key:
+              print("GEMINI_API_KEY: NOT_CONFIGURED")
+              raise SystemExit(1)
+          req = urllib.request.Request(
+              "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
+              headers={"x-goog-api-key": key, "Accept": "application/json"})
+          try:
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  print("GEMINI_API_KEY: AUTHENTICATED_READ_ONLY" if response.status == 200 else "GEMINI_API_KEY: UNEXPECTED_STATUS")
+          except urllib.error.HTTPError as exc:
+              print("GEMINI_API_KEY: HTTP_" + str(exc.code))
+              raise SystemExit(1)
+          except Exception:
+              print("GEMINI_API_KEY: CONNECTION_ERROR")
+              raise SystemExit(1)
+          PY
+      - name: Check Gemini key 2 using read-only model listing
+        if: always()
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY_2 }}
+        run: |
+          python3 - <<'PY'
+          import os, urllib.request, urllib.error
+          key = os.environ.get("GEMINI_KEY", "")
+          if not key:
+              print("GEMINI_API_KEY_2: NOT_CONFIGURED")
+              raise SystemExit(1)
+          req = urllib.request.Request(
+              "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
+              headers={"x-goog-api-key": key, "Accept": "application/json"})
+          try:
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  print("GEMINI_API_KEY_2: AUTHENTICATED_READ_ONLY" if response.status == 200 else "GEMINI_API_KEY_2: UNEXPECTED_STATUS")
+          except urllib.error.HTTPError as exc:
+              print("GEMINI_API_KEY_2: HTTP_" + str(exc.code))
+              raise SystemExit(1)
+          except Exception:
+              print("GEMINI_API_KEY_2: CONNECTION_ERROR")
+              raise SystemExit(1)
+          PY
